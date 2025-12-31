@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}MedConsult{% endblock %}</title>
+
+    <!-- Tailwind CSS CDN (Phase 1) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/css/custom.css">
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50">
+    {% block body %}
+    <!-- Full page content -->
+    {% endblock %}
+
+    <!-- Custom JS -->
+    <script src="/static/js/dropdown.js"></script>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

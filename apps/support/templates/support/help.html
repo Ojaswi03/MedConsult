@@ -1,0 +1,46 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Help - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 mb-8">Help Center</h1>
+
+    <div class="space-y-6">
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Getting Started</h2>
+            <div class="space-y-3 text-gray-700">
+                <p><strong>For Patients:</strong></p>
+                <ul class="list-disc ml-6 space-y-2">
+                    <li>Create an account and complete your profile</li>
+                    <li>Browse verified doctors by specialization</li>
+                    <li>Select an available time slot and book your appointment</li>
+                    <li>Manage your appointments from your dashboard</li>
+                </ul>
+
+                <p class="mt-4"><strong>For Doctors:</strong></p>
+                <ul class="list-disc ml-6 space-y-2">
+                    <li>Sign up as a doctor and complete your profile with credentials</li>
+                    <li>Wait for admin verification (usually within 24-48 hours)</li>
+                    <li>Set your availability windows through the admin panel</li>
+                    <li>Generate time slots and start accepting patients</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Common Questions</h2>
+            <p class="text-gray-700 mb-4">
+                For frequently asked questions, visit our <a href="{% url 'support:faq' %}" class="text-blue-600 hover:underline">FAQ page</a>.
+            </p>
+        </div>
+
+        <div class="bg-white rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4">Contact Support</h2>
+            <p class="text-gray-700 mb-4">
+                Need more help? <a href="{% url 'support:contact' %}" class="text-blue-600 hover:underline">Contact our support team</a>.
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}

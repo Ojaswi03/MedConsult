@@ -1,0 +1,64 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Dr. {{ doctor.user.get_display_name }} - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <!-- Doctor Info -->
+    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+        <div class="flex items-start">
+            <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-3xl mr-6">
+                {{ doctor.user.get_initials }}
+            </div>
+            <div class="flex-grow">
+                <h1 class="text-3xl font-bold mb-2">Dr. {{ doctor.user.get_display_name }}</h1>
+                <p class="text-xl text-gray-600 mb-4">{{ doctor.specialization }}</p>
+
+                <div class="grid grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <p class="text-sm text-gray-500">Experience</p>
+                        <p class="font-semibold">{{ doctor.years_of_experience }} years</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500">Consultation Fee</p>
+                        <p class="font-semibold">${{ doctor.consultation_fee }}</p>
+                    </div>
+                </div>
+
+                {% if doctor.bio %}
+                <div class="mt-4">
+                    <h3 class="font-semibold mb-2">About</h3>
+                    <p class="text-gray-700">{{ doctor.bio }}</p>
+                </div>
+                {% endif %}
+
+                {% if doctor.education %}
+                <div class="mt-4">
+                    <h3 class="font-semibold mb-2">Education</h3>
+                    <p class="text-gray-700">{{ doctor.education }}</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Available Slots -->
+    <div class="bg-white rounded-lg shadow-md p-8">
+        <h2 class="text-2xl font-semibold mb-6">Available Time Slots</h2>
+
+        {% if available_slots %}
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {% for slot in available_slots %}
+                <a href="{% url 'patient:book_appointment' slot.id %}"
+                   class="block p-4 border-2 border-gray-200 rounded-lg hover:border-blue-500 hover:bg-blue-50 transition">
+                    <p class="font-semibold">{{ slot.start_datetime|date:"F j, Y" }}</p>
+                    <p class="text-sm text-gray-600">{{ slot.start_datetime|date:"g:i A" }} - {{ slot.end_datetime|date:"g:i A" }}</p>
+                </a>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p class="text-gray-600">No available slots at the moment. Please check back later.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

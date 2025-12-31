@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div class="min-h-screen flex flex-col bg-gray-50">
+    <!-- Navbar -->
+    {% include 'partials/navbar.html' %}
+
+    <!-- Messages -->
+    {% include 'partials/messages.html' %}
+
+    <!-- Main content -->
+    <main class="flex-grow">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    <!-- Footer -->
+    {% include 'partials/footer.html' %}
+</div>
+{% endblock %}

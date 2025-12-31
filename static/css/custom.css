@@ -1,0 +1,14 @@
+/**
+ * Custom CSS for MedConsult
+ * Using Tailwind CDN for Phase 1, so this file is mostly for future customizations
+ */
+
+/* Smooth transitions */
+* {
+    transition: color 0.2s ease, background-color 0.2s ease;
+}
+
+/* Focus styles */
+*:focus {
+    outline: none;
+}
