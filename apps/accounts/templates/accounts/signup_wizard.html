@@ -1,0 +1,79 @@
+{% extends "layouts/public.html" %}
+{% load static %}
+
+{% block title %}Sign Up - Step {{ current_step }} - MedConsult{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-2xl w-full bg-white p-8 rounded-lg shadow-lg">
+
+        {# Step Progress Indicator #}
+        {% include "accounts/wizard/_progress.html" %}
+
+        {# Step Title #}
+        <div class="text-center mb-6">
+            <h2 class="text-2xl font-bold text-gray-900">{{ step_title }}</h2>
+            <p class="text-gray-600 mt-1">Step {{ current_step }} of {{ total_steps }}</p>
+        </div>
+
+        {# Form #}
+        <form method="post" {% if has_file %}enctype="multipart/form-data"{% endif %} class="space-y-6">
+            {% csrf_token %}
+
+            {# Render form fields #}
+            {% for field in form %}
+                {% include "accounts/wizard/_form_field.html" with field=field %}
+            {% endfor %}
+
+            {# Camera/Mic Test Section (for final verification steps) #}
+            {% if current_step == total_steps %}
+                {% include "accounts/wizard/_camera_mic_test.html" %}
+            {% endif %}
+
+            {# Form Errors #}
+            {% if form.non_field_errors %}
+            <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
+                {% for error in form.non_field_errors %}
+                <p>{{ error }}</p>
+                {% endfor %}
+            </div>
+            {% endif %}
+
+            {# Navigation Buttons #}
+            <div class="flex justify-between pt-4">
+                {% if current_step > 1 %}
+                <a href="{% url wizard_type|add:'_signup' step=current_step|add:'-1' %}"
+                   class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                    Previous
+                </a>
+                {% else %}
+                <a href="{% url 'signup' %}"
+                   class="px-6 py-3 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50 transition-colors">
+                    Back
+                </a>
+                {% endif %}
+
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold transition-colors">
+                    {% if current_step == total_steps %}
+                        Create Account
+                    {% else %}
+                        Continue
+                    {% endif %}
+                </button>
+            </div>
+        </form>
+
+        <div class="mt-6 text-center">
+            <p class="text-sm text-gray-600">
+                Already have an account?
+                <a href="{% url 'login' %}" class="text-blue-600 hover:text-blue-700 font-semibold">Sign in</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'js/signup_wizard.js' %}"></script>
+{% endblock %}

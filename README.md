@@ -8,11 +8,14 @@ Built with **modularity** and **clean architecture** for easy feature additions 
 
 ## 🌟 Features
 
-- **User Authentication**: Email-based login with role-based access (Patient, Doctor, Admin)
+- **User Authentication**: Username/email login with role-based access (Patient, Doctor, Admin)
+- **Multi-Step Signup Wizards**: Comprehensive onboarding for patients (5 steps) and doctors (6 steps)
+- **Camera/Mic Testing**: Built-in telehealth readiness verification during signup
 - **Doctor Profiles**: Comprehensive profiles with specializations, experience, and verification status
 - **Slot-Based Scheduling**: Clean appointment system with availability windows and generated time slots
 - **Patient Booking**: Easy doctor discovery and appointment booking
 - **Admin Panel**: Doctor verification queue and system oversight
+- **Document Uploads**: Medical license and government ID verification for doctors
 - **Responsive UI**: Built with Tailwind CSS (CDN Phase 1)
 - **Modular Architecture**: Services/Selectors pattern for clean code organization
 - **Template Inheritance**: 4-layer system with reusable components
@@ -30,15 +33,22 @@ MedConsult/
 ├── apps/                   # Django applications (domain isolation)
 │   ├── accounts/           # User authentication & profiles
 │   │   ├── models.py       # User, PatientProfile, DoctorProfile
-│   │   ├── services.py     # create_user(), update_profile()
+│   │   ├── services.py     # create_user(), create_patient_from_wizard()
 │   │   ├── selectors.py    # get_verified_doctors()
-│   │   ├── views.py        # login, signup, profile views
-│   │   ├── forms.py        # SignupForm, LoginForm
+│   │   ├── backends.py     # EmailOrUsernameBackend (custom auth)
+│   │   ├── views.py        # login, signup wizard, profile views
+│   │   ├── forms.py        # Wizard forms, LoginForm
 │   │   ├── urls.py         # /auth/* routes
 │   │   ├── admin.py
 │   │   ├── context_processors.py
 │   │   └── templates/
 │   │       └── accounts/
+│   │           ├── wizard/     # Modular wizard components
+│   │           │   ├── _progress.html
+│   │           │   ├── _camera_mic_test.html
+│   │           │   └── _form_field.html
+│   │           ├── signup_wizard.html
+│   │           └── signup_role_select.html
 │   ├── scheduling/         # Appointments & availability
 │   │   ├── models.py       # AvailabilityWindow, Slot, Appointment
 │   │   ├── services.py     # book_appointment(), cancel()
@@ -77,7 +87,8 @@ MedConsult/
 │   ├── css/
 │   │   └── custom.css
 │   └── js/
-│       └── dropdown.js     # Dropdown interactions
+│       ├── dropdown.js     # Dropdown interactions
+│       └── signup_wizard.js # Camera/mic test, form enhancements
 ├── manage.py               # Django management script
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # Environment variables template
@@ -209,8 +220,12 @@ Visit: **http://127.0.0.1:8000**
 ```
 Public Routes:
 /                           Landing page
-/auth/login/                User login
-/auth/signup/               User registration
+/auth/login/                User login (username or email)
+/auth/signup/               Role selection (Patient or Doctor)
+/auth/signup/patient/       Patient signup wizard (5 steps)
+/auth/signup/patient/<step>/ Patient wizard step
+/auth/signup/doctor/        Doctor signup wizard (6 steps)
+/auth/signup/doctor/<step>/ Doctor wizard step
 /support/help/              Help center
 /support/faq/               Frequently asked questions
 /support/contact/           Contact form
@@ -956,9 +971,78 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 
 ---
 
-## 🚀 Phase 2 Enhancements (Roadmap)
+## 📊 Feature Status
 
-### Performance & Production
+### Authentication & User Management
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Username/Email Login | ✅ Done | Login accepts either username or email |
+| Patient Signup Wizard | ✅ Done | 5-step wizard (Account → Personal → Health → Insurance → Terms) |
+| Doctor Signup Wizard | ✅ Done | 6-step wizard (Account → Personal → Credentials → Bank → ID → Terms) |
+| Camera/Mic Testing | ✅ Done | Cross-browser compatible telehealth readiness check |
+| Gender Selection | ✅ Done | Male/Female/Other with custom text input |
+| Document Uploads | ✅ Done | Medical license and government ID for doctors |
+| Insurance Information | ✅ Done | Provider and policy number collection |
+| Bank Information | ✅ Done | Full bank details for doctor payments |
+| HIPAA Acknowledgment | ✅ Done | Compliance tracking for doctors |
+| Role-based Access | ✅ Done | Patient, Doctor, Admin roles |
+| Email Verification | ❌ Pending | Actual email verification flow |
+| Phone Verification | ❌ Pending | SMS verification via Twilio |
+| Password Reset | ❌ Pending | Forgot password functionality |
+| Two-Factor Auth | ❌ Pending | 2FA for enhanced security |
+
+### Scheduling & Appointments
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Availability Windows | ✅ Done | Doctors set available time ranges |
+| Slot Generation | ✅ Done | Auto-generate bookable time slots |
+| Appointment Booking | ✅ Done | Patients book available slots |
+| Appointment Cancellation | ✅ Done | Cancel and free up slots |
+| Doctor Discovery | ✅ Done | Browse and search verified doctors |
+| Appointment History | ✅ Done | View past appointments |
+| Appointment Reminders | ❌ Pending | Email/SMS reminders |
+| Recurring Appointments | ❌ Pending | Schedule recurring visits |
+| Waitlist | ❌ Pending | Join waitlist for busy doctors |
+
+### Admin & Verification
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Doctor Verification Queue | ✅ Done | Admin reviews pending doctors |
+| User Management | ✅ Done | Admin user oversight |
+| Audit Logging | ✅ Done | Track system activities |
+| Document Review | ❌ Pending | View uploaded documents in admin |
+| Analytics Dashboard | ❌ Pending | Platform statistics |
+
+### Telehealth Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Camera/Mic Test | ✅ Done | Pre-consultation device check |
+| Video Consultation | ❌ Pending | WebRTC video calls |
+| Chat/Messaging | ❌ Pending | In-app messaging |
+| Screen Sharing | ❌ Pending | Share medical images |
+| Session Recording | ❌ Pending | Record consultations |
+
+### Payments & Billing
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Bank Info Collection | ✅ Done | Doctor payment details |
+| Insurance Info | ✅ Done | Patient insurance details |
+| Payment Processing | ❌ Pending | Stripe integration |
+| Invoicing | ❌ Pending | Generate invoices |
+| Refunds | ❌ Pending | Process refunds |
+
+---
+
+## 🚀 Roadmap
+
+### Phase 2: Core Enhancements
+
+#### Performance & Production
 
 - [ ] Tailwind CLI build process (purge unused CSS)
 - [ ] Static file optimization and CDN
@@ -966,19 +1050,18 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 - [ ] Redis caching strategy
 - [ ] Celery for background tasks
 
-### Features
+#### Features
 
-- [ ] Teleconsultation (video/chat integration)
+- [ ] Video consultation (WebRTC/Twilio)
 - [ ] Payment gateway (Stripe integration)
-- [ ] Document uploads (medical records)
-- [ ] Prescription management
 - [ ] Email notifications (appointment reminders)
 - [ ] SMS notifications (Twilio)
-- [ ] Medical records consolidation
+- [ ] Prescription management
+- [ ] Medical records upload
 - [ ] Doctor ratings & reviews
 - [ ] Advanced search & filters
 
-### Developer Experience
+#### Developer Experience
 
 - [ ] API layer (Django REST Framework)
 - [ ] API documentation (Swagger/OpenAPI)
