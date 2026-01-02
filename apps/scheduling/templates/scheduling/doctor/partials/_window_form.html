@@ -1,0 +1,116 @@
+<div class="space-y-4">
+    <!-- Day of Week -->
+    <div>
+        <label for="id_weekday" class="block text-sm font-medium text-gray-700 mb-1">
+            Day of Week <span class="text-red-500">*</span>
+        </label>
+        {{ form.weekday }}
+        {% if form.weekday.errors %}
+        <p class="text-red-600 text-sm mt-1">{{ form.weekday.errors.0 }}</p>
+        {% endif %}
+    </div>
+
+    <!-- Time Range -->
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="id_start_time" class="block text-sm font-medium text-gray-700 mb-1">
+                Start Time <span class="text-red-500">*</span>
+            </label>
+            {{ form.start_time }}
+            {% if form.start_time.errors %}
+            <p class="text-red-600 text-sm mt-1">{{ form.start_time.errors.0 }}</p>
+            {% endif %}
+        </div>
+        <div>
+            <label for="id_end_time" class="block text-sm font-medium text-gray-700 mb-1">
+                End Time <span class="text-red-500">*</span>
+            </label>
+            {{ form.end_time }}
+            {% if form.end_time.errors %}
+            <p class="text-red-600 text-sm mt-1">{{ form.end_time.errors.0 }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Slot Duration and Type -->
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="id_slot_duration_minutes" class="block text-sm font-medium text-gray-700 mb-1">
+                Slot Duration <span class="text-red-500">*</span>
+            </label>
+            {{ form.slot_duration_minutes }}
+        </div>
+        <div>
+            <label for="id_appointment_type" class="block text-sm font-medium text-gray-700 mb-1">
+                Appointment Type
+            </label>
+            {{ form.appointment_type }}
+        </div>
+    </div>
+
+    <!-- Buffer Times -->
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="id_buffer_before_minutes" class="block text-sm font-medium text-gray-700 mb-1">
+                Buffer Before
+            </label>
+            {{ form.buffer_before_minutes }}
+            <p class="text-xs text-gray-500 mt-1">Prep time before each slot</p>
+        </div>
+        <div>
+            <label for="id_buffer_after_minutes" class="block text-sm font-medium text-gray-700 mb-1">
+                Buffer After
+            </label>
+            {{ form.buffer_after_minutes }}
+            <p class="text-xs text-gray-500 mt-1">Notes/break time after each slot</p>
+        </div>
+    </div>
+
+    <!-- Recurring Checkbox -->
+    <div class="flex items-center gap-2">
+        {{ form.is_recurring }}
+        <label for="id_is_recurring" class="text-sm font-medium text-gray-700">
+            Repeat Weekly
+        </label>
+    </div>
+
+    <!-- Date Range (optional) -->
+    <div class="grid grid-cols-2 gap-4">
+        <div>
+            <label for="id_effective_date" class="block text-sm font-medium text-gray-700 mb-1">
+                Start Date (optional)
+            </label>
+            {{ form.effective_date }}
+            <p class="text-xs text-gray-500 mt-1">Leave blank to start immediately</p>
+        </div>
+        <div>
+            <label for="id_end_date" class="block text-sm font-medium text-gray-700 mb-1">
+                End Date (optional)
+            </label>
+            {{ form.end_date }}
+            <p class="text-xs text-gray-500 mt-1">Leave blank for no end date</p>
+        </div>
+    </div>
+
+    <!-- Form Errors -->
+    {% if form.non_field_errors %}
+    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+        {% for error in form.non_field_errors %}
+        <p class="text-red-600 text-sm">{{ error }}</p>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Submit Button -->
+    <div class="flex justify-end gap-3 pt-4 border-t">
+        <button type="button"
+                onclick="document.getElementById('window-modal').classList.add('hidden')"
+                class="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50">
+            Cancel
+        </button>
+        <button type="submit"
+                class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+            Create Availability
+        </button>
+    </div>
+</div>

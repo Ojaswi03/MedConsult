@@ -1,0 +1,27 @@
+<div class="grid grid-cols-2 md:grid-cols-5 gap-4">
+    <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Total Slots</p>
+        <p class="text-2xl font-bold text-gray-900">{{ summary.total_slots }}</p>
+        <p class="text-xs text-gray-400">Next 30 days</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Available</p>
+        <p class="text-2xl font-bold text-green-600">{{ summary.available_slots }}</p>
+        <p class="text-xs text-gray-400">Open for booking</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Booked</p>
+        <p class="text-2xl font-bold text-blue-600">{{ summary.booked_slots }}</p>
+        <p class="text-xs text-gray-400">Appointments</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Blocked</p>
+        <p class="text-2xl font-bold text-gray-600">{{ summary.blocked_slots }}</p>
+        <p class="text-xs text-gray-400">Unavailable</p>
+    </div>
+    <div class="bg-white rounded-lg shadow p-4">
+        <p class="text-sm text-gray-500">Urgent</p>
+        <p class="text-2xl font-bold text-yellow-600">{{ summary.urgent_slots }}</p>
+        <p class="text-xs text-gray-400">Priority slots</p>
+    </div>
+</div>

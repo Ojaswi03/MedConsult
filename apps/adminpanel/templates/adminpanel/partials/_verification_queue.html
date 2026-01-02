@@ -1,0 +1,133 @@
+{% if pending_doctors %}
+<div class="space-y-6">
+    {% for doctor in pending_doctors %}
+    <div class="bg-white rounded-lg shadow-sm p-6">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
+            <!-- Doctor Info -->
+            <div class="flex-grow">
+                <div class="flex items-center mb-4">
+                    {% if doctor.user.profile_picture %}
+                    <img class="w-16 h-16 rounded-full object-cover" src="{{ doctor.user.profile_picture.url }}" alt="">
+                    {% else %}
+                    <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+                        <span class="text-purple-600 font-bold text-xl">
+                            {{ doctor.user.first_name|slice:":1"|upper }}{{ doctor.user.last_name|slice:":1"|upper }}
+                        </span>
+                    </div>
+                    {% endif %}
+                    <div class="ml-4">
+                        <h3 class="text-xl font-semibold text-gray-900">Dr. {{ doctor.user.get_display_name }}</h3>
+                        <p class="text-sm text-gray-500">{{ doctor.user.email }}</p>
+                        <p class="text-xs text-gray-400 mt-1">Applied {{ doctor.created_at|timesince }} ago</p>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">Specialization</p>
+                        <p class="font-medium text-gray-900">{{ doctor.specialization }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">License Number</p>
+                        <p class="font-medium text-gray-900">{{ doctor.medical_license_number }}</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">Experience</p>
+                        <p class="font-medium text-gray-900">{{ doctor.years_of_experience }} years</p>
+                    </div>
+                    <div class="bg-gray-50 rounded-lg p-3">
+                        <p class="text-gray-500 text-xs">Consultation Fee</p>
+                        <p class="font-medium text-gray-900">${{ doctor.consultation_fee }}</p>
+                    </div>
+                </div>
+
+                {% if doctor.education %}
+                <div class="mt-4">
+                    <p class="text-xs text-gray-500">Education</p>
+                    <p class="text-sm text-gray-900">{{ doctor.education }}</p>
+                </div>
+                {% endif %}
+
+                {% if doctor.bio %}
+                <div class="mt-4">
+                    <p class="text-xs text-gray-500">Bio</p>
+                    <p class="text-sm text-gray-900">{{ doctor.bio|truncatewords:50 }}</p>
+                </div>
+                {% endif %}
+
+                <!-- Document View Buttons -->
+                <div class="mt-4 flex flex-wrap gap-3">
+                    {% if doctor.medical_license_document %}
+                    <button onclick="showDocumentModal({{ doctor.id }}, 'license')"
+                            class="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        View Medical License
+                    </button>
+                    {% else %}
+                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        No License Uploaded
+                    </span>
+                    {% endif %}
+
+                    {% if doctor.government_id_document %}
+                    <button onclick="showDocumentModal({{ doctor.id }}, 'government_id')"
+                            class="inline-flex items-center px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition-colors text-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5m-4 0V5a2 2 0 114 0v1m-4 0a2 2 0 104 0m-5 8a2 2 0 100-4 2 2 0 000 4zm0 0c1.306 0 2.417.835 2.83 2M9 14a3.001 3.001 0 00-2.83 2M15 11h3m-3 4h2"/>
+                        </svg>
+                        View Government ID
+                    </button>
+                    {% else %}
+                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                        </svg>
+                        No ID Uploaded
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex lg:flex-col gap-3 flex-shrink-0">
+                <form method="post" action="{% url 'adminpanel:verify_doctor' doctor.id %}"
+                      hx-post="{% url 'adminpanel:verify_doctor' doctor.id %}"
+                      hx-target="#verification-queue"
+                      hx-swap="innerHTML">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-semibold flex items-center justify-center">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Verify
+                    </button>
+                </form>
+                <button onclick="showRejectModal({{ doctor.id }})"
+                        class="w-full px-6 py-3 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors font-semibold flex items-center justify-center">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                    Reject
+                </button>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="bg-white rounded-lg shadow-sm p-12 text-center">
+    <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+        <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+        </svg>
+    </div>
+    <h3 class="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
+    <p class="text-gray-500">No pending doctor verifications at this time.</p>
+</div>
+{% endif %}

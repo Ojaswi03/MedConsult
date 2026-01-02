@@ -1,0 +1,154 @@
+<!-- Week Navigation (for HTMX updates) -->
+<div class="flex justify-between items-center mb-4 md:hidden">
+    <button
+        hx-get="{% url 'doctor:calendar_slots' %}?week_start={{ prev_week }}"
+        hx-target="#calendar-grid"
+        hx-swap="innerHTML"
+        class="px-3 py-2 border rounded-lg hover:bg-gray-100">
+        &larr; Prev
+    </button>
+    <span class="text-sm text-gray-600">{{ start_of_week|date:"M j" }} - {{ end_of_week|date:"M j" }}</span>
+    <button
+        hx-get="{% url 'doctor:calendar_slots' %}?week_start={{ next_week }}"
+        hx-target="#calendar-grid"
+        hx-swap="innerHTML"
+        class="px-3 py-2 border rounded-lg hover:bg-gray-100">
+        Next &rarr;
+    </button>
+</div>
+
+<!-- Calendar Grid -->
+<div class="grid grid-cols-7 gap-1 md:gap-2">
+    <!-- Day Headers -->
+    {% for date in week_dates %}
+    <div class="text-center p-2 {% if date == today %}bg-blue-50 rounded-t-lg{% endif %}">
+        <p class="text-xs text-gray-500 uppercase">{{ date|date:"D" }}</p>
+        <p class="text-lg font-semibold {% if date == today %}text-blue-600{% else %}text-gray-900{% endif %}">
+            {{ date|date:"j" }}
+        </p>
+    </div>
+    {% endfor %}
+
+    <!-- Slots for each day -->
+    {% for date in week_dates %}
+    <div class="min-h-32 border rounded-lg p-1 {% if date == today %}bg-blue-50{% else %}bg-gray-50{% endif %}">
+        {% for slot in slots %}
+            {% if slot.start_datetime.date == date %}
+            <div class="mb-1 p-1 rounded text-xs cursor-pointer hover:opacity-80 transition-opacity
+                {% if slot.is_blocked %}bg-gray-400 text-white
+                {% elif slot.is_booked %}bg-red-500 text-white
+                {% elif slot.is_urgent %}bg-yellow-500 text-white
+                {% else %}bg-green-500 text-white{% endif %}"
+                 data-slot-id="{{ slot.id }}"
+                 data-slot-status="{{ slot.get_status }}"
+                 onclick="showSlotMenu(this, {{ slot.id }}, '{{ slot.get_status }}')">
+                <span class="font-medium">{{ slot.start_datetime|time:"g:i A" }}</span>
+                {% if slot.is_urgent %}
+                <span class="ml-1" title="Urgent">!</span>
+                {% endif %}
+                {% if slot.appointment_type != 'video' %}
+                <span class="ml-1 opacity-75">
+                    {% if slot.appointment_type == 'chat' %}C{% elif slot.appointment_type == 'phone' %}P{% endif %}
+                </span>
+                {% endif %}
+            </div>
+            {% endif %}
+        {% empty %}
+        {% endfor %}
+
+        {% with has_slots=False %}
+        {% for slot in slots %}
+            {% if slot.start_datetime.date == date %}
+                {% with has_slots=True %}{% endwith %}
+            {% endif %}
+        {% endfor %}
+        {% endwith %}
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Slot Action Menu (hidden by default, positioned by JS) -->
+<div id="slot-action-menu" class="hidden fixed bg-white shadow-xl rounded-lg border p-2 z-50 min-w-40">
+    <div id="slot-menu-content"></div>
+</div>
+
+<script>
+function showSlotMenu(element, slotId, status) {
+    const menu = document.getElementById('slot-action-menu');
+    const content = document.getElementById('slot-menu-content');
+
+    // Position menu near clicked element
+    const rect = element.getBoundingClientRect();
+    menu.style.top = (rect.bottom + window.scrollY + 5) + 'px';
+    menu.style.left = Math.min(rect.left, window.innerWidth - 180) + 'px';
+
+    // Build menu content based on status
+    let html = '';
+    if (status === 'available') {
+        html = `
+            <button hx-post="/doctor/availability/slots/${slotId}/block/"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">
+                Block Slot
+            </button>
+            <button hx-post="/doctor/availability/slots/${slotId}/delete/"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    hx-confirm="Delete this slot?"
+                    class="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100 rounded">
+                Delete Slot
+            </button>
+        `;
+    } else if (status === 'blocked') {
+        html = `
+            <button hx-post="/doctor/availability/slots/${slotId}/unblock/"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">
+                Unblock Slot
+            </button>
+        `;
+    } else if (status === 'booked') {
+        html = `
+            <p class="px-3 py-2 text-sm text-gray-500">This slot is booked</p>
+            <a href="/doctor/schedule/" class="block w-full text-left px-3 py-2 text-sm text-blue-600 hover:bg-gray-100 rounded">
+                View Schedule
+            </a>
+        `;
+    } else if (status === 'urgent') {
+        html = `
+            <p class="px-3 py-2 text-sm text-yellow-600 font-medium">Urgent Slot</p>
+            <button hx-post="/doctor/availability/slots/${slotId}/block/"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    class="block w-full text-left px-3 py-2 text-sm hover:bg-gray-100 rounded">
+                Block Slot
+            </button>
+            <button hx-post="/doctor/availability/slots/${slotId}/delete/"
+                    hx-target="#calendar-grid"
+                    hx-swap="innerHTML"
+                    hx-confirm="Delete this urgent slot?"
+                    class="block w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-gray-100 rounded">
+                Delete Slot
+            </button>
+        `;
+    }
+
+    content.innerHTML = html;
+    menu.classList.remove('hidden');
+
+    // Re-process HTMX on new content
+    htmx.process(content);
+
+    // Close menu on click outside
+    setTimeout(() => {
+        document.addEventListener('click', function closeMenu(e) {
+            if (!menu.contains(e.target) && e.target !== element) {
+                menu.classList.add('hidden');
+                document.removeEventListener('click', closeMenu);
+            }
+        });
+    }, 10);
+}
+</script>

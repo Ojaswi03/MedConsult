@@ -1,0 +1,126 @@
+<div class="p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+            {% if doctor.user.profile_picture %}
+            <img class="w-16 h-16 rounded-full object-cover" src="{{ doctor.user.profile_picture.url }}" alt="">
+            {% else %}
+            <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
+                <span class="text-purple-600 font-bold text-xl">
+                    {{ doctor.user.first_name|slice:":1"|upper }}{{ doctor.user.last_name|slice:":1"|upper }}
+                </span>
+            </div>
+            {% endif %}
+            <div class="ml-4">
+                <h3 class="text-xl font-bold text-gray-900">Dr. {{ doctor.user.get_display_name }}</h3>
+                <p class="text-sm text-gray-500">{{ doctor.specialization }}</p>
+                <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1
+                    {% if doctor.verification_status == 'verified' %}bg-green-100 text-green-800
+                    {% elif doctor.verification_status == 'pending' %}bg-yellow-100 text-yellow-800
+                    {% else %}bg-red-100 text-red-800{% endif %}">
+                    {{ doctor.verification_status|title }}
+                </span>
+            </div>
+        </div>
+        <button onclick="closeDoctorModal()" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- Doctor Info -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Email</p>
+            <p class="font-medium text-gray-900">{{ doctor.user.email }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">License Number</p>
+            <p class="font-medium text-gray-900">{{ doctor.medical_license_number }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Experience</p>
+            <p class="font-medium text-gray-900">{{ doctor.years_of_experience }} years</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Consultation Fee</p>
+            <p class="font-medium text-gray-900">${{ doctor.consultation_fee }}</p>
+        </div>
+    </div>
+
+    <!-- Statistics -->
+    <div class="border-t border-gray-200 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Performance Statistics</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center bg-blue-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-blue-600">{{ total_slots }}</p>
+                <p class="text-sm text-gray-500">Total Slots</p>
+            </div>
+            <div class="text-center bg-green-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-green-600">{{ available_slots }}</p>
+                <p class="text-sm text-gray-500">Available</p>
+            </div>
+            <div class="text-center bg-purple-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-purple-600">{{ booked_slots }}</p>
+                <p class="text-sm text-gray-500">Booked</p>
+            </div>
+            <div class="text-center bg-gray-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-gray-600">{{ blocked_slots }}</p>
+                <p class="text-sm text-gray-500">Blocked</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Appointment Stats -->
+    <div class="border-t border-gray-200 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Appointment Statistics</h4>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div class="text-center bg-indigo-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-indigo-600">{{ total_appointments }}</p>
+                <p class="text-sm text-gray-500">Total</p>
+            </div>
+            <div class="text-center bg-green-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-green-600">{{ completed_appointments }}</p>
+                <p class="text-sm text-gray-500">Completed</p>
+            </div>
+            <div class="text-center bg-red-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-red-600">{{ cancelled_appointments }}</p>
+                <p class="text-sm text-gray-500">Cancelled</p>
+            </div>
+            <div class="text-center bg-yellow-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-yellow-600">{{ no_show_appointments }}</p>
+                <p class="text-sm text-gray-500">No-Shows</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Revenue -->
+    <div class="border-t border-gray-200 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Revenue</h4>
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-green-50 rounded-lg p-4">
+                <p class="text-sm text-green-600">Potential Revenue (Completed)</p>
+                <p class="text-2xl font-bold text-gray-900">${{ potential_revenue }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">Last 30 Days Appointments</p>
+                <p class="text-2xl font-bold text-gray-900">{{ appointments_30d }}</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="border-t border-gray-200 pt-6 flex justify-end space-x-3">
+        {% if doctor.verification_status == 'pending' %}
+        <a href="{% url 'adminpanel:verification_queue' %}"
+           class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
+            Go to Verification
+        </a>
+        {% endif %}
+        <button onclick="closeDoctorModal()"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+            Close
+        </button>
+    </div>
+</div>

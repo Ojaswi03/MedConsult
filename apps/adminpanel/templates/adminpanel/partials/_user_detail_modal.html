@@ -1,0 +1,187 @@
+<div class="p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+        <div class="flex items-center">
+            {% if user.profile_picture %}
+            <img class="w-16 h-16 rounded-full object-cover" src="{{ user.profile_picture.url }}" alt="">
+            {% else %}
+            <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
+                <span class="text-gray-600 font-bold text-xl">
+                    {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+                </span>
+            </div>
+            {% endif %}
+            <div class="ml-4">
+                <h3 class="text-xl font-bold text-gray-900">{{ user.get_display_name }}</h3>
+                <p class="text-sm text-gray-500">{{ user.email }}</p>
+            </div>
+        </div>
+        <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- User Info Grid -->
+    <div class="grid grid-cols-2 gap-4 mb-6">
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Role</p>
+            <p class="font-medium text-gray-900">{{ user.role|title }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Status</p>
+            <p class="font-medium {% if user.is_active %}text-green-600{% else %}text-red-600{% endif %}">
+                {% if user.is_active %}Active{% else %}Inactive{% endif %}
+            </p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Username</p>
+            <p class="font-medium text-gray-900">{{ user.username }}</p>
+        </div>
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Joined</p>
+            <p class="font-medium text-gray-900">{{ user.created_at|date:"M d, Y" }}</p>
+        </div>
+        {% if user.phone_number %}
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Phone</p>
+            <p class="font-medium text-gray-900">{{ user.phone_number }}</p>
+        </div>
+        {% endif %}
+        {% if user.date_of_birth %}
+        <div class="bg-gray-50 rounded-lg p-4">
+            <p class="text-sm text-gray-500">Date of Birth</p>
+            <p class="font-medium text-gray-900">{{ user.date_of_birth|date:"M d, Y" }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Profile Specific Info -->
+    {% if profile %}
+    <div class="border-t border-gray-200 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">
+            {% if user.role == 'doctor' %}Doctor Profile{% else %}Patient Profile{% endif %}
+        </h4>
+
+        {% if user.role == 'doctor' %}
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">Specialization</p>
+                <p class="font-medium text-gray-900">{{ profile.specialization }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">Verification</p>
+                <p class="font-medium {% if profile.verification_status == 'verified' %}text-green-600{% elif profile.verification_status == 'pending' %}text-yellow-600{% else %}text-red-600{% endif %}">
+                    {{ profile.verification_status|title }}
+                </p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">License Number</p>
+                <p class="font-medium text-gray-900">{{ profile.medical_license_number }}</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">Experience</p>
+                <p class="font-medium text-gray-900">{{ profile.years_of_experience }} years</p>
+            </div>
+            <div class="bg-blue-50 rounded-lg p-4">
+                <p class="text-sm text-blue-600">Consultation Fee</p>
+                <p class="font-medium text-gray-900">${{ profile.consultation_fee }}</p>
+            </div>
+        </div>
+        {% elif user.role == 'patient' %}
+        <div class="grid grid-cols-2 gap-4">
+            {% if profile.blood_type %}
+            <div class="bg-green-50 rounded-lg p-4">
+                <p class="text-sm text-green-600">Blood Type</p>
+                <p class="font-medium text-gray-900">{{ profile.blood_type }}</p>
+            </div>
+            {% endif %}
+            {% if profile.emergency_contact_name %}
+            <div class="bg-green-50 rounded-lg p-4">
+                <p class="text-sm text-green-600">Emergency Contact</p>
+                <p class="font-medium text-gray-900">{{ profile.emergency_contact_name }}</p>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Statistics -->
+    {% if stats %}
+    <div class="border-t border-gray-200 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Statistics</h4>
+        <div class="grid grid-cols-3 gap-4">
+            <div class="text-center bg-gray-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-gray-900">{{ stats.total_appointments|default:0 }}</p>
+                <p class="text-sm text-gray-500">Total Appointments</p>
+            </div>
+            <div class="text-center bg-gray-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-green-600">{{ stats.completed|default:0 }}</p>
+                <p class="text-sm text-gray-500">Completed</p>
+            </div>
+            {% if user.role == 'patient' %}
+            <div class="text-center bg-gray-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-red-600">{{ stats.cancelled|default:0 }}</p>
+                <p class="text-sm text-gray-500">Cancelled</p>
+            </div>
+            {% elif user.role == 'doctor' %}
+            <div class="text-center bg-gray-50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-blue-600">{{ stats.available_slots|default:0 }}</p>
+                <p class="text-sm text-gray-500">Available Slots</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Recent Appointments -->
+    {% if appointments %}
+    <div class="border-t border-gray-200 pt-6">
+        <h4 class="text-lg font-semibold text-gray-900 mb-4">Recent Appointments</h4>
+        <div class="space-y-3">
+            {% for apt in appointments|slice:":5" %}
+            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div>
+                    <p class="text-sm font-medium text-gray-900">
+                        {% if user.role == 'patient' %}
+                        Dr. {{ apt.doctor.user.get_display_name|default:"Unknown" }}
+                        {% else %}
+                        {{ apt.patient.get_display_name|default:"Unknown" }}
+                        {% endif %}
+                    </p>
+                    <p class="text-xs text-gray-500">
+                        {% if apt.slot %}{{ apt.slot.start_datetime|date:"M d, Y H:i" }}{% endif %}
+                    </p>
+                </div>
+                <span class="px-2 py-1 text-xs rounded-full
+                    {% if apt.status == 'scheduled' %}bg-blue-100 text-blue-800
+                    {% elif apt.status == 'completed' %}bg-green-100 text-green-800
+                    {% elif apt.status == 'cancelled' %}bg-red-100 text-red-800
+                    {% else %}bg-gray-100 text-gray-800{% endif %}">
+                    {{ apt.status|title }}
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Actions -->
+    <div class="border-t border-gray-200 pt-6 mt-6 flex justify-end space-x-3">
+        {% if user.role != 'admin' %}
+        <form method="post" action="{% url 'adminpanel:user_toggle_active' user.id %}" class="inline">
+            {% csrf_token %}
+            <button type="submit"
+                    class="px-4 py-2 rounded-lg {% if user.is_active %}bg-red-600 hover:bg-red-700{% else %}bg-green-600 hover:bg-green-700{% endif %} text-white transition-colors">
+                {% if user.is_active %}Deactivate User{% else %}Activate User{% endif %}
+            </button>
+        </form>
+        {% endif %}
+        <button onclick="closeUserModal()"
+                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+            Close
+        </button>
+    </div>
+</div>

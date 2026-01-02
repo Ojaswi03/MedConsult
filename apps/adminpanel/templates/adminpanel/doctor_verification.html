@@ -1,66 +1,107 @@
-{% extends "layouts/app.html" %}
+{% extends "layouts/admin.html" %}
 
-{% block title %}Doctor Verification - Admin{% endblock %}
+{% block page_title %}Verification Queue{% endblock %}
 
 {% block content %}
-<div>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Doctor Verification Queue</h1>
-
-    {% if pending_doctors %}
-        <div class="space-y-6">
-            {% for doctor in pending_doctors %}
-            <div class="bg-white rounded-lg shadow-md p-6">
-                <div class="flex justify-between items-start">
-                    <div class="flex-grow">
-                        <h3 class="text-xl font-semibold mb-2">Dr. {{ doctor.user.get_display_name }}</h3>
-                        <div class="grid grid-cols-2 gap-4 text-sm">
-                            <div>
-                                <p class="text-gray-600">Email:</p>
-                                <p class="font-medium">{{ doctor.user.email }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600">Specialization:</p>
-                                <p class="font-medium">{{ doctor.specialization }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600">Medical License:</p>
-                                <p class="font-medium">{{ doctor.medical_license_number }}</p>
-                            </div>
-                            <div>
-                                <p class="text-gray-600">Experience:</p>
-                                <p class="font-medium">{{ doctor.years_of_experience }} years</p>
-                            </div>
-                        </div>
-                        {% if doctor.education %}
-                        <div class="mt-4">
-                            <p class="text-gray-600 text-sm">Education:</p>
-                            <p class="text-sm">{{ doctor.education }}</p>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="flex space-x-2 ml-6">
-                        <form method="post" action="{% url 'adminpanel:verify_doctor' doctor.id %}">
-                            {% csrf_token %}
-                            <button class="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-semibold">
-                                Verify
-                            </button>
-                        </form>
-                        <form method="post" action="{% url 'adminpanel:reject_doctor' doctor.id %}">
-                            {% csrf_token %}
-                            <button class="px-6 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-semibold">
-                                Reject
-                            </button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-            {% endfor %}
-        </div>
-    {% else %}
-        <div class="bg-white rounded-lg shadow-md p-8 text-center">
-            <p class="text-gray-600">No pending doctor verifications.</p>
-        </div>
-    {% endif %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900">Doctor Verification Queue</h2>
+    <p class="text-sm text-gray-500 mt-1">{{ pending_doctors|length }} doctors awaiting verification</p>
 </div>
+
+<div id="verification-queue">
+    {% include "adminpanel/partials/_verification_queue.html" %}
+</div>
+
+<!-- Document Viewer Modal -->
+<div id="document-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        <div class="p-4 border-b border-gray-200 flex justify-between items-center">
+            <h3 class="text-lg font-semibold text-gray-900" id="document-modal-title">Document Preview</h3>
+            <button onclick="closeDocumentModal()" class="text-gray-400 hover:text-gray-600">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </button>
+        </div>
+        <div id="document-modal-content" class="p-4 overflow-y-auto" style="max-height: calc(90vh - 60px);">
+            <!-- Document loaded via HTMX -->
+        </div>
+    </div>
+</div>
+
+<!-- Rejection Reason Modal -->
+<div id="reject-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-md w-full">
+        <div class="p-4 border-b border-gray-200">
+            <h3 class="text-lg font-semibold text-gray-900">Reject Doctor Application</h3>
+        </div>
+        <form id="reject-form" method="post" action="">
+            {% csrf_token %}
+            <div class="p-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Reason for Rejection</label>
+                <textarea name="reason" rows="4" required
+                          class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-red-500 focus:border-red-500"
+                          placeholder="Please provide a reason for rejection..."></textarea>
+            </div>
+            <div class="p-4 bg-gray-50 flex justify-end space-x-3 rounded-b-lg">
+                <button type="button" onclick="closeRejectModal()"
+                        class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                    Confirm Rejection
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block admin_extra_js %}
+<script>
+function showDocumentModal(doctorId, docType) {
+    const modal = document.getElementById('document-modal');
+    const title = docType === 'license' ? 'Medical License' : 'Government ID';
+    document.getElementById('document-modal-title').textContent = title + ' Preview';
+    modal.classList.remove('hidden');
+
+    htmx.ajax('GET', '/internal/doctors/' + doctorId + '/document/' + docType + '/', {
+        target: '#document-modal-content',
+        swap: 'innerHTML'
+    });
+}
+
+function closeDocumentModal() {
+    document.getElementById('document-modal').classList.add('hidden');
+}
+
+function showRejectModal(doctorId) {
+    const modal = document.getElementById('reject-modal');
+    const form = document.getElementById('reject-form');
+    form.action = '/internal/verify/' + doctorId + '/reject/';
+    modal.classList.remove('hidden');
+}
+
+function closeRejectModal() {
+    document.getElementById('reject-modal').classList.add('hidden');
+    document.getElementById('reject-form').reset();
+}
+
+// Close modals on backdrop click
+document.getElementById('document-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeDocumentModal();
+});
+
+document.getElementById('reject-modal')?.addEventListener('click', function(e) {
+    if (e.target === this) closeRejectModal();
+});
+
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        closeDocumentModal();
+        closeRejectModal();
+    }
+});
+</script>
 {% endblock %}

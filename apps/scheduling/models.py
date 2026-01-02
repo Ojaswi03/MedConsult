@@ -3,6 +3,14 @@ from django.utils import timezone
 from apps.accounts.models import User, DoctorProfile
 
 
+# Appointment type choices used across models
+APPOINTMENT_TYPE_CHOICES = [
+    ('video', 'Video Consultation'),
+    ('chat', 'Chat Consultation'),
+    ('phone', 'Phone Consultation'),
+]
+
+
 class AvailabilityWindow(models.Model):
     """
     Recurring availability for doctors (e.g., "Every Monday 9-5").
@@ -24,6 +32,20 @@ class AvailabilityWindow(models.Model):
     end_time = models.TimeField()
     slot_duration_minutes = models.IntegerField(default=30)
     is_active = models.BooleanField(default=True)
+
+    # New fields for enhanced availability management
+    buffer_before_minutes = models.IntegerField(default=0, help_text='Buffer time before appointment in minutes')
+    buffer_after_minutes = models.IntegerField(default=0, help_text='Buffer time after appointment in minutes')
+    is_recurring = models.BooleanField(default=True, help_text='Whether this window repeats weekly')
+    effective_date = models.DateField(null=True, blank=True, help_text='Start date for non-recurring or effective start')
+    end_date = models.DateField(null=True, blank=True, help_text='End date for recurring windows')
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE_CHOICES,
+        default='video',
+        help_text='Default appointment type for slots generated from this window'
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -51,6 +73,19 @@ class Slot(models.Model):
     start_datetime = models.DateTimeField()
     end_datetime = models.DateTimeField()
     is_booked = models.BooleanField(default=False)
+
+    # New fields for enhanced slot management
+    appointment_type = models.CharField(
+        max_length=20,
+        choices=APPOINTMENT_TYPE_CHOICES,
+        default='video'
+    )
+    max_capacity = models.IntegerField(default=1, help_text='Max patients for group sessions')
+    current_bookings = models.IntegerField(default=0, help_text='Current number of bookings')
+    is_urgent = models.BooleanField(default=False, help_text='Manually created urgent slot')
+    is_blocked = models.BooleanField(default=False, help_text='Blocked for time off')
+    notes = models.CharField(max_length=255, blank=True, help_text='Doctor notes for this slot')
+
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -59,6 +94,7 @@ class Slot(models.Model):
         indexes = [
             models.Index(fields=['doctor', 'start_datetime']),
             models.Index(fields=['is_booked', 'start_datetime']),
+            models.Index(fields=['is_blocked', 'start_datetime']),
         ]
 
     def __str__(self):
@@ -66,7 +102,25 @@ class Slot(models.Model):
 
     def is_available(self):
         """Check if slot is available for booking."""
+        if self.is_blocked:
+            return False
+        if self.max_capacity > 1:
+            # Group session: available if not at capacity
+            return self.current_bookings < self.max_capacity and self.start_datetime > timezone.now()
+        # Standard slot: available if not booked
         return not self.is_booked and self.start_datetime > timezone.now()
+
+    def get_status(self):
+        """Get slot status for calendar display."""
+        if self.is_blocked:
+            return 'blocked'
+        if self.is_booked or (self.max_capacity > 1 and self.current_bookings >= self.max_capacity):
+            return 'booked'
+        if self.is_urgent:
+            return 'urgent'
+        if hasattr(self, 'appointment') and self.appointment.status == 'scheduled':
+            return 'pending'
+        return 'available'
 
 
 class Appointment(models.Model):
@@ -114,3 +168,68 @@ class Appointment(models.Model):
     def can_cancel(self):
         """Check if appointment can be cancelled."""
         return self.status == 'scheduled' and self.start_datetime > timezone.now()
+
+
+class AppointmentTypeConfig(models.Model):
+    """
+    Configuration for different appointment types per doctor.
+    Allows doctors to set pricing and enable/disable types.
+    """
+    doctor = models.ForeignKey(
+        DoctorProfile,
+        on_delete=models.CASCADE,
+        related_name='appointment_type_configs'
+    )
+    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE_CHOICES)
+    duration_minutes = models.IntegerField(default=30)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'appointment_type_configs'
+        unique_together = ['doctor', 'appointment_type']
+        ordering = ['appointment_type']
+
+    def __str__(self):
+        return f"{self.doctor.user.get_display_name()} - {self.get_appointment_type_display()} (${self.price})"
+
+
+class SlotChangeLog(models.Model):
+    """
+    Tracks slot changes for real-time notification to patients.
+    Used by HTMX polling to detect updates.
+    """
+    CHANGE_TYPES = [
+        ('created', 'Created'),
+        ('updated', 'Updated'),
+        ('deleted', 'Deleted'),
+        ('booked', 'Booked'),
+        ('cancelled', 'Cancelled'),
+    ]
+
+    doctor = models.ForeignKey(
+        DoctorProfile,
+        on_delete=models.CASCADE,
+        related_name='slot_changes'
+    )
+    slot = models.ForeignKey(
+        Slot,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='change_logs'
+    )
+    change_type = models.CharField(max_length=20, choices=CHANGE_TYPES)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'slot_change_logs'
+        ordering = ['-created_at']
+        indexes = [
+            models.Index(fields=['doctor', 'created_at']),
+        ]
+
+    def __str__(self):
+        return f"{self.doctor.user.get_display_name()} - {self.change_type} at {self.created_at}"

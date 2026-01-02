@@ -6,17 +6,25 @@ Built with **modularity** and **clean architecture** for easy feature additions 
 
 ---
 
-## 🌟 Features
+## Features
 
 - **User Authentication**: Username/email login with role-based access (Patient, Doctor, Admin)
 - **Multi-Step Signup Wizards**: Comprehensive onboarding for patients (5 steps) and doctors (6 steps)
 - **Camera/Mic Testing**: Built-in telehealth readiness verification during signup
 - **Doctor Profiles**: Comprehensive profiles with specializations, experience, and verification status
 - **Slot-Based Scheduling**: Clean appointment system with availability windows and generated time slots
-- **Patient Booking**: Easy doctor discovery and appointment booking
+- **Doctor Availability Management**: Full self-service UI for doctors to manage their schedules
+  - Visual weekly calendar with color-coded slots (available/booked/blocked/urgent)
+  - Create/edit/delete recurring availability windows
+  - Buffer times before/after appointments
+  - Manual/urgent slot creation
+  - Block/unblock individual slots
+- **Appointment Types & Pricing**: Video, Chat, Phone consultations with customizable pricing per doctor
+- **Real-time Patient Updates**: HTMX-powered live slot availability (5-second polling)
+- **Patient Booking**: Easy doctor discovery and appointment booking with live updates
 - **Admin Panel**: Doctor verification queue and system oversight
 - **Document Uploads**: Medical license and government ID verification for doctors
-- **Responsive UI**: Built with Tailwind CSS (CDN Phase 1)
+- **Responsive UI**: Built with Tailwind CSS (CDN) and HTMX for dynamic updates
 - **Modular Architecture**: Services/Selectors pattern for clean code organization
 - **Template Inheritance**: 4-layer system with reusable components
 
@@ -50,17 +58,35 @@ MedConsult/
 │   │           ├── signup_wizard.html
 │   │           └── signup_role_select.html
 │   ├── scheduling/         # Appointments & availability
-│   │   ├── models.py       # AvailabilityWindow, Slot, Appointment
-│   │   ├── services.py     # book_appointment(), cancel()
-│   │   ├── selectors.py    # get_available_slots()
-│   │   ├── views.py        # Patient & doctor views
+│   │   ├── models.py       # AvailabilityWindow, Slot, Appointment, AppointmentTypeConfig
+│   │   ├── services.py     # book_appointment(), create_availability_window()
+│   │   ├── selectors.py    # get_available_slots(), get_doctor_slots_for_calendar()
+│   │   ├── forms.py        # AvailabilityWindowForm, ManualSlotForm
+│   │   ├── views.py        # Patient & doctor views (HTMX-enabled)
 │   │   ├── urls.py         # /patient/*, /doctor/* routes
 │   │   └── templates/
 │   │       └── scheduling/
 │   │           ├── patient/
+│   │           │   └── partials/     # HTMX partials for real-time updates
 │   │           └── doctor/
+│   │               └── partials/     # Calendar, window forms, slot cards
 │   ├── dashboard/          # Role-based home pages
-│   ├── adminpanel/         # Admin operations
+│   ├── adminpanel/         # Comprehensive admin panel
+│   │   ├── models.py       # AdminActivityLog (audit trail)
+│   │   ├── services.py     # Admin actions with logging
+│   │   ├── selectors.py    # Analytics queries
+│   │   ├── views.py        # 15 admin views
+│   │   ├── context_processors.py  # Pending verification count
+│   │   └── templates/
+│   │       └── adminpanel/
+│   │           ├── dashboard.html
+│   │           ├── users_list.html
+│   │           ├── doctors_list.html
+│   │           ├── doctor_verification.html
+│   │           ├── appointments_list.html
+│   │           ├── financial_overview.html
+│   │           ├── audit_logs.html
+│   │           └── partials/     # HTMX partials for modals/tables
 │   └── support/            # Help, FAQ, contact
 ├── config/                 # Django configuration
 │   ├── settings/
@@ -87,8 +113,9 @@ MedConsult/
 │   ├── css/
 │   │   └── custom.css
 │   └── js/
-│       ├── dropdown.js     # Dropdown interactions
-│       └── signup_wizard.js # Camera/mic test, form enhancements
+│       ├── dropdown.js           # Dropdown interactions
+│       ├── signup_wizard.js      # Camera/mic test, form enhancements
+│       └── availability_calendar.js # Doctor availability calendar (HTMX events)
 ├── manage.py               # Django management script
 ├── requirements.txt        # Python dependencies
 ├── .env.example            # Environment variables template
@@ -236,18 +263,40 @@ Authenticated Routes:
 Patient Routes:
 /patient/doctors/           Browse verified doctors
 /patient/doctors/<id>/      Doctor detail with available slots
+/patient/doctors/<id>/slots/ Real-time slot updates (HTMX polling)
 /patient/book/<slot_id>/    Book appointment
 /patient/appointments/      My appointments
 
 Doctor Routes:
 /doctor/schedule/           My schedule (upcoming appointments)
-/doctor/availability/       Manage availability windows
+/doctor/availability/       Manage availability (calendar + windows)
+/doctor/availability/windows/create/     Create availability window
+/doctor/availability/windows/<id>/update/ Update availability window
+/doctor/availability/windows/<id>/delete/ Delete availability window
+/doctor/availability/slots/create/       Create manual/urgent slot
+/doctor/availability/slots/<id>/block/   Block a slot
+/doctor/availability/slots/<id>/unblock/ Unblock a slot
+/doctor/availability/slots/<id>/delete/  Delete a slot
+/doctor/availability/calendar/           Calendar partial (HTMX)
+/doctor/availability/types/              Configure appointment types & pricing
 /doctor/generate-slots/     Generate time slots
 
 Admin Routes:
+/internal/                  Admin dashboard (analytics, metrics, charts)
 /internal/verify/           Doctor verification queue
-/internal/users/            User management
-/internal/appointments/     Appointments audit log
+/internal/verify/<id>/approve/  Approve doctor
+/internal/verify/<id>/reject/   Reject doctor with reason
+/internal/users/            User management (search, filter, export)
+/internal/users/<id>/       User detail view
+/internal/users/<id>/toggle-active/  Activate/deactivate user
+/internal/users/export/     Export users to CSV
+/internal/doctors/          Doctor management with statistics
+/internal/doctors/<id>/     Doctor detail with stats
+/internal/doctors/<id>/document/<type>/  View doctor documents
+/internal/appointments/     Appointments list (filter, search)
+/internal/appointments/export/  Export appointments to CSV
+/internal/financial/        Financial overview (revenue, pricing)
+/internal/audit/            Audit logs (admin actions, slot changes)
 
 System:
 /admin/                     Django admin panel
@@ -307,6 +356,7 @@ docker-compose exec redis redis-cli
 | **Database** | PostgreSQL | 16 |
 | **Cache** | Redis | 7 |
 | **Frontend** | Tailwind CSS | CDN (Phase 1) |
+| **Dynamic UI** | HTMX | 1.9.10 |
 | **JavaScript** | Vanilla JS | - |
 | **Container** | Docker & Docker Compose | - |
 
@@ -997,24 +1047,36 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Feature | Status | Description |
 |---------|--------|-------------|
 | Availability Windows | ✅ Done | Doctors set available time ranges |
+| Availability Management UI | ✅ Done | Full self-service UI for doctors to manage availability |
+| Visual Weekly Calendar | ✅ Done | Color-coded slots (available/booked/blocked/urgent) |
+| Buffer Times | ✅ Done | Configure buffer before/after appointments |
+| Manual/Urgent Slots | ✅ Done | Create ad-hoc urgent slots |
+| Block/Unblock Slots | ✅ Done | Temporarily disable specific slots |
+| Appointment Types | ✅ Done | Video, Chat, Phone consultations |
+| Appointment Type Pricing | ✅ Done | Customizable pricing per doctor per type |
+| Real-time Patient Updates | ✅ Done | HTMX polling for live slot availability |
 | Slot Generation | ✅ Done | Auto-generate bookable time slots |
 | Appointment Booking | ✅ Done | Patients book available slots |
 | Appointment Cancellation | ✅ Done | Cancel and free up slots |
 | Doctor Discovery | ✅ Done | Browse and search verified doctors |
 | Appointment History | ✅ Done | View past appointments |
 | Appointment Reminders | ❌ Pending | Email/SMS reminders |
-| Recurring Appointments | ❌ Pending | Schedule recurring visits |
+| Recurring Appointments | ✅ Done | Recurring availability windows with end dates |
 | Waitlist | ❌ Pending | Join waitlist for busy doctors |
 
 ### Admin & Verification
 
 | Feature | Status | Description |
 |---------|--------|-------------|
-| Doctor Verification Queue | ✅ Done | Admin reviews pending doctors |
-| User Management | ✅ Done | Admin user oversight |
-| Audit Logging | ✅ Done | Track system activities |
-| Document Review | ❌ Pending | View uploaded documents in admin |
-| Analytics Dashboard | ❌ Pending | Platform statistics |
+| Admin Dashboard | ✅ Done | Real-time metrics, charts, activity feeds |
+| Doctor Verification Queue | ✅ Done | Enhanced with document viewer and rejection reasons |
+| User Management | ✅ Done | Search/filter, activate/deactivate, CSV export |
+| Doctor Management | ✅ Done | Statistics, document viewer, verification |
+| Appointments Management | ✅ Done | Filter by status/type, CSV export |
+| Financial Overview | ✅ Done | Revenue tracking, pricing overview |
+| Audit Logging | ✅ Done | Admin actions and slot change logs |
+| Document Review | ✅ Done | View medical license and government ID |
+| Analytics Charts | ✅ Done | Chart.js visualizations (user growth, appointments) |
 
 ### Telehealth Features
 
@@ -1074,9 +1136,20 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 
 ## 🔒 Default Credentials
 
-**Superuser (Admin):**
+**Admin:**
+- Username: `admin`
 - Email: `admin@medconsult.com`
 - Password: `admin123`
+
+**Test Doctor:**
+- Username: `testdoctor`
+- Email: `doctor@test.com`
+- Password: `testpass123`
+
+**Test Patient:**
+- Username: `testpatient`
+- Email: `patient@test.com`
+- Password: `testpass123`
 
 **⚠️ Change these in production!**
 
@@ -1087,11 +1160,13 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Metric | Count |
 |--------|-------|
 | Django Apps | 5 |
-| Models | 10+ |
-| Templates | 28+ |
-| Python Files | 51+ |
-| Lines of Code | ~5,000 |
+| Models | 13+ |
+| Templates | 55+ |
+| Python Files | 60+ |
+| Lines of Code | ~8,000 |
 | User Roles | 3 (Patient, Doctor, Admin) |
+| HTMX Endpoints | 15+ |
+| Admin Views | 15 |
 
 ---
 

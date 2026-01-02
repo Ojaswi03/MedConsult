@@ -1,0 +1,72 @@
+{% extends "layouts/admin.html" %}
+
+{% block page_title %}Appointments{% endblock %}
+
+{% block content %}
+<div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+    <div>
+        <h2 class="text-2xl font-bold text-gray-900">Appointment Management</h2>
+        <p class="text-sm text-gray-500 mt-1">{{ total }} appointments total</p>
+    </div>
+    <a href="{% url 'adminpanel:appointments_export' %}?status={{ filters.status }}&type={{ filters.type }}"
+       class="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors">
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        Export CSV
+    </a>
+</div>
+
+<!-- Filters -->
+<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+    <form hx-get="{% url 'adminpanel:appointments_list' %}"
+          hx-target="#appointments-table-container"
+          hx-swap="innerHTML"
+          hx-trigger="change, keyup delay:500ms from:input[name='search']"
+          class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <!-- Search -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <input type="text" name="search" value="{{ filters.search }}"
+                   placeholder="Patient or doctor name..."
+                   class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+        </div>
+
+        <!-- Status Filter -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+            <select name="status" class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="">All Status</option>
+                <option value="scheduled" {% if filters.status == 'scheduled' %}selected{% endif %}>Scheduled</option>
+                <option value="completed" {% if filters.status == 'completed' %}selected{% endif %}>Completed</option>
+                <option value="cancelled" {% if filters.status == 'cancelled' %}selected{% endif %}>Cancelled</option>
+                <option value="no_show" {% if filters.status == 'no_show' %}selected{% endif %}>No Show</option>
+            </select>
+        </div>
+
+        <!-- Type Filter -->
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+            <select name="type" class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                <option value="">All Types</option>
+                <option value="video" {% if filters.type == 'video' %}selected{% endif %}>Video Call</option>
+                <option value="phone" {% if filters.type == 'phone' %}selected{% endif %}>Phone Call</option>
+                <option value="chat" {% if filters.type == 'chat' %}selected{% endif %}>Chat</option>
+            </select>
+        </div>
+
+        <!-- Clear Button -->
+        <div class="flex items-end">
+            <a href="{% url 'adminpanel:appointments_list' %}"
+               class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center">
+                Clear Filters
+            </a>
+        </div>
+    </form>
+</div>
+
+<!-- Appointments Table -->
+<div id="appointments-table-container">
+    {% include "adminpanel/partials/_appointments_table.html" %}
+</div>
+{% endblock %}

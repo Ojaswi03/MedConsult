@@ -1,0 +1,64 @@
+{% if availability_windows %}
+<div class="space-y-3">
+    {% for window in availability_windows %}
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center p-4 border rounded-lg hover:border-blue-300 transition-colors gap-3">
+        <div class="flex-1">
+            <div class="flex items-center gap-3">
+                <span class="font-semibold text-gray-900">{{ window.get_weekday_display }}</span>
+                <span class="px-2 py-0.5 rounded text-xs
+                    {% if window.appointment_type == 'video' %}bg-blue-100 text-blue-800
+                    {% elif window.appointment_type == 'chat' %}bg-green-100 text-green-800
+                    {% else %}bg-purple-100 text-purple-800{% endif %}">
+                    {{ window.get_appointment_type_display }}
+                </span>
+                {% if window.is_recurring %}
+                <span class="px-2 py-0.5 rounded text-xs bg-gray-100 text-gray-600">
+                    Recurring
+                </span>
+                {% endif %}
+            </div>
+            <p class="text-sm text-gray-600 mt-1">
+                {{ window.start_time|time:"g:i A" }} - {{ window.end_time|time:"g:i A" }}
+                <span class="mx-2">|</span>
+                {{ window.slot_duration_minutes }} min slots
+                {% if window.buffer_before_minutes or window.buffer_after_minutes %}
+                <span class="mx-2">|</span>
+                Buffer: {{ window.buffer_before_minutes }}m before, {{ window.buffer_after_minutes }}m after
+                {% endif %}
+            </p>
+            {% if window.effective_date or window.end_date %}
+            <p class="text-xs text-gray-500 mt-1">
+                {% if window.effective_date %}From {{ window.effective_date|date:"M j, Y" }}{% endif %}
+                {% if window.end_date %} until {{ window.end_date|date:"M j, Y" }}{% endif %}
+            </p>
+            {% endif %}
+        </div>
+        <div class="flex items-center gap-2">
+            <span class="px-3 py-1 rounded-full text-sm
+                {% if window.is_active %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-600{% endif %}">
+                {% if window.is_active %}Active{% else %}Inactive{% endif %}
+            </span>
+            <button
+                hx-post="{% url 'doctor:delete_window' window.id %}"
+                hx-target="#availability-windows-list"
+                hx-swap="innerHTML"
+                hx-confirm="Delete this availability window? Future unbooked slots will also be removed."
+                class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Delete window">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                </svg>
+            </button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-12">
+    <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+    </svg>
+    <p class="text-gray-600 mb-4">No availability windows set up yet.</p>
+    <p class="text-sm text-gray-500">Click "Add Availability" to create your first recurring schedule.</p>
+</div>
+{% endif %}
