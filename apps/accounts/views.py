@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from datetime import date
 
 from .forms import (
     LoginForm,
@@ -23,6 +24,17 @@ from .services import (
     clear_signup_session,
 )
 from .selectors import get_user_profile
+
+
+def serialize_form_data(cleaned_data):
+    """Convert form cleaned_data to JSON-serializable format."""
+    serialized = {}
+    for key, value in cleaned_data.items():
+        if isinstance(value, date):
+            serialized[key] = value.isoformat()
+        else:
+            serialized[key] = value
+    return serialized
 
 
 def landing_page(request):
@@ -77,8 +89,8 @@ def patient_signup_wizard(request, step=1):
     if request.method == 'POST':
         form = FormClass(request.POST)
         if form.is_valid():
-            # Store step data in session
-            wizard_data[step_name] = form.cleaned_data
+            # Store step data in session (serialize dates for JSON compatibility)
+            wizard_data[step_name] = serialize_form_data(form.cleaned_data)
             request.session['patient_wizard_data'] = wizard_data
             request.session.modified = True
 
@@ -154,11 +166,14 @@ def doctor_signup_wizard(request, step=1):
             form = FormClass(request.POST)
 
         if form.is_valid():
-            # Store step data (excluding file fields from session)
+            # Store step data (excluding file fields, serialize dates for JSON)
             step_data = {}
             for field_name, value in form.cleaned_data.items():
                 if field_name not in ['medical_license_document', 'government_id_document']:
-                    step_data[field_name] = value
+                    if isinstance(value, date):
+                        step_data[field_name] = value.isoformat()
+                    else:
+                        step_data[field_name] = value
 
             wizard_data[step_name] = step_data
             request.session['doctor_wizard_data'] = wizard_data
