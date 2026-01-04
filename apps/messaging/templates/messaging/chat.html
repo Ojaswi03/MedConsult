@@ -1,0 +1,192 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Chat with {% if request.user.role == 'patient' %}Dr. {% endif %}{{ other_user.get_display_name }} - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto h-[calc(100vh-12rem)] flex flex-col">
+    <!-- Header -->
+    <div class="bg-white dark:bg-gray-800 rounded-t-lg shadow-md p-4 flex items-center justify-between">
+        <div class="flex items-center">
+            <a href="{% url 'messaging:conversations' %}" class="mr-4 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200">
+                <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+            </a>
+            <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold mr-3">
+                {{ other_user.get_initials }}
+            </div>
+            <div>
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                    {% if request.user.role == 'patient' %}Dr. {% endif %}{{ other_user.get_display_name }}
+                </h2>
+                <p class="text-sm text-gray-500 dark:text-gray-400" id="typing-indicator" style="display: none;">
+                    typing...
+                </p>
+            </div>
+        </div>
+        <div class="text-sm text-gray-500 dark:text-gray-400">
+            {{ conversation.appointment.start_datetime|date:"M j, Y at g:i A" }}
+        </div>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages-container" class="flex-grow bg-gray-50 dark:bg-gray-900 p-4 overflow-y-auto">
+        <div id="messages-list" class="space-y-4">
+            {% for message in messages %}
+            {% include "messaging/partials/_message.html" with message=message is_own=message.sender.id|stringformat:"i" == request.user.id|stringformat:"i" %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Input -->
+    <div class="bg-white dark:bg-gray-800 rounded-b-lg shadow-md p-4">
+        <form id="message-form" class="flex items-center space-x-4">
+            {% csrf_token %}
+            <input type="text" id="message-input" name="content"
+                   class="flex-grow px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                   placeholder="Type a message..." autocomplete="off">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                </svg>
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const conversationId = {{ conversation.id }};
+    const currentUserId = {{ request.user.id }};
+    const messagesContainer = document.getElementById('messages-container');
+    const messagesList = document.getElementById('messages-list');
+    const messageForm = document.getElementById('message-form');
+    const messageInput = document.getElementById('message-input');
+    const typingIndicator = document.getElementById('typing-indicator');
+
+    // Scroll to bottom
+    function scrollToBottom() {
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    scrollToBottom();
+
+    // WebSocket connection
+    const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    let socket = null;
+    let reconnectAttempts = 0;
+    const maxReconnectAttempts = 5;
+
+    function connectWebSocket() {
+        socket = new WebSocket(`${wsProtocol}//${window.location.host}/ws/chat/${conversationId}/`);
+
+        socket.onopen = function() {
+            console.log('WebSocket connected');
+            reconnectAttempts = 0;
+        };
+
+        socket.onmessage = function(e) {
+            const data = JSON.parse(e.data);
+
+            if (data.type === 'message') {
+                addMessage(data.message);
+                scrollToBottom();
+
+                // Mark as read
+                if (data.message.sender_id !== currentUserId) {
+                    socket.send(JSON.stringify({type: 'read'}));
+                }
+            } else if (data.type === 'typing') {
+                if (data.is_typing) {
+                    typingIndicator.style.display = 'block';
+                } else {
+                    typingIndicator.style.display = 'none';
+                }
+            } else if (data.type === 'read') {
+                // Update read status of messages
+                document.querySelectorAll('.message-status').forEach(el => {
+                    el.textContent = 'Read';
+                });
+            }
+        };
+
+        socket.onclose = function() {
+            console.log('WebSocket closed');
+            if (reconnectAttempts < maxReconnectAttempts) {
+                reconnectAttempts++;
+                setTimeout(connectWebSocket, 2000 * reconnectAttempts);
+            }
+        };
+
+        socket.onerror = function(error) {
+            console.error('WebSocket error:', error);
+        };
+    }
+
+    connectWebSocket();
+
+    // Add message to UI
+    function addMessage(message) {
+        const isOwn = message.sender_id === currentUserId;
+        const messageHtml = createMessageHtml(message, isOwn);
+        messagesList.insertAdjacentHTML('beforeend', messageHtml);
+    }
+
+    function createMessageHtml(message, isOwn) {
+        const time = new Date(message.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+        const alignClass = isOwn ? 'justify-end' : 'justify-start';
+        const bgClass = isOwn ? 'bg-blue-600 text-white' : 'bg-white dark:bg-gray-800 text-gray-900 dark:text-white';
+
+        if (message.message_type === 'system') {
+            return `
+                <div class="flex justify-center">
+                    <div class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm">
+                        ${message.content}
+                    </div>
+                </div>
+            `;
+        }
+
+        return `
+            <div class="flex ${alignClass}">
+                <div class="max-w-xs lg:max-w-md">
+                    <div class="${bgClass} px-4 py-2 rounded-lg shadow">
+                        <p>${message.content}</p>
+                    </div>
+                    <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 ${isOwn ? 'text-right' : 'text-left'}">
+                        ${time}
+                        ${isOwn ? '<span class="message-status ml-1">Sent</span>' : ''}
+                    </p>
+                </div>
+            </div>
+        `;
+    }
+
+    // Send message
+    messageForm.addEventListener('submit', function(e) {
+        e.preventDefault();
+        const content = messageInput.value.trim();
+
+        if (content && socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({
+                type: 'message',
+                content: content
+            }));
+            messageInput.value = '';
+        }
+    });
+
+    // Typing indicator
+    let typingTimeout;
+    messageInput.addEventListener('input', function() {
+        if (socket && socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify({type: 'typing', is_typing: true}));
+
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(function() {
+                socket.send(JSON.stringify({type: 'typing', is_typing: false}));
+            }, 1000);
+        }
+    });
+});
+</script>
+{% endblock %}

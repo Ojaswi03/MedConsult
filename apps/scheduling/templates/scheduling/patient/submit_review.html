@@ -1,0 +1,77 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Review Appointment - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Write a Review</h1>
+
+    <!-- Appointment Info -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <div class="flex items-center mb-4">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white text-xl font-semibold mr-4">
+                {{ appointment.doctor.user.get_initials }}
+            </div>
+            <div>
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Dr. {{ appointment.doctor.user.get_display_name }}</h2>
+                <p class="text-gray-600 dark:text-gray-400">{{ appointment.doctor.specialization }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">
+                    {{ appointment.start_datetime|date:"F j, Y" }} at {{ appointment.start_datetime|date:"g:i A" }}
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Review Form -->
+    <form method="post" class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        {% csrf_token %}
+
+        <!-- Star Rating -->
+        <div class="mb-6">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+                Your Rating <span class="text-red-500">*</span>
+            </label>
+            <div class="flex items-center space-x-2" x-data="{ rating: 0, hoverRating: 0 }">
+                {% for i in "12345" %}
+                <button type="button"
+                    @click="rating = {{ i }}; document.getElementById('rating-input').value = {{ i }}"
+                    @mouseenter="hoverRating = {{ i }}"
+                    @mouseleave="hoverRating = 0"
+                    class="focus:outline-none transition-transform hover:scale-110">
+                    <svg class="w-10 h-10 cursor-pointer"
+                        :class="(hoverRating || rating) >= {{ i }} ? 'text-yellow-400' : 'text-gray-300 dark:text-gray-600'"
+                        fill="currentColor" viewBox="0 0 20 20">
+                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                    </svg>
+                </button>
+                {% endfor %}
+                <span class="ml-3 text-sm text-gray-600 dark:text-gray-400" x-text="rating ? rating + ' out of 5 stars' : 'Select a rating'"></span>
+            </div>
+            <input type="hidden" name="rating" id="rating-input" value="">
+        </div>
+
+        <!-- Comment -->
+        <div class="mb-6">
+            <label for="comment" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                Your Review (optional)
+            </label>
+            <textarea name="comment" id="comment" rows="5"
+                class="w-full px-4 py-3 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white resize-none"
+                placeholder="Share your experience with Dr. {{ appointment.doctor.user.get_display_name }}..."></textarea>
+            <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Your review helps other patients make informed decisions.</p>
+        </div>
+
+        <!-- Buttons -->
+        <div class="flex justify-end space-x-4">
+            <a href="{% url 'patient:patient_appointments' %}"
+                class="px-6 py-3 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                Cancel
+            </a>
+            <button type="submit"
+                class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Submit Review
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

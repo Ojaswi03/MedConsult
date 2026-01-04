@@ -633,3 +633,99 @@ def reschedule_appointment(appointment, new_slot):
     })
 
     return appointment
+
+
+# ============ REVIEW SERVICES ============
+
+@transaction.atomic
+def create_review(appointment, patient, rating, comment=''):
+    """
+    Create a review for a completed appointment.
+
+    Args:
+        appointment: The Appointment object being reviewed
+        patient: The User who is leaving the review
+        rating: Integer 1-5
+        comment: Optional text comment
+
+    Returns:
+        Review object
+
+    Raises:
+        ValueError: If review cannot be created
+    """
+    from .models import Review
+
+    # Validate patient is the one who had the appointment
+    if appointment.patient != patient:
+        raise ValueError('You can only review your own appointments.')
+
+    # Validate appointment is completed
+    if appointment.status != 'completed':
+        raise ValueError('You can only review completed appointments.')
+
+    # Check for existing review
+    if Review.objects.filter(appointment=appointment).exists():
+        raise ValueError('You have already reviewed this appointment.')
+
+    # Validate rating
+    if not 1 <= rating <= 5:
+        raise ValueError('Rating must be between 1 and 5.')
+
+    review = Review.objects.create(
+        appointment=appointment,
+        patient=patient,
+        doctor=appointment.doctor,
+        rating=rating,
+        comment=comment
+    )
+
+    return review
+
+
+@transaction.atomic
+def update_review(review, patient, rating=None, comment=None):
+    """
+    Update an existing review.
+
+    Args:
+        review: The Review object to update
+        patient: The User updating the review
+        rating: New rating (1-5) or None to keep current
+        comment: New comment or None to keep current
+
+    Returns:
+        Updated Review object
+    """
+    if review.patient != patient:
+        raise ValueError('You can only update your own reviews.')
+
+    if rating is not None:
+        if not 1 <= rating <= 5:
+            raise ValueError('Rating must be between 1 and 5.')
+        review.rating = rating
+
+    if comment is not None:
+        review.comment = comment
+
+    review.save()
+    return review
+
+
+@transaction.atomic
+def delete_review(review, patient):
+    """
+    Delete a review.
+
+    Args:
+        review: The Review object to delete
+        patient: The User deleting the review
+
+    Returns:
+        True if deleted successfully
+    """
+    if review.patient != patient:
+        raise ValueError('You can only delete your own reviews.')
+
+    review.delete()
+    return True

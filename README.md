@@ -11,6 +11,7 @@ Built with **modularity** and **clean architecture** for easy feature additions 
 - **User Authentication**: Username/email login with role-based access (Patient, Doctor, Admin)
 - **Multi-Step Signup Wizards**: Comprehensive onboarding for patients (5 steps) and doctors (6 steps)
 - **Camera/Mic Testing**: Built-in telehealth readiness verification during signup
+- **Profile Images**: Upload profile pictures (PNG, JPG, JPEG) with automatic display across the platform
 - **Doctor Profiles**: Comprehensive profiles with specializations, experience, and verification status
 - **Slot-Based Scheduling**: Clean appointment system with availability windows and generated time slots
 - **Doctor Availability Management**: Full self-service UI for doctors to manage their schedules
@@ -24,8 +25,14 @@ Built with **modularity** and **clean architecture** for easy feature additions 
 - **Appointment Types & Pricing**: Video, Chat, Phone consultations with customizable pricing per availability window
 - **Real-time Updates**: HTMX polling + WebSocket (Django Channels) for instant synchronization
 - **Patient Booking**: Easy doctor discovery, live availability updates, price display, structured symptom/injury selector
+- **Doctor Ratings & Reviews**: Patients can rate and review doctors after completed appointments
 - **Dark Mode**: Full dark theme support with light/dark/auto preferences
-- **Admin Panel**: Doctor verification queue and system oversight
+- **Admin Panel**: Comprehensive admin dashboard with full management capabilities
+  - Doctor verification queue with document viewer
+  - Doctor slot management (create, block, unblock, delete slots)
+  - Patient appointment management (cancel appointments)
+  - User management with activate/deactivate
+  - Financial overview and audit logs
 - **Document Uploads**: Medical license and government ID verification for doctors
 - **Responsive UI**: Built with Tailwind CSS (CDN) with dark mode support and HTMX for dynamic updates
 - **WebSocket Support**: Django Channels with Redis for real-time calendar updates
@@ -79,13 +86,15 @@ MedConsult/
 │   │   ├── models.py       # AdminActivityLog (audit trail)
 │   │   ├── services.py     # Admin actions with logging
 │   │   ├── selectors.py    # Analytics queries
-│   │   ├── views.py        # 15 admin views
+│   │   ├── views.py        # 23 admin views
 │   │   ├── context_processors.py  # Pending verification count
 │   │   └── templates/
 │   │       └── adminpanel/
 │   │           ├── dashboard.html
 │   │           ├── users_list.html
 │   │           ├── doctors_list.html
+│   │           ├── doctor_manage.html    # Doctor slot management
+│   │           ├── patient_manage.html   # Patient appointment management
 │   │           ├── doctor_verification.html
 │   │           ├── appointments_list.html
 │   │           ├── financial_overview.html
@@ -296,8 +305,16 @@ Admin Routes:
 /internal/users/export/     Export users to CSV
 /internal/doctors/          Doctor management with statistics
 /internal/doctors/<id>/     Doctor detail with stats
+/internal/doctors/<id>/manage/  Full doctor slot management
+/internal/doctors/<id>/calendar/ Doctor calendar view (HTMX)
+/internal/doctors/<id>/slots/create/  Create slot for doctor
 /internal/doctors/<id>/document/<type>/  View doctor documents
+/internal/slots/<id>/block/     Block a slot
+/internal/slots/<id>/unblock/   Unblock a slot
+/internal/slots/<id>/delete/    Delete a slot
+/internal/patients/<id>/manage/  Patient appointment management
 /internal/appointments/     Appointments list (filter, search)
+/internal/appointments/<id>/cancel/  Cancel appointment (admin)
 /internal/appointments/export/  Export appointments to CSV
 /internal/financial/        Financial overview (revenue, pricing)
 /internal/audit/            Audit logs (admin actions, slot changes)
@@ -1039,6 +1056,7 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Doctor Signup Wizard | ✅ Done | 6-step wizard (Account → Personal → Credentials → Bank → ID → Terms) |
 | Camera/Mic Testing | ✅ Done | Cross-browser compatible telehealth readiness check |
 | Gender Selection | ✅ Done | Male/Female/Other with custom text input |
+| Profile Images | ✅ Done | Upload profile pictures (PNG, JPG, JPEG, max 5MB) |
 | Document Uploads | ✅ Done | Medical license and government ID for doctors |
 | Insurance Information | ✅ Done | Provider and policy number collection |
 | Bank Information | ✅ Done | Full bank details for doctor payments |
@@ -1073,6 +1091,7 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Appointment Cancellation | ✅ Done | Cancel and free up slots |
 | Doctor Discovery | ✅ Done | Browse and search verified doctors |
 | Appointment History | ✅ Done | View past appointments |
+| Doctor Ratings & Reviews | ✅ Done | Patients can rate (1-5 stars) and review doctors |
 | Appointment Reminders | ❌ Pending | Email/SMS reminders |
 | Recurring Appointments | ✅ Done | Recurring availability windows with end dates |
 | Waitlist | ❌ Pending | Join waitlist for busy doctors |
@@ -1085,6 +1104,8 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Doctor Verification Queue | ✅ Done | Enhanced with document viewer and rejection reasons |
 | User Management | ✅ Done | Search/filter, activate/deactivate, CSV export |
 | Doctor Management | ✅ Done | Statistics, document viewer, verification |
+| Doctor Slot Management | ✅ Done | Admin can create, block, unblock, delete doctor slots |
+| Patient Management | ✅ Done | Admin can view and cancel patient appointments |
 | Appointments Management | ✅ Done | Filter by status/type, CSV export |
 | Financial Overview | ✅ Done | Revenue tracking, pricing overview |
 | Audit Logging | ✅ Done | Admin actions and slot change logs |
@@ -1143,7 +1164,9 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 - [ ] SMS notifications (Twilio)
 - [ ] Prescription management
 - [ ] Medical records upload
-- [ ] Doctor ratings & reviews
+- [x] Doctor ratings & reviews
+- [x] Profile images
+- [x] Admin doctor/patient management
 - [ ] Advanced search & filters
 
 #### Developer Experience
@@ -1183,13 +1206,13 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Metric | Count |
 |--------|-------|
 | Django Apps | 5 |
-| Models | 17+ |
-| Templates | 60+ |
-| Python Files | 65+ |
-| Lines of Code | ~9,000 |
+| Models | 18+ |
+| Templates | 65+ |
+| Python Files | 70+ |
+| Lines of Code | ~10,000 |
 | User Roles | 3 (Patient, Doctor, Admin) |
-| HTMX Endpoints | 15+ |
-| Admin Views | 15 |
+| HTMX Endpoints | 20+ |
+| Admin Views | 23 |
 
 ---
 

@@ -6,39 +6,146 @@
 <div>
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Find a Doctor</h1>
 
-    {% if doctors %}
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {% for doctor in doctors %}
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition">
-                <div class="flex items-center mb-4">
-                    <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl mr-4">
-                        {{ doctor.user.get_initials }}
-                    </div>
-                    <div>
-                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h3>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ doctor.specialization }}</p>
-                    </div>
-                </div>
+    <div class="flex flex-col lg:flex-row gap-8">
+        <!-- Filters Sidebar -->
+        <div class="lg:w-80 flex-shrink-0">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 sticky top-4">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Filters</h2>
 
-                <div class="mb-4">
-                    <p class="text-sm text-gray-700 dark:text-gray-300">{{ doctor.bio|truncatewords:20 }}</p>
-                </div>
+                <form id="filter-form" hx-get="{% url 'patient:patient_doctors_list' %}"
+                      hx-target="#doctors-grid"
+                      hx-swap="innerHTML"
+                      hx-trigger="change delay:300ms, keyup delay:500ms from:#search-input"
+                      hx-indicator="#loading-indicator">
 
-                <div class="flex justify-between items-center mt-4">
-                    <span class="text-sm text-gray-600 dark:text-gray-400">
-                        {{ doctor.years_of_experience }} years exp.
-                    </span>
-                    <a href="{% url 'patient:doctor_detail' doctor.id %}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
-                        View Profile
+                    <!-- Search -->
+                    <div class="mb-4">
+                        <label for="search-input" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
+                        <input type="text" name="search" id="search-input"
+                            value="{{ current_filters.search|default:'' }}"
+                            placeholder="Doctor name or specialty..."
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                    </div>
+
+                    <!-- Specialization -->
+                    <div class="mb-4">
+                        <label for="specialization" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Specialization</label>
+                        <select name="specialization" id="specialization"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="">All Specializations</option>
+                            {% for spec in specializations %}
+                            <option value="{{ spec }}" {% if current_filters.specialization == spec %}selected{% endif %}>{{ spec }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Minimum Rating -->
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Rating</label>
+                        <div class="flex gap-2">
+                            {% for i in "12345" %}
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio" name="min_rating" value="{{ i }}"
+                                    {% if current_filters.min_rating|stringformat:"s" == i %}checked{% endif %}
+                                    class="sr-only">
+                                <div class="px-3 py-2 border rounded-lg transition-colors
+                                    {% if current_filters.min_rating|stringformat:'s' == i %}
+                                    border-yellow-400 bg-yellow-50 dark:bg-yellow-900/30
+                                    {% else %}
+                                    border-gray-300 dark:border-gray-600 hover:border-yellow-400
+                                    {% endif %}">
+                                    <div class="flex items-center">
+                                        <span class="text-sm text-gray-900 dark:text-white mr-1">{{ i }}</span>
+                                        <svg class="w-4 h-4 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                            </label>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Experience -->
+                    <div class="mb-4">
+                        <label for="min_experience" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Minimum Experience</label>
+                        <select name="min_experience" id="min_experience"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="">Any experience</option>
+                            <option value="1" {% if current_filters.min_experience == 1 %}selected{% endif %}>1+ years</option>
+                            <option value="3" {% if current_filters.min_experience == 3 %}selected{% endif %}>3+ years</option>
+                            <option value="5" {% if current_filters.min_experience == 5 %}selected{% endif %}>5+ years</option>
+                            <option value="10" {% if current_filters.min_experience == 10 %}selected{% endif %}>10+ years</option>
+                        </select>
+                    </div>
+
+                    <!-- Max Price -->
+                    <div class="mb-4">
+                        <label for="max_price" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Max Consultation Fee</label>
+                        <select name="max_price" id="max_price"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="">Any price</option>
+                            <option value="50" {% if current_filters.max_price == 50 %}selected{% endif %}>Under $50</option>
+                            <option value="100" {% if current_filters.max_price == 100 %}selected{% endif %}>Under $100</option>
+                            <option value="150" {% if current_filters.max_price == 150 %}selected{% endif %}>Under $150</option>
+                            <option value="200" {% if current_filters.max_price == 200 %}selected{% endif %}>Under $200</option>
+                        </select>
+                    </div>
+
+                    <!-- Availability -->
+                    <div class="mb-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="has_availability" {% if current_filters.has_availability %}checked{% endif %}
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Available within 14 days</span>
+                        </label>
+                    </div>
+
+                    <!-- Sort By -->
+                    <div class="mb-4">
+                        <label for="sort_by" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Sort By</label>
+                        <select name="sort_by" id="sort_by"
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white">
+                            <option value="rating" {% if current_filters.sort_by == 'rating' %}selected{% endif %}>Highest Rated</option>
+                            <option value="experience" {% if current_filters.sort_by == 'experience' %}selected{% endif %}>Most Experienced</option>
+                            <option value="price_low" {% if current_filters.sort_by == 'price_low' %}selected{% endif %}>Price: Low to High</option>
+                            <option value="price_high" {% if current_filters.sort_by == 'price_high' %}selected{% endif %}>Price: High to Low</option>
+                            <option value="name" {% if current_filters.sort_by == 'name' %}selected{% endif %}>Name (A-Z)</option>
+                        </select>
+                    </div>
+
+                    <!-- Clear Filters -->
+                    <a href="{% url 'patient:patient_doctors_list' %}"
+                        class="block w-full text-center py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
+                        Clear All Filters
                     </a>
-                </div>
+                </form>
             </div>
-            {% endfor %}
         </div>
-    {% else %}
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
-            <p class="text-gray-600 dark:text-gray-400">No doctors available at the moment.</p>
+
+        <!-- Doctors Grid -->
+        <div class="flex-grow">
+            <!-- Loading Indicator -->
+            <div id="loading-indicator" class="htmx-indicator flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
+
+            <div id="doctors-grid">
+                {% include "scheduling/patient/partials/_doctors_grid.html" %}
+            </div>
         </div>
-    {% endif %}
+    </div>
 </div>
+
+<style>
+    .htmx-indicator {
+        display: none;
+    }
+    .htmx-request .htmx-indicator {
+        display: flex;
+    }
+    .htmx-request #doctors-grid {
+        opacity: 0.5;
+    }
+</style>
 {% endblock %}

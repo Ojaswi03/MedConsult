@@ -41,10 +41,20 @@
             <div class="space-y-4">
                 {% for appointment in upcoming_appointments %}
                 <div class="flex justify-between items-center p-4 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div>
-                        <p class="font-semibold text-gray-900 dark:text-white">Dr. {{ appointment.doctor.user.get_display_name }}</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ appointment.doctor.specialization }}</p>
-                        <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">{{ appointment.start_datetime|date:"F j, Y at g:i A" }}</p>
+                    <div class="flex items-center">
+                        {% if appointment.doctor.user.profile_image %}
+                        <img src="{{ appointment.doctor.user.profile_image.url }}" alt="Dr. {{ appointment.doctor.user.get_display_name }}"
+                            class="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 mr-4">
+                        {% else %}
+                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold mr-4">
+                            {{ appointment.doctor.user.get_initials }}
+                        </div>
+                        {% endif %}
+                        <div>
+                            <p class="font-semibold text-gray-900 dark:text-white">Dr. {{ appointment.doctor.user.get_display_name }}</p>
+                            <p class="text-sm text-gray-600 dark:text-gray-400">{{ appointment.doctor.specialization }}</p>
+                            <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">{{ appointment.start_datetime|date:"F j, Y at g:i A" }}</p>
+                        </div>
                     </div>
                     <span class="px-3 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-full text-sm">
                         {{ appointment.status|title }}

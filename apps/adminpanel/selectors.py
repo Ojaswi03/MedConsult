@@ -406,3 +406,59 @@ def get_admin_activity_logs(
         'total': total,
         'has_more': (offset + limit) < total,
     }
+
+
+# ============ ADMIN DOCTOR/PATIENT MANAGEMENT ============
+
+def get_doctor_slots_for_admin(doctor_id, start_date, end_date):
+    """Get all slots for a doctor in date range for admin view."""
+    return Slot.objects.filter(
+        doctor_id=doctor_id,
+        start_datetime__date__gte=start_date,
+        start_datetime__date__lte=end_date
+    ).select_related('doctor__user').order_by('start_datetime')
+
+
+def get_doctor_availability_windows_for_admin(doctor_id):
+    """Get all availability windows for a doctor."""
+    from apps.scheduling.models import AvailabilityWindow
+    return AvailabilityWindow.objects.filter(
+        doctor_id=doctor_id,
+        is_active=True
+    ).order_by('weekday', 'start_time')
+
+
+def get_patient_appointments_for_admin(patient_id, limit=50):
+    """Get all appointments for a patient for admin view."""
+    return Appointment.objects.filter(
+        patient_id=patient_id
+    ).select_related(
+        'doctor__user', 'slot'
+    ).order_by('-slot__start_datetime')[:limit]
+
+
+def get_patient_detail_for_admin(patient_id):
+    """Get detailed patient info for admin management."""
+    user = User.objects.get(id=patient_id)
+
+    if user.role != 'patient':
+        raise ValueError("User is not a patient.")
+
+    profile = PatientProfile.objects.filter(user=user).first()
+    appointments = Appointment.objects.filter(patient=user).select_related(
+        'doctor__user', 'slot'
+    ).order_by('-created_at')
+
+    stats = {
+        'total_appointments': appointments.count(),
+        'scheduled': appointments.filter(status='scheduled').count(),
+        'completed': appointments.filter(status='completed').count(),
+        'cancelled': appointments.filter(status='cancelled').count(),
+    }
+
+    return {
+        'user': user,
+        'profile': profile,
+        'appointments': appointments[:20],
+        'stats': stats,
+    }

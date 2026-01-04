@@ -15,14 +15,19 @@
     <!-- Doctor Info -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mb-8">
         <div class="flex flex-col md:flex-row md:items-start gap-6">
+            {% if doctor.user.profile_image %}
+            <img src="{{ doctor.user.profile_image.url }}" alt="Dr. {{ doctor.user.get_display_name }}"
+                class="w-24 h-24 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600 flex-shrink-0">
+            {% else %}
             <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-3xl flex-shrink-0">
                 {{ doctor.user.get_initials }}
             </div>
+            {% endif %}
             <div class="flex-grow">
                 <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h1>
                 <p class="text-xl text-gray-600 dark:text-gray-400 mb-4">{{ doctor.specialization }}</p>
 
-                <div class="grid grid-cols-2 gap-4 mb-4">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Experience</p>
                         <p class="font-semibold text-gray-900 dark:text-white">{{ doctor.years_of_experience }} years</p>
@@ -30,6 +35,25 @@
                     <div>
                         <p class="text-sm text-gray-500 dark:text-gray-400">Consultation Fee</p>
                         <p class="font-semibold text-gray-900 dark:text-white">${{ doctor.consultation_fee }}</p>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Rating</p>
+                        <div class="flex items-center">
+                            {% if doctor.review_count > 0 %}
+                            <div class="flex items-center">
+                                <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                                </svg>
+                                <span class="font-semibold text-gray-900 dark:text-white ml-1">{{ doctor.average_rating|floatformat:1 }}</span>
+                            </div>
+                            {% else %}
+                            <span class="text-gray-400 dark:text-gray-500">No ratings yet</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Reviews</p>
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ doctor.review_count }}</p>
                     </div>
                 </div>
 
@@ -116,6 +140,45 @@
                 <p class="text-sm text-gray-500 dark:text-gray-500">Please check back later or try a different doctor.</p>
             </div>
             {% endif %}
+        </div>
+    </div>
+
+    <!-- Reviews Section -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mt-8">
+        <div class="flex justify-between items-center mb-6">
+            <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">
+                Patient Reviews
+                {% if doctor.review_count > 0 %}
+                <span class="text-lg font-normal text-gray-500 dark:text-gray-400">({{ doctor.review_count }})</span>
+                {% endif %}
+            </h2>
+            {% if doctor.review_count > 0 %}
+            <div class="flex items-center space-x-2">
+                <div class="flex items-center">
+                    {% for i in "12345" %}
+                        {% if forloop.counter <= doctor.average_rating|floatformat:0|add:0 %}
+                        <svg class="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        {% else %}
+                        <svg class="w-5 h-5 text-gray-300 dark:text-gray-600" fill="currentColor" viewBox="0 0 20 20">
+                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                        </svg>
+                        {% endif %}
+                    {% endfor %}
+                </div>
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">{{ doctor.average_rating|floatformat:1 }}</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Reviews List (loaded via HTMX) -->
+        <div hx-get="{% url 'patient:doctor_reviews' doctor.id %}"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <div class="flex justify-center py-8">
+                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+            </div>
         </div>
     </div>
 </div>

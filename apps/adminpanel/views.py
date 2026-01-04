@@ -1,15 +1,17 @@
 """
 Views for adminpanel app - comprehensive admin dashboard.
 """
+from datetime import datetime, timedelta
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse, JsonResponse
 from django.views.decorators.http import require_POST, require_GET
 from django.core.paginator import Paginator
+from django.utils import timezone
 
 from apps.accounts.models import DoctorProfile, User
-from apps.scheduling.models import Appointment
+from apps.scheduling.models import Appointment, Slot
 
 from . import selectors
 from . import services
@@ -379,3 +381,239 @@ def audit_logs(request):
         'log_type': log_type,
         'current_page': page,
     })
+
+
+# ============ DOCTOR SLOT MANAGEMENT ============
+
+@admin_required
+def admin_doctor_manage(request, doctor_id):
+    """Admin view: Manage a doctor's slots and availability."""
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id)
+    ip_address = services.get_client_ip(request)
+
+    # Log this view
+    services.log_admin_action(
+        admin=request.user,
+        action_type='doctor_management_viewed',
+        target_user=doctor.user,
+        description=f'Viewed management page for Dr. {doctor.user.get_display_name()}',
+        ip_address=ip_address,
+    )
+
+    # Get week from query params or default to current week
+    week_start_param = request.GET.get('week_start')
+    if week_start_param:
+        start_of_week = datetime.strptime(week_start_param, '%Y-%m-%d').date()
+    else:
+        today = timezone.now().date()
+        start_of_week = today - timedelta(days=today.weekday())
+
+    end_of_week = start_of_week + timedelta(days=6)
+
+    # Calculate prev/next week dates
+    prev_week = start_of_week - timedelta(days=7)
+    next_week = start_of_week + timedelta(days=7)
+
+    # Generate list of dates for the week
+    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+
+    # Get slots for the week
+    slots = selectors.get_doctor_slots_for_admin(doctor_id, start_of_week, end_of_week)
+
+    # Get availability windows
+    windows = selectors.get_doctor_availability_windows_for_admin(doctor_id)
+
+    # Get doctor statistics
+    stats = selectors.get_doctor_statistics(doctor_id)
+
+    return render(request, 'adminpanel/doctor_manage.html', {
+        'doctor': doctor,
+        'stats': stats,
+        'slots': slots,
+        'windows': windows,
+        'start_of_week': start_of_week,
+        'end_of_week': end_of_week,
+        'prev_week': prev_week.strftime('%Y-%m-%d'),
+        'next_week': next_week.strftime('%Y-%m-%d'),
+        'week_dates': week_dates,
+        'today': timezone.now().date(),
+    })
+
+
+@admin_required
+@require_GET
+def admin_doctor_calendar(request, doctor_id):
+    """HTMX: Get calendar slots for admin management."""
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id)
+
+    # Get week from query params
+    week_start_param = request.GET.get('week_start')
+    if week_start_param:
+        start_of_week = datetime.strptime(week_start_param, '%Y-%m-%d').date()
+    else:
+        today = timezone.now().date()
+        start_of_week = today - timedelta(days=today.weekday())
+
+    end_of_week = start_of_week + timedelta(days=6)
+    prev_week = start_of_week - timedelta(days=7)
+    next_week = start_of_week + timedelta(days=7)
+    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+
+    slots = selectors.get_doctor_slots_for_admin(doctor_id, start_of_week, end_of_week)
+
+    return render(request, 'adminpanel/partials/_admin_calendar_grid.html', {
+        'doctor': doctor,
+        'slots': slots,
+        'start_of_week': start_of_week,
+        'end_of_week': end_of_week,
+        'prev_week': prev_week.strftime('%Y-%m-%d'),
+        'next_week': next_week.strftime('%Y-%m-%d'),
+        'week_dates': week_dates,
+        'today': timezone.now().date(),
+    })
+
+
+@admin_required
+@require_POST
+def admin_block_slot(request, slot_id):
+    """Admin: Block a slot."""
+    ip_address = services.get_client_ip(request)
+    reason = request.POST.get('reason', '')
+
+    try:
+        slot = services.admin_block_slot(slot_id, request.user, reason, ip_address)
+        messages.success(request, 'Slot blocked successfully.')
+
+        if request.headers.get('HX-Request'):
+            return admin_doctor_calendar(request, slot.doctor.id)
+
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:doctor_manage', doctor_id=Slot.objects.get(id=slot_id).doctor.id)
+
+
+@admin_required
+@require_POST
+def admin_unblock_slot(request, slot_id):
+    """Admin: Unblock a slot."""
+    ip_address = services.get_client_ip(request)
+
+    try:
+        slot = services.admin_unblock_slot(slot_id, request.user, ip_address)
+        messages.success(request, 'Slot unblocked successfully.')
+
+        if request.headers.get('HX-Request'):
+            return admin_doctor_calendar(request, slot.doctor.id)
+
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:doctor_manage', doctor_id=Slot.objects.get(id=slot_id).doctor.id)
+
+
+@admin_required
+@require_POST
+def admin_delete_slot(request, slot_id):
+    """Admin: Delete an unbooked slot."""
+    ip_address = services.get_client_ip(request)
+    slot = get_object_or_404(Slot, id=slot_id)
+    doctor_id = slot.doctor.id
+
+    try:
+        services.admin_delete_slot(slot_id, request.user, ip_address)
+        messages.success(request, 'Slot deleted successfully.')
+
+        if request.headers.get('HX-Request'):
+            return admin_doctor_calendar(request, doctor_id)
+
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:doctor_manage', doctor_id=doctor_id)
+
+
+@admin_required
+@require_POST
+def admin_create_slot(request, doctor_id):
+    """Admin: Create a slot for a doctor."""
+    ip_address = services.get_client_ip(request)
+
+    date = request.POST.get('date')
+    start_time = request.POST.get('start_time')
+    end_time = request.POST.get('end_time')
+    appointment_type = request.POST.get('appointment_type', 'video')
+    is_urgent = request.POST.get('is_urgent') == 'on'
+    notes = request.POST.get('notes', '')
+
+    try:
+        start_datetime = timezone.make_aware(
+            datetime.strptime(f"{date} {start_time}", '%Y-%m-%d %H:%M')
+        )
+        end_datetime = timezone.make_aware(
+            datetime.strptime(f"{date} {end_time}", '%Y-%m-%d %H:%M')
+        )
+
+        services.admin_create_slot(
+            doctor_id=doctor_id,
+            start_datetime=start_datetime,
+            end_datetime=end_datetime,
+            appointment_type=appointment_type,
+            admin=request.user,
+            is_urgent=is_urgent,
+            notes=notes,
+            ip_address=ip_address
+        )
+        messages.success(request, 'Slot created successfully.')
+
+        if request.headers.get('HX-Request'):
+            return admin_doctor_calendar(request, doctor_id)
+
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:doctor_manage', doctor_id=doctor_id)
+
+
+# ============ PATIENT MANAGEMENT ============
+
+@admin_required
+def admin_patient_manage(request, patient_id):
+    """Admin view: Manage a patient's appointments."""
+    user = get_object_or_404(User, id=patient_id, role='patient')
+    ip_address = services.get_client_ip(request)
+
+    # Log this view
+    services.log_admin_action(
+        admin=request.user,
+        action_type='patient_management_viewed',
+        target_user=user,
+        description=f'Viewed management page for {user.get_display_name()}',
+        ip_address=ip_address,
+    )
+
+    result = selectors.get_patient_detail_for_admin(patient_id)
+
+    return render(request, 'adminpanel/patient_manage.html', result)
+
+
+@admin_required
+@require_POST
+def admin_cancel_appointment(request, appointment_id):
+    """Admin: Cancel an appointment."""
+    ip_address = services.get_client_ip(request)
+    reason = request.POST.get('reason', '')
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+    patient_id = appointment.patient.id
+
+    try:
+        services.admin_cancel_appointment(appointment_id, request.user, reason, ip_address)
+        messages.success(request, 'Appointment cancelled successfully.')
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    if request.headers.get('HX-Request'):
+        result = selectors.get_patient_detail_for_admin(patient_id)
+        return render(request, 'adminpanel/partials/_patient_appointments.html', result)
+
+    return redirect('adminpanel:patient_manage', patient_id=patient_id)

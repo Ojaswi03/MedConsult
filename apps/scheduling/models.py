@@ -358,3 +358,39 @@ class SlotChangeLog(models.Model):
 
     def __str__(self):
         return f"{self.doctor.user.get_display_name()} - {self.change_type} at {self.created_at}"
+
+
+class Review(models.Model):
+    """
+    Patient review and rating for a completed appointment.
+    """
+    appointment = models.OneToOneField(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='review'
+    )
+    patient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='given_reviews'
+    )
+    doctor = models.ForeignKey(
+        DoctorProfile,
+        on_delete=models.CASCADE,
+        related_name='reviews'
+    )
+    rating = models.IntegerField(
+        choices=[(i, str(i)) for i in range(1, 6)],
+        help_text='Rating from 1 to 5 stars'
+    )
+    comment = models.TextField(blank=True)
+    is_visible = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'reviews'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Review by {self.patient.get_display_name()} for Dr. {self.doctor.user.get_display_name()} - {self.rating} stars"

@@ -1,0 +1,101 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Waiting Room - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto text-center">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
+        <div class="w-24 h-24 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center mx-auto mb-6">
+            <svg class="w-12 h-12 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+        </div>
+
+        <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Waiting Room</h1>
+
+        <div class="mb-8">
+            <p class="text-gray-600 dark:text-gray-400 mb-2">Your appointment with</p>
+            <p class="text-xl font-semibold text-gray-900 dark:text-white">
+                {% if request.user == appointment.patient %}
+                    Dr. {{ appointment.doctor.user.get_display_name }}
+                {% else %}
+                    {{ appointment.patient.get_display_name }}
+                {% endif %}
+            </p>
+            <p class="text-gray-500 dark:text-gray-400 mt-2">
+                {{ appointment.start_datetime|date:"F j, Y" }} at {{ appointment.start_datetime|date:"g:i A" }}
+            </p>
+        </div>
+
+        <!-- Camera/Mic Test -->
+        <div class="mb-8">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Test Your Camera & Microphone</h3>
+            <div class="bg-gray-900 rounded-lg aspect-video mb-4 relative overflow-hidden">
+                <video id="preview-video" autoplay muted playsinline class="w-full h-full object-cover"></video>
+                <div id="video-placeholder" class="absolute inset-0 flex items-center justify-center bg-gray-800">
+                    <svg class="w-16 h-16 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                    </svg>
+                </div>
+            </div>
+            <div class="flex justify-center space-x-4">
+                <button id="test-camera" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    Test Camera
+                </button>
+                <button id="test-mic" class="px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-white rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                    Test Microphone
+                </button>
+            </div>
+        </div>
+
+        <a href="{% url 'consultations:join' appointment.id %}" class="inline-block bg-green-600 text-white px-8 py-3 rounded-lg hover:bg-green-700 font-semibold transition-colors">
+            Join Video Call
+        </a>
+
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-4">
+            You can join up to 15 minutes before the appointment time.
+        </p>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const video = document.getElementById('preview-video');
+    const placeholder = document.getElementById('video-placeholder');
+    const testCameraBtn = document.getElementById('test-camera');
+    const testMicBtn = document.getElementById('test-mic');
+
+    let stream = null;
+
+    testCameraBtn.addEventListener('click', async function() {
+        try {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+            }
+            stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+            video.srcObject = stream;
+            placeholder.style.display = 'none';
+        } catch (err) {
+            alert('Could not access camera. Please check permissions.');
+        }
+    });
+
+    testMicBtn.addEventListener('click', async function() {
+        try {
+            const micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            alert('Microphone is working!');
+            micStream.getTracks().forEach(track => track.stop());
+        } catch (err) {
+            alert('Could not access microphone. Please check permissions.');
+        }
+    });
+
+    // Cleanup on page leave
+    window.addEventListener('beforeunload', function() {
+        if (stream) {
+            stream.getTracks().forEach(track => track.stop());
+        }
+    });
+});
+</script>
+{% endblock %}

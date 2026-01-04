@@ -7,7 +7,7 @@ from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
 
 from apps.accounts.models import DoctorProfile
-from apps.accounts.selectors import get_all_verified_doctors
+from apps.accounts.selectors import get_all_verified_doctors, get_filtered_doctors, get_all_specializations
 from .models import Slot, Appointment, AvailabilityWindow, BodyPart, Condition, SymptomCategory, Symptom
 from .forms import AvailabilityWindowForm, ManualSlotForm, BlockSlotForm, get_appointment_type_formset
 from .services import (
@@ -21,7 +21,8 @@ from .services import (
     block_slot,
     unblock_slot,
     delete_slot,
-    log_slot_change
+    log_slot_change,
+    create_review
 )
 from .selectors import (
     get_available_slots_for_doctor,
@@ -34,7 +35,10 @@ from .selectors import (
     get_doctor_slots_for_calendar,
     get_slots_for_patient_view,
     has_slot_changes_since,
-    get_enabled_appointment_types
+    get_enabled_appointment_types,
+    get_doctor_reviews,
+    get_patient_reviewable_appointments,
+    can_patient_review_appointment
 )
 
 
@@ -42,12 +46,69 @@ from .selectors import (
 
 @login_required
 def patient_doctors_list(request):
-    """Patient view: List all verified doctors."""
+    """Patient view: List all verified doctors with filtering and search."""
     if request.user.role != 'patient':
         return HttpResponseForbidden("Access denied. Patients only.")
 
-    doctors = get_all_verified_doctors()
-    return render(request, 'scheduling/patient/doctors_list.html', {'doctors': doctors})
+    # Get filter parameters from request
+    search = request.GET.get('search', '').strip()
+    specialization = request.GET.get('specialization', '').strip()
+    min_rating = request.GET.get('min_rating')
+    min_experience = request.GET.get('min_experience')
+    max_price = request.GET.get('max_price')
+    has_availability = request.GET.get('has_availability') == 'on'
+    sort_by = request.GET.get('sort_by', 'rating')
+
+    # Convert numeric filters
+    try:
+        min_rating = int(min_rating) if min_rating else None
+    except ValueError:
+        min_rating = None
+
+    try:
+        min_experience = int(min_experience) if min_experience else None
+    except ValueError:
+        min_experience = None
+
+    try:
+        max_price = float(max_price) if max_price else None
+    except ValueError:
+        max_price = None
+
+    # Get filtered doctors
+    doctors = get_filtered_doctors(
+        search=search if search else None,
+        specialization=specialization if specialization else None,
+        min_rating=min_rating,
+        min_experience=min_experience,
+        max_price=max_price,
+        has_availability=has_availability,
+        sort_by=sort_by
+    )
+
+    # Get all specializations for filter dropdown
+    specializations = get_all_specializations()
+
+    context = {
+        'doctors': doctors,
+        'specializations': specializations,
+        # Pass current filter values back to template
+        'current_filters': {
+            'search': search,
+            'specialization': specialization,
+            'min_rating': min_rating,
+            'min_experience': min_experience,
+            'max_price': max_price,
+            'has_availability': has_availability,
+            'sort_by': sort_by,
+        }
+    }
+
+    # For HTMX requests, return just the doctors grid
+    if request.headers.get('HX-Request'):
+        return render(request, 'scheduling/patient/partials/_doctors_grid.html', context)
+
+    return render(request, 'scheduling/patient/doctors_list.html', context)
 
 
 @login_required
@@ -570,4 +631,70 @@ def get_symptoms(request):
 
     return render(request, 'scheduling/patient/partials/_symptoms.html', {
         'categories': categories
+    })
+
+
+# ========== REVIEW VIEWS ==========
+
+@login_required
+def patient_reviews_list(request):
+    """Patient view: List appointments that can be reviewed."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    reviewable = get_patient_reviewable_appointments(request.user)
+
+    return render(request, 'scheduling/patient/reviews.html', {
+        'reviewable_appointments': reviewable
+    })
+
+
+@login_required
+def patient_submit_review(request, appointment_id):
+    """Patient view: Submit a review for a completed appointment."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
+
+    if not can_patient_review_appointment(request.user, appointment):
+        messages.error(request, 'You cannot review this appointment.')
+        return redirect('patient:patient_appointments')
+
+    if request.method == 'POST':
+        rating = request.POST.get('rating')
+        comment = request.POST.get('comment', '').strip()
+
+        if not rating:
+            messages.error(request, 'Please select a rating.')
+            return render(request, 'scheduling/patient/submit_review.html', {
+                'appointment': appointment
+            })
+
+        try:
+            rating = int(rating)
+            review = create_review(appointment, request.user, rating, comment)
+            messages.success(request, 'Thank you for your review!')
+            return redirect('patient:patient_appointments')
+        except ValueError as e:
+            messages.error(request, str(e))
+            return render(request, 'scheduling/patient/submit_review.html', {
+                'appointment': appointment
+            })
+
+    return render(request, 'scheduling/patient/submit_review.html', {
+        'appointment': appointment
+    })
+
+
+@login_required
+@require_GET
+def doctor_reviews_partial(request, doctor_id):
+    """HTMX: Get reviews list for a doctor."""
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id)
+    reviews = get_doctor_reviews(doctor)
+
+    return render(request, 'scheduling/patient/partials/_reviews_list.html', {
+        'doctor': doctor,
+        'reviews': reviews
     })

@@ -30,6 +30,7 @@ INSTALLED_APPS = [
 
     # Third-party apps
     'channels',
+    'django_celery_beat',
 
     # Local apps
     'apps.accounts',
@@ -37,6 +38,9 @@ INSTALLED_APPS = [
     'apps.dashboard',
     'apps.adminpanel',
     'apps.support',
+    'apps.payments',
+    'apps.messaging',
+    'apps.consultations',
 ]
 
 MIDDLEWARE = [
@@ -139,5 +143,32 @@ SESSION_SAVE_EVERY_REQUEST = True
 FILE_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 DATA_UPLOAD_MAX_MEMORY_SIZE = 10 * 1024 * 1024  # 10MB
 
-# Email backend (console for development)
-EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+# Celery Configuration
+CELERY_BROKER_URL = os.environ.get('CELERY_BROKER_URL', 'redis://localhost:6379/0')
+CELERY_RESULT_BACKEND = os.environ.get('CELERY_RESULT_BACKEND', 'redis://localhost:6379/0')
+CELERY_ACCEPT_CONTENT = ['json']
+CELERY_TASK_SERIALIZER = 'json'
+CELERY_RESULT_SERIALIZER = 'json'
+CELERY_TIMEZONE = TIME_ZONE
+CELERY_TASK_TRACK_STARTED = True
+CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
+
+# Celery Beat Schedule (for periodic tasks like reminders)
+CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
+
+# Email Configuration (base settings, override in dev/prod)
+DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'MedConsult <noreply@medconsult.com>')
+EMAIL_SUBJECT_PREFIX = '[MedConsult] '
+
+# Stripe Configuration
+STRIPE_PUBLISHABLE_KEY = os.environ.get('STRIPE_PUBLISHABLE_KEY', '')
+STRIPE_SECRET_KEY = os.environ.get('STRIPE_SECRET_KEY', '')
+STRIPE_WEBHOOK_SECRET = os.environ.get('STRIPE_WEBHOOK_SECRET', '')
+
+# Daily.co Configuration (Video Consultations)
+DAILY_API_KEY = os.environ.get('DAILY_API_KEY', '')
+
+# Twilio Configuration (SMS Notifications)
+TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
+TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
+TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')

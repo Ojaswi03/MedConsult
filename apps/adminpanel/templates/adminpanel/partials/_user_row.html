@@ -2,8 +2,8 @@
     <td class="px-6 py-4 whitespace-nowrap">
         <div class="flex items-center">
             <div class="w-10 h-10 flex-shrink-0">
-                {% if user.profile_picture %}
-                <img class="w-10 h-10 rounded-full object-cover" src="{{ user.profile_picture.url }}" alt="">
+                {% if user.profile_image %}
+                <img class="w-10 h-10 rounded-full object-cover" src="{{ user.profile_image.url }}" alt="">
                 {% else %}
                 <div class="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center">
                     <span class="text-gray-600 font-medium text-sm">
@@ -43,6 +43,17 @@
         {{ user.created_at|date:"M d, Y" }}
     </td>
     <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+        {% if user.role == 'patient' %}
+        <a href="{% url 'adminpanel:patient_manage' user.id %}"
+           class="text-green-600 hover:text-green-900 mr-3">
+            Manage
+        </a>
+        {% elif user.role == 'doctor' %}
+        <a href="{% url 'adminpanel:doctor_manage' user.doctor_profile.id %}"
+           class="text-green-600 hover:text-green-900 mr-3">
+            Manage
+        </a>
+        {% endif %}
         <button onclick="showUserModal({{ user.id }})"
                 class="text-blue-600 hover:text-blue-900 mr-3">
             View

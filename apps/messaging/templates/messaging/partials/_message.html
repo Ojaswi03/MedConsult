@@ -1,0 +1,21 @@
+{% if message.message_type == 'system' %}
+<div class="flex justify-center">
+    <div class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm">
+        {{ message.content }}
+    </div>
+</div>
+{% else %}
+<div class="flex {% if is_own %}justify-end{% else %}justify-start{% endif %}">
+    <div class="max-w-xs lg:max-w-md">
+        <div class="{% if is_own %}bg-blue-600 text-white{% else %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow{% endif %} px-4 py-2 rounded-lg">
+            <p>{{ message.content }}</p>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 {% if is_own %}text-right{% else %}text-left{% endif %}">
+            {{ message.created_at|date:"g:i A" }}
+            {% if is_own %}
+            <span class="message-status ml-1">{% if message.is_read %}Read{% else %}Sent{% endif %}</span>
+            {% endif %}
+        </p>
+    </div>
+</div>
+{% endif %}

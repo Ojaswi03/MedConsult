@@ -37,8 +37,8 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
                         <div class="w-10 h-10 flex-shrink-0">
-                            {% if doctor.user.profile_picture %}
-                            <img class="w-10 h-10 rounded-full object-cover" src="{{ doctor.user.profile_picture.url }}" alt="">
+                            {% if doctor.user.profile_image %}
+                            <img class="w-10 h-10 rounded-full object-cover" src="{{ doctor.user.profile_image.url }}" alt="">
                             {% else %}
                             <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
                                 <span class="text-purple-600 font-medium text-sm">
@@ -74,6 +74,10 @@
                     <div class="text-xs text-blue-600">{{ doctor.available_slots }} available</div>
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                    <a href="{% url 'adminpanel:doctor_manage' doctor.id %}"
+                       class="text-green-600 hover:text-green-900 mr-3">
+                        Manage
+                    </a>
                     <button onclick="showDoctorModal({{ doctor.id }})"
                             class="text-blue-600 hover:text-blue-900 mr-3">
                         Details

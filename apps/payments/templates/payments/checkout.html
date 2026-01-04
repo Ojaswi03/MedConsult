@@ -1,0 +1,60 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Checkout - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Complete Your Booking</h1>
+
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Appointment Details</h2>
+
+        <div class="space-y-4">
+            <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-gray-600 dark:text-gray-400">Doctor</span>
+                <span class="font-medium text-gray-900 dark:text-white">Dr. {{ appointment.doctor.user.get_display_name }}</span>
+            </div>
+
+            <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-gray-600 dark:text-gray-400">Specialization</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ appointment.doctor.specialization }}</span>
+            </div>
+
+            <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-gray-600 dark:text-gray-400">Date & Time</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ appointment.start_datetime|date:"F j, Y" }} at {{ appointment.start_datetime|date:"g:i A" }}</span>
+            </div>
+
+            <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+                <span class="text-gray-600 dark:text-gray-400">Consultation Type</span>
+                <span class="font-medium text-gray-900 dark:text-white">{{ appointment.slot.get_appointment_type_display }}</span>
+            </div>
+
+            <div class="flex justify-between items-center py-3">
+                <span class="text-lg font-semibold text-gray-900 dark:text-white">Total</span>
+                <span class="text-2xl font-bold text-green-600 dark:text-green-400">${{ appointment.slot.price }}</span>
+            </div>
+        </div>
+    </div>
+
+    <form method="post" class="space-y-4">
+        {% csrf_token %}
+        <button type="submit" class="w-full bg-blue-600 text-white py-4 px-6 rounded-lg hover:bg-blue-700 font-semibold text-lg transition-colors flex items-center justify-center">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"/>
+            </svg>
+            Proceed to Payment
+        </button>
+
+        <p class="text-center text-sm text-gray-500 dark:text-gray-400">
+            You will be redirected to Stripe for secure payment processing.
+        </p>
+    </form>
+
+    <div class="mt-6 text-center">
+        <a href="{% url 'patient:patient_appointments' %}" class="text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200">
+            Cancel and return to appointments
+        </a>
+    </div>
+</div>
+{% endblock %}

@@ -206,3 +206,194 @@ def export_doctors_csv(doctors):
         ])
 
     return output.getvalue()
+
+
+# ============ ADMIN SLOT MANAGEMENT ============
+
+@transaction.atomic
+def admin_block_slot(slot_id, admin, reason='', ip_address=None):
+    """Admin blocks a slot for a doctor."""
+    from apps.scheduling.models import Slot, SlotChangeLog
+
+    slot = Slot.objects.select_related('doctor__user').get(id=slot_id)
+
+    if slot.is_booked:
+        raise ValueError("Cannot block a booked slot.")
+
+    slot.is_blocked = True
+    slot.notes = reason
+    slot.save()
+
+    SlotChangeLog.objects.create(
+        doctor=slot.doctor,
+        slot=slot,
+        change_type='updated'
+    )
+
+    log_admin_action(
+        admin=admin,
+        action_type='slot_blocked',
+        target_user=slot.doctor.user,
+        description=f'Blocked slot for Dr. {slot.doctor.user.get_display_name()} on {slot.start_datetime.strftime("%Y-%m-%d %H:%M")}',
+        ip_address=ip_address,
+        metadata={
+            'slot_id': slot_id,
+            'doctor_id': slot.doctor.id,
+            'reason': reason,
+        }
+    )
+
+    return slot
+
+
+@transaction.atomic
+def admin_unblock_slot(slot_id, admin, ip_address=None):
+    """Admin unblocks a slot for a doctor."""
+    from apps.scheduling.models import Slot, SlotChangeLog
+
+    slot = Slot.objects.select_related('doctor__user').get(id=slot_id)
+
+    slot.is_blocked = False
+    slot.notes = ''
+    slot.save()
+
+    SlotChangeLog.objects.create(
+        doctor=slot.doctor,
+        slot=slot,
+        change_type='updated'
+    )
+
+    log_admin_action(
+        admin=admin,
+        action_type='slot_unblocked',
+        target_user=slot.doctor.user,
+        description=f'Unblocked slot for Dr. {slot.doctor.user.get_display_name()} on {slot.start_datetime.strftime("%Y-%m-%d %H:%M")}',
+        ip_address=ip_address,
+        metadata={
+            'slot_id': slot_id,
+            'doctor_id': slot.doctor.id,
+        }
+    )
+
+    return slot
+
+
+@transaction.atomic
+def admin_delete_slot(slot_id, admin, ip_address=None):
+    """Admin deletes an unbooked slot."""
+    from apps.scheduling.models import Slot, SlotChangeLog
+
+    slot = Slot.objects.select_related('doctor__user').get(id=slot_id)
+
+    if slot.is_booked:
+        raise ValueError("Cannot delete a booked slot. Cancel the appointment first.")
+
+    doctor = slot.doctor
+    start_datetime = slot.start_datetime
+
+    SlotChangeLog.objects.create(
+        doctor=doctor,
+        slot=None,
+        change_type='deleted'
+    )
+
+    slot.delete()
+
+    log_admin_action(
+        admin=admin,
+        action_type='slot_deleted',
+        target_user=doctor.user,
+        description=f'Deleted slot for Dr. {doctor.user.get_display_name()} on {start_datetime.strftime("%Y-%m-%d %H:%M")}',
+        ip_address=ip_address,
+        metadata={
+            'slot_id': slot_id,
+            'doctor_id': doctor.id,
+        }
+    )
+
+
+@transaction.atomic
+def admin_cancel_appointment(appointment_id, admin, reason='', ip_address=None):
+    """Admin cancels an appointment on behalf of a patient."""
+    from apps.scheduling.models import Appointment, SlotChangeLog
+
+    appointment = Appointment.objects.select_related(
+        'patient', 'doctor__user', 'slot'
+    ).get(id=appointment_id)
+
+    if appointment.status == 'cancelled':
+        raise ValueError("Appointment is already cancelled.")
+
+    if appointment.status == 'completed':
+        raise ValueError("Cannot cancel a completed appointment.")
+
+    # Update appointment status
+    appointment.status = 'cancelled'
+    appointment.notes = f"Cancelled by admin. Reason: {reason}" if reason else "Cancelled by admin."
+    appointment.save()
+
+    # Free up the slot
+    slot = appointment.slot
+    slot.is_booked = False
+    slot.save()
+
+    SlotChangeLog.objects.create(
+        doctor=appointment.doctor,
+        slot=slot,
+        change_type='cancelled'
+    )
+
+    log_admin_action(
+        admin=admin,
+        action_type='appointment_cancelled',
+        target_user=appointment.patient,
+        description=f'Cancelled appointment for {appointment.patient.get_display_name()} with Dr. {appointment.doctor.user.get_display_name()}',
+        ip_address=ip_address,
+        metadata={
+            'appointment_id': appointment_id,
+            'patient_id': appointment.patient.id,
+            'doctor_id': appointment.doctor.id,
+            'reason': reason,
+        }
+    )
+
+    return appointment
+
+
+@transaction.atomic
+def admin_create_slot(doctor_id, start_datetime, end_datetime, appointment_type, admin, is_urgent=False, notes='', ip_address=None):
+    """Admin creates a slot for a doctor."""
+    from apps.scheduling.models import Slot, SlotChangeLog
+
+    doctor = DoctorProfile.objects.select_related('user').get(id=doctor_id)
+
+    slot = Slot.objects.create(
+        doctor=doctor,
+        start_datetime=start_datetime,
+        end_datetime=end_datetime,
+        appointment_type=appointment_type,
+        is_urgent=is_urgent,
+        notes=notes,
+    )
+
+    SlotChangeLog.objects.create(
+        doctor=doctor,
+        slot=slot,
+        change_type='created'
+    )
+
+    log_admin_action(
+        admin=admin,
+        action_type='slot_created',
+        target_user=doctor.user,
+        description=f'Created slot for Dr. {doctor.user.get_display_name()} on {start_datetime.strftime("%Y-%m-%d %H:%M")}',
+        ip_address=ip_address,
+        metadata={
+            'slot_id': slot.id,
+            'doctor_id': doctor_id,
+            'appointment_type': appointment_type,
+            'is_urgent': is_urgent,
+        }
+    )
+
+    return slot

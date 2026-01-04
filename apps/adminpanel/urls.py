@@ -19,6 +19,18 @@ urlpatterns = [
     path('doctors/<int:doctor_id>/', views.doctor_detail, name='doctor_detail'),
     path('doctors/<int:doctor_id>/document/<str:doc_type>/', views.doctor_document_view, name='doctor_document'),
 
+    # Doctor Slot Management (Admin)
+    path('doctors/<int:doctor_id>/manage/', views.admin_doctor_manage, name='doctor_manage'),
+    path('doctors/<int:doctor_id>/calendar/', views.admin_doctor_calendar, name='doctor_calendar'),
+    path('doctors/<int:doctor_id>/slots/create/', views.admin_create_slot, name='create_slot'),
+    path('slots/<int:slot_id>/block/', views.admin_block_slot, name='block_slot'),
+    path('slots/<int:slot_id>/unblock/', views.admin_unblock_slot, name='unblock_slot'),
+    path('slots/<int:slot_id>/delete/', views.admin_delete_slot, name='delete_slot'),
+
+    # Patient Management (Admin)
+    path('patients/<int:patient_id>/manage/', views.admin_patient_manage, name='patient_manage'),
+    path('appointments/<int:appointment_id>/cancel/', views.admin_cancel_appointment, name='cancel_appointment'),
+
     # Verification
     path('verify/', views.doctor_verification_queue, name='verification_queue'),
     path('verify/<int:doctor_id>/approve/', views.verify_doctor, name='verify_doctor'),

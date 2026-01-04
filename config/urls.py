@@ -26,6 +26,15 @@ urlpatterns = [
     # Support
     path('support/', include('apps.support.urls')),
 
+    # Payments
+    path('payments/', include('apps.payments.urls')),
+
+    # Messaging
+    path('messages/', include('apps.messaging.urls')),
+
+    # Video Consultations
+    path('consultation/', include('apps.consultations.urls')),
+
     # Landing page
     path('', include('apps.accounts.urls')),
 ]

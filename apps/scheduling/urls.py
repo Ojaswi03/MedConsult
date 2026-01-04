@@ -19,6 +19,11 @@ urlpatterns = [
     path('symptoms/body-parts/<int:body_part_id>/conditions/', views.get_conditions, name='get_conditions'),
     path('symptoms/list/', views.get_symptoms, name='get_symptoms'),
 
+    # Patient URLs - Reviews
+    path('reviews/', views.patient_reviews_list, name='patient_reviews'),
+    path('reviews/<int:appointment_id>/submit/', views.patient_submit_review, name='submit_review'),
+    path('doctors/<int:doctor_id>/reviews/', views.doctor_reviews_partial, name='doctor_reviews'),
+
     # Doctor URLs - Main Views
     path('availability/', views.doctor_availability_manage, name='doctor_availability'),
     path('schedule/', views.doctor_schedule_view, name='doctor_schedule'),

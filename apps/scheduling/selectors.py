@@ -269,3 +269,60 @@ def get_appointment_type_price(doctor_profile, appointment_type):
     if config:
         return config.price
     return None
+
+
+# ============ REVIEW SELECTORS ============
+
+def get_doctor_reviews(doctor_profile, limit=None):
+    """Get all visible reviews for a doctor, most recent first."""
+    from .models import Review
+
+    query = Review.objects.filter(
+        doctor=doctor_profile,
+        is_visible=True
+    ).select_related('patient', 'appointment__slot').order_by('-created_at')
+
+    if limit:
+        query = query[:limit]
+
+    return query
+
+
+def get_patient_reviewable_appointments(patient):
+    """Get completed appointments that the patient can still review."""
+    from .models import Appointment, Review
+
+    # Get completed appointments without reviews
+    reviewed_appointment_ids = Review.objects.filter(
+        patient=patient
+    ).values_list('appointment_id', flat=True)
+
+    return Appointment.objects.filter(
+        patient=patient,
+        status='completed'
+    ).exclude(
+        id__in=reviewed_appointment_ids
+    ).select_related('doctor__user', 'slot').order_by('-slot__start_datetime')
+
+
+def get_review_by_appointment(appointment):
+    """Get review for a specific appointment if it exists."""
+    from .models import Review
+
+    return Review.objects.filter(appointment=appointment).first()
+
+
+def can_patient_review_appointment(patient, appointment):
+    """Check if a patient can review a specific appointment."""
+    from .models import Review
+
+    # Must be the patient who had the appointment
+    if appointment.patient != patient:
+        return False
+
+    # Appointment must be completed
+    if appointment.status != 'completed':
+        return False
+
+    # No existing review
+    return not Review.objects.filter(appointment=appointment).exists()

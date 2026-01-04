@@ -22,8 +22,14 @@ from .services import (
     create_patient_from_wizard,
     create_doctor_from_wizard,
     clear_signup_session,
+    send_verification_email,
+    verify_email_token,
+    send_password_reset_email,
+    verify_password_reset_token,
+    reset_user_password,
 )
 from .selectors import get_user_profile
+from .models import User
 
 
 def serialize_form_data(cleaned_data):
@@ -99,8 +105,12 @@ def patient_signup_wizard(request, step=1):
                 try:
                     user = create_patient_from_wizard(wizard_data)
                     clear_signup_session(request)
+
+                    # Send verification email
+                    send_verification_email(user, request)
+
                     login(request, user, backend='apps.accounts.backends.EmailOrUsernameBackend')
-                    messages.success(request, 'Account created successfully! Welcome to MedConsult.')
+                    messages.success(request, 'Account created! Please check your email to verify your account.')
                     return redirect('dashboard:home')
                 except Exception as e:
                     messages.error(request, f'Error creating account: {str(e)}')
@@ -209,8 +219,12 @@ def doctor_signup_wizard(request, step=1):
                             default_storage.delete(path)
 
                     clear_signup_session(request)
+
+                    # Send verification email
+                    send_verification_email(user, request)
+
                     login(request, user, backend='apps.accounts.backends.EmailOrUsernameBackend')
-                    messages.success(request, 'Account created! Your profile is pending verification.')
+                    messages.success(request, 'Account created! Please check your email to verify your account. Your profile is pending admin verification.')
                     return redirect('dashboard:home')
                 except Exception as e:
                     messages.error(request, f'Error creating account: {str(e)}')
@@ -316,6 +330,51 @@ def settings_view(request):
 
 @login_required
 @require_http_methods(["POST"])
+def upload_profile_image(request):
+    """Handle profile image upload."""
+    if 'profile_image' not in request.FILES:
+        messages.error(request, 'No image file provided.')
+        return redirect('profile')
+
+    uploaded_file = request.FILES['profile_image']
+
+    # Validate file type
+    allowed_types = ['image/png', 'image/jpeg', 'image/jpg']
+    if uploaded_file.content_type not in allowed_types:
+        messages.error(request, 'Invalid file type. Please upload a PNG, JPG, or JPEG image.')
+        return redirect('profile')
+
+    # Validate file size (max 5MB)
+    if uploaded_file.size > 5 * 1024 * 1024:
+        messages.error(request, 'File too large. Maximum size is 5MB.')
+        return redirect('profile')
+
+    # Delete old image if exists
+    if request.user.profile_image:
+        request.user.profile_image.delete(save=False)
+
+    # Save new image
+    request.user.profile_image = uploaded_file
+    request.user.save(update_fields=['profile_image'])
+
+    messages.success(request, 'Profile image updated successfully!')
+    return redirect('profile')
+
+
+@login_required
+@require_http_methods(["POST"])
+def remove_profile_image(request):
+    """Remove profile image."""
+    if request.user.profile_image:
+        request.user.profile_image.delete(save=False)
+        request.user.profile_image = None
+        request.user.save(update_fields=['profile_image'])
+        messages.success(request, 'Profile image removed.')
+    return redirect('profile')
+
+
+@login_required
+@require_http_methods(["POST"])
 def update_theme(request):
     """Update user theme preference via HTMX."""
     theme = request.POST.get('theme', 'light')
@@ -326,4 +385,97 @@ def update_theme(request):
     # Return the updated theme toggle partial
     return render(request, 'accounts/partials/_theme_toggle.html', {
         'current_theme': theme
+    })
+
+
+# ============ EMAIL VERIFICATION ============
+
+def verify_email(request, token):
+    """Verify email using token from verification email."""
+    success, message, user = verify_email_token(token)
+
+    if success:
+        messages.success(request, message)
+        if request.user.is_authenticated:
+            return redirect('dashboard:home')
+        return redirect('login')
+    else:
+        messages.error(request, message)
+        if request.user.is_authenticated:
+            return redirect('settings')
+        return redirect('login')
+
+
+@login_required
+@require_http_methods(["POST"])
+def resend_verification_email(request):
+    """Resend verification email to current user."""
+    if request.user.is_email_verified:
+        messages.info(request, 'Your email is already verified.')
+    else:
+        send_verification_email(request.user, request)
+        messages.success(request, 'Verification email sent! Please check your inbox.')
+
+    return redirect('settings')
+
+
+# ============ PASSWORD RESET ============
+
+@require_http_methods(["GET", "POST"])
+def forgot_password(request):
+    """Handle forgot password request."""
+    if request.user.is_authenticated:
+        return redirect('dashboard:home')
+
+    if request.method == 'POST':
+        email = request.POST.get('email', '').strip()
+
+        if email:
+            try:
+                user = User.objects.get(email=email)
+                send_password_reset_email(user, request)
+            except User.DoesNotExist:
+                pass  # Don't reveal if email exists
+
+            # Always show success message to prevent email enumeration
+            messages.success(
+                request,
+                'If an account exists with this email, you will receive a password reset link shortly.'
+            )
+            return redirect('login')
+        else:
+            messages.error(request, 'Please enter your email address.')
+
+    return render(request, 'accounts/forgot_password.html')
+
+
+@require_http_methods(["GET", "POST"])
+def reset_password(request, token):
+    """Handle password reset using token."""
+    if request.user.is_authenticated:
+        return redirect('dashboard:home')
+
+    success, message, token_obj = verify_password_reset_token(token)
+
+    if not success:
+        messages.error(request, message)
+        return redirect('forgot_password')
+
+    if request.method == 'POST':
+        password = request.POST.get('password', '')
+        password_confirm = request.POST.get('password_confirm', '')
+
+        if not password:
+            messages.error(request, 'Please enter a new password.')
+        elif len(password) < 8:
+            messages.error(request, 'Password must be at least 8 characters long.')
+        elif password != password_confirm:
+            messages.error(request, 'Passwords do not match.')
+        else:
+            reset_user_password(token_obj, password)
+            messages.success(request, 'Password reset successfully! You can now log in with your new password.')
+            return redirect('login')
+
+    return render(request, 'accounts/reset_password.html', {
+        'token': token,
     })

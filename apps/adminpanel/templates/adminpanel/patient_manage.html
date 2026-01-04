@@ -1,0 +1,140 @@
+{% extends "layouts/admin.html" %}
+
+{% block page_title %}Manage Patient - {{ user.get_display_name }}{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <a href="{% url 'adminpanel:users_list' %}?role=patient" class="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to Patients
+    </a>
+
+    <div class="flex items-start justify-between">
+        <div class="flex items-center">
+            {% if user.profile_image %}
+            <img src="{{ user.profile_image.url }}" alt="{{ user.get_display_name }}"
+                class="w-16 h-16 rounded-full object-cover border-4 border-gray-200 mr-4">
+            {% else %}
+            <div class="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mr-4">
+                <span class="text-green-600 font-bold text-xl">
+                    {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
+                </span>
+            </div>
+            {% endif %}
+            <div>
+                <h2 class="text-2xl font-bold text-gray-900">{{ user.get_display_name }}</h2>
+                <p class="text-gray-500">{{ user.email }}</p>
+                <p class="text-sm text-gray-400">Member since {{ user.created_at|date:"F j, Y" }}</p>
+            </div>
+        </div>
+        <span class="inline-flex px-3 py-1 text-sm font-medium rounded-full
+            {% if user.is_active %}bg-green-100 text-green-800{% else %}bg-red-100 text-red-800{% endif %}">
+            {% if user.is_active %}Active{% else %}Inactive{% endif %}
+        </span>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <p class="text-sm text-gray-500">Total Appointments</p>
+        <p class="text-2xl font-bold text-gray-900">{{ stats.total_appointments }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <p class="text-sm text-gray-500">Scheduled</p>
+        <p class="text-2xl font-bold text-blue-600">{{ stats.scheduled }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <p class="text-sm text-gray-500">Completed</p>
+        <p class="text-2xl font-bold text-green-600">{{ stats.completed }}</p>
+    </div>
+    <div class="bg-white rounded-lg shadow-sm p-4">
+        <p class="text-sm text-gray-500">Cancelled</p>
+        <p class="text-2xl font-bold text-red-600">{{ stats.cancelled }}</p>
+    </div>
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Appointments List -->
+    <div class="lg:col-span-2">
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Appointments</h3>
+
+            <div id="appointments-container">
+                {% include "adminpanel/partials/_patient_appointments.html" %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Patient Info -->
+    <div class="space-y-6">
+        <!-- Profile Info -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Patient Information</h3>
+            {% if profile %}
+            <div class="space-y-3">
+                {% if profile.date_of_birth %}
+                <div>
+                    <span class="text-sm text-gray-500">Date of Birth</span>
+                    <p class="font-medium">{{ profile.date_of_birth|date:"F j, Y" }}</p>
+                </div>
+                {% endif %}
+                {% if profile.gender %}
+                <div>
+                    <span class="text-sm text-gray-500">Gender</span>
+                    <p class="font-medium">{{ profile.gender|title }}</p>
+                </div>
+                {% endif %}
+                {% if profile.phone_number %}
+                <div>
+                    <span class="text-sm text-gray-500">Phone</span>
+                    <p class="font-medium">{{ profile.phone_number }}</p>
+                </div>
+                {% endif %}
+                {% if profile.address %}
+                <div>
+                    <span class="text-sm text-gray-500">Address</span>
+                    <p class="font-medium">{{ profile.address }}</p>
+                </div>
+                {% endif %}
+            </div>
+            {% else %}
+            <p class="text-sm text-gray-500">No profile information available.</p>
+            {% endif %}
+        </div>
+
+        <!-- Quick Actions -->
+        <div class="bg-white rounded-lg shadow-sm p-6">
+            <h3 class="text-lg font-semibold text-gray-900 mb-4">Quick Actions</h3>
+            <div class="space-y-3">
+                <form method="post" action="{% url 'adminpanel:user_toggle_active' user.id %}">
+                    {% csrf_token %}
+                    <button type="submit" class="w-full py-2 px-4 rounded-lg border
+                        {% if user.is_active %}border-red-300 text-red-700 hover:bg-red-50
+                        {% else %}border-green-300 text-green-700 hover:bg-green-50{% endif %}">
+                        {% if user.is_active %}Deactivate Account{% else %}Activate Account{% endif %}
+                    </button>
+                </form>
+                <a href="{% url 'adminpanel:user_detail' user.id %}"
+                   hx-get="{% url 'adminpanel:user_detail' user.id %}"
+                   hx-target="#user-detail-modal-content"
+                   hx-swap="innerHTML"
+                   class="block w-full text-center py-2 px-4 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-50">
+                    View Full Details
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- User Detail Modal -->
+<div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
+    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div id="user-detail-modal-content">
+            <!-- Content loaded via HTMX -->
+        </div>
+    </div>
+</div>
+{% endblock %}

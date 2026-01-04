@@ -1,6 +1,9 @@
+import secrets
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
+from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
+from datetime import timedelta
 
 
 class UserManager(BaseUserManager):
@@ -59,6 +62,8 @@ class User(AbstractUser):
     middle_name = models.CharField(_('middle name'), max_length=150, blank=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='patient')
     phone = models.CharField(max_length=20, blank=True)
+    is_email_verified = models.BooleanField(default=False)
+    email_verified_at = models.DateTimeField(null=True, blank=True)
     email_notifications = models.BooleanField(default=True)
     phone_notifications = models.BooleanField(default=False)
     theme_preference = models.CharField(
@@ -66,6 +71,12 @@ class User(AbstractUser):
         choices=THEME_CHOICES,
         default='light',
         help_text='User interface theme preference'
+    )
+    profile_image = models.ImageField(
+        upload_to='profile_images/',
+        blank=True,
+        null=True,
+        help_text='Profile picture (PNG, JPG, JPEG)'
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -96,6 +107,16 @@ class User(AbstractUser):
         elif self.first_name:
             return self.first_name[0].upper()
         return self.email[0].upper()
+
+    def get_profile_image_url(self):
+        """Return profile image URL or None."""
+        if self.profile_image:
+            return self.profile_image.url
+        return None
+
+    def has_profile_image(self):
+        """Check if user has a profile image."""
+        return bool(self.profile_image)
 
 
 class PatientProfile(models.Model):
@@ -204,3 +225,89 @@ class DoctorProfile(models.Model):
 
     def __str__(self):
         return f"Dr. {self.user.get_display_name()} - {self.specialization}"
+
+    @property
+    def average_rating(self):
+        """Calculate average rating from all visible reviews."""
+        from django.db.models import Avg
+        result = self.reviews.filter(is_visible=True).aggregate(Avg('rating'))
+        return result['rating__avg'] or 0
+
+    @property
+    def review_count(self):
+        """Count of all visible reviews."""
+        return self.reviews.filter(is_visible=True).count()
+
+    @property
+    def rating_distribution(self):
+        """Get count of reviews for each rating (1-5 stars)."""
+        from django.db.models import Count
+        distribution = {i: 0 for i in range(1, 6)}
+        counts = self.reviews.filter(is_visible=True).values('rating').annotate(count=Count('rating'))
+        for item in counts:
+            distribution[item['rating']] = item['count']
+        return distribution
+
+
+class EmailVerificationToken(models.Model):
+    """Token for email verification."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='email_verification_tokens')
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'email_verification_tokens'
+
+    def __str__(self):
+        return f"Verification token for {self.user.email}"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(48)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=24)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
+
+
+class PasswordResetToken(models.Model):
+    """Token for password reset."""
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='password_reset_tokens')
+    token = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    expires_at = models.DateTimeField()
+    is_used = models.BooleanField(default=False)
+    used_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'password_reset_tokens'
+
+    def __str__(self):
+        return f"Password reset token for {self.user.email}"
+
+    def save(self, *args, **kwargs):
+        if not self.token:
+            self.token = secrets.token_urlsafe(48)
+        if not self.expires_at:
+            self.expires_at = timezone.now() + timedelta(hours=1)
+        super().save(*args, **kwargs)
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self):
+        return not self.is_used and not self.is_expired
