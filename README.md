@@ -23,7 +23,7 @@ Built with **modularity** and **clean architecture** for easy feature additions 
   - Block/unblock individual slots
 - **Appointment Types & Pricing**: Video, Chat, Phone consultations with customizable pricing per availability window
 - **Real-time Updates**: HTMX polling + WebSocket (Django Channels) for instant synchronization
-- **Patient Booking**: Easy doctor discovery, live availability updates, price display, reason for visit
+- **Patient Booking**: Easy doctor discovery, live availability updates, price display, structured symptom/injury selector
 - **Dark Mode**: Full dark theme support with light/dark/auto preferences
 - **Admin Panel**: Doctor verification queue and system oversight
 - **Document Uploads**: Medical license and government ID verification for doctors
@@ -363,6 +363,7 @@ docker-compose exec redis redis-cli
 | **Cache/Channel Layer** | Redis | 7 |
 | **Frontend** | Tailwind CSS | CDN (with dark mode) |
 | **Dynamic UI** | HTMX | 1.9.10 |
+| **Reactive Components** | Alpine.js | 3.x |
 | **JavaScript** | Vanilla JS | - |
 | **Container** | Docker & Docker Compose | - |
 
@@ -1067,6 +1068,7 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Smart Change Detection | ✅ Done | Notifications only when content actually changes |
 | Price Display | ✅ Done | Slot prices shown on cards and booking page |
 | Slot Generation | ✅ Done | Auto-generate bookable time slots per type |
+| Symptom/Injury Selector | ✅ Done | Structured body part → condition or symptom selection |
 | Appointment Booking | ✅ Done | Patients book with reason for visit |
 | Appointment Cancellation | ✅ Done | Cancel and free up slots |
 | Doctor Discovery | ✅ Done | Browse and search verified doctors |
@@ -1181,10 +1183,10 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Metric | Count |
 |--------|-------|
 | Django Apps | 5 |
-| Models | 13+ |
-| Templates | 55+ |
-| Python Files | 60+ |
-| Lines of Code | ~8,000 |
+| Models | 17+ |
+| Templates | 60+ |
+| Python Files | 65+ |
+| Lines of Code | ~9,000 |
 | User Roles | 3 (Patient, Doctor, Admin) |
 | HTMX Endpoints | 15+ |
 | Admin Views | 15 |
