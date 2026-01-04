@@ -1,16 +1,19 @@
 from django import forms
 from django.core.exceptions import ValidationError
-from .models import AvailabilityWindow, Slot, AppointmentTypeConfig, APPOINTMENT_TYPE_CHOICES
+from decimal import Decimal
+from .models import AvailabilityWindow, Slot, AppointmentTypeConfig, AvailabilityWindowTypeConfig, APPOINTMENT_TYPE_CHOICES
 
 
 # Consistent styling classes (matching accounts/forms.py)
 INPUT_CLASS = 'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+INPUT_CLASS_DARK = 'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white'
 SELECT_CLASS = 'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
+SELECT_CLASS_DARK = 'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white'
 CHECKBOX_CLASS = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
 
 
 class AvailabilityWindowForm(forms.ModelForm):
-    """Form for creating/editing availability windows."""
+    """Form for creating/editing availability windows with multi-type appointment support."""
 
     SLOT_DURATION_CHOICES = [
         (15, '15 minutes'),
@@ -29,7 +32,7 @@ class AvailabilityWindowForm(forms.ModelForm):
     slot_duration_minutes = forms.ChoiceField(
         choices=SLOT_DURATION_CHOICES,
         initial=30,
-        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        widget=forms.Select(attrs={'class': SELECT_CLASS_DARK}),
         label='Slot Duration'
     )
 
@@ -37,7 +40,7 @@ class AvailabilityWindowForm(forms.ModelForm):
         choices=BUFFER_CHOICES,
         initial=0,
         required=False,
-        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        widget=forms.Select(attrs={'class': SELECT_CLASS_DARK}),
         label='Buffer Before'
     )
 
@@ -45,8 +48,72 @@ class AvailabilityWindowForm(forms.ModelForm):
         choices=BUFFER_CHOICES,
         initial=0,
         required=False,
-        widget=forms.Select(attrs={'class': SELECT_CLASS}),
+        widget=forms.Select(attrs={'class': SELECT_CLASS_DARK}),
         label='Buffer After'
+    )
+
+    # Multi-type appointment fields
+    type_video = forms.BooleanField(
+        required=False,
+        initial=True,
+        widget=forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS, 'id': 'type_video'}),
+        label='Video Consultation'
+    )
+    price_video = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=0,
+        widget=forms.NumberInput(attrs={
+            'class': INPUT_CLASS_DARK,
+            'placeholder': '0.00',
+            'step': '0.01',
+            'min': '0',
+        }),
+        label='Price ($)'
+    )
+
+    type_chat = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS, 'id': 'type_chat'}),
+        label='Chat Consultation'
+    )
+    price_chat = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=0,
+        widget=forms.NumberInput(attrs={
+            'class': INPUT_CLASS_DARK,
+            'placeholder': '0.00',
+            'step': '0.01',
+            'min': '0',
+        }),
+        label='Price ($)'
+    )
+
+    type_phone = forms.BooleanField(
+        required=False,
+        initial=False,
+        widget=forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS, 'id': 'type_phone'}),
+        label='Phone Consultation'
+    )
+    price_phone = forms.DecimalField(
+        required=False,
+        min_value=0,
+        max_digits=10,
+        decimal_places=2,
+        initial=0,
+        widget=forms.NumberInput(attrs={
+            'class': INPUT_CLASS_DARK,
+            'placeholder': '0.00',
+            'step': '0.01',
+            'min': '0',
+        }),
+        label='Price ($)'
     )
 
     class Meta:
@@ -58,29 +125,27 @@ class AvailabilityWindowForm(forms.ModelForm):
             'slot_duration_minutes',
             'buffer_before_minutes',
             'buffer_after_minutes',
-            'appointment_type',
             'is_recurring',
             'effective_date',
             'end_date',
         ]
         widgets = {
-            'weekday': forms.Select(attrs={'class': SELECT_CLASS}),
+            'weekday': forms.Select(attrs={'class': SELECT_CLASS_DARK}),
             'start_time': forms.TimeInput(attrs={
-                'class': INPUT_CLASS,
+                'class': INPUT_CLASS_DARK,
                 'type': 'time',
             }),
             'end_time': forms.TimeInput(attrs={
-                'class': INPUT_CLASS,
+                'class': INPUT_CLASS_DARK,
                 'type': 'time',
             }),
-            'appointment_type': forms.Select(attrs={'class': SELECT_CLASS}),
             'is_recurring': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
             'effective_date': forms.DateInput(attrs={
-                'class': INPUT_CLASS,
+                'class': INPUT_CLASS_DARK,
                 'type': 'date',
             }),
             'end_date': forms.DateInput(attrs={
-                'class': INPUT_CLASS,
+                'class': INPUT_CLASS_DARK,
                 'type': 'date',
             }),
         }
@@ -88,7 +153,6 @@ class AvailabilityWindowForm(forms.ModelForm):
             'weekday': 'Day of Week',
             'start_time': 'Start Time',
             'end_time': 'End Time',
-            'appointment_type': 'Appointment Type',
             'is_recurring': 'Repeat Weekly',
             'effective_date': 'Start Date (optional)',
             'end_date': 'End Date (optional)',
@@ -99,12 +163,31 @@ class AvailabilityWindowForm(forms.ModelForm):
             'end_date': 'Leave blank for no end date',
         }
 
+    def __init__(self, *args, **kwargs):
+        instance = kwargs.get('instance')
+        super().__init__(*args, **kwargs)
+
+        # If editing existing window, load type configs
+        if instance and instance.pk:
+            for config in instance.type_configs.all():
+                type_key = config.appointment_type
+                self.fields[f'type_{type_key}'].initial = config.is_enabled
+                self.fields[f'price_{type_key}'].initial = config.price
+
     def clean(self):
         cleaned_data = super().clean()
         start_time = cleaned_data.get('start_time')
         end_time = cleaned_data.get('end_time')
         effective_date = cleaned_data.get('effective_date')
         end_date = cleaned_data.get('end_date')
+
+        # Check at least one appointment type is selected
+        type_video = cleaned_data.get('type_video')
+        type_chat = cleaned_data.get('type_chat')
+        type_phone = cleaned_data.get('type_phone')
+
+        if not any([type_video, type_chat, type_phone]):
+            raise ValidationError('Please select at least one appointment type.')
 
         if start_time and end_time:
             if start_time >= end_time:
@@ -122,6 +205,20 @@ class AvailabilityWindowForm(forms.ModelForm):
                 raise ValidationError('End date must be after start date.')
 
         return cleaned_data
+
+    def get_type_configs(self):
+        """Return a list of (appointment_type, is_enabled, price) tuples from cleaned data."""
+        if not hasattr(self, 'cleaned_data'):
+            return []
+
+        configs = []
+        for type_code, type_name in APPOINTMENT_TYPE_CHOICES:
+            is_enabled = self.cleaned_data.get(f'type_{type_code}', False)
+            price = self.cleaned_data.get(f'price_{type_code}', Decimal('0'))
+            if price is None:
+                price = Decimal('0')
+            configs.append((type_code, is_enabled, price))
+        return configs
 
 
 class ManualSlotForm(forms.Form):

@@ -39,6 +39,12 @@ class User(AbstractUser):
         ('admin', 'Admin'),
     ]
 
+    THEME_CHOICES = [
+        ('light', 'Light'),
+        ('dark', 'Dark'),
+        ('auto', 'System'),
+    ]
+
     username = models.CharField(
         _('username'),
         max_length=150,
@@ -55,6 +61,12 @@ class User(AbstractUser):
     phone = models.CharField(max_length=20, blank=True)
     email_notifications = models.BooleanField(default=True)
     phone_notifications = models.BooleanField(default=False)
+    theme_preference = models.CharField(
+        max_length=10,
+        choices=THEME_CHOICES,
+        default='light',
+        help_text='User interface theme preference'
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

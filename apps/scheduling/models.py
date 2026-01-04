@@ -57,6 +57,31 @@ class AvailabilityWindow(models.Model):
         return f"{self.doctor.user.get_display_name()} - {self.get_weekday_display()} {self.start_time}-{self.end_time}"
 
 
+class AvailabilityWindowTypeConfig(models.Model):
+    """
+    Links availability windows to appointment types with inline pricing.
+    Allows doctors to offer multiple consultation types for the same time window.
+    """
+    window = models.ForeignKey(
+        AvailabilityWindow,
+        on_delete=models.CASCADE,
+        related_name='type_configs'
+    )
+    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE_CHOICES)
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    is_enabled = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'availability_window_type_configs'
+        unique_together = ['window', 'appointment_type']
+        ordering = ['appointment_type']
+
+    def __str__(self):
+        return f"{self.window} - {self.get_appointment_type_display()} (${self.price})"
+
+
 class Slot(models.Model):
     """
     Generated time slots from availability windows.
@@ -121,6 +146,23 @@ class Slot(models.Model):
         if hasattr(self, 'appointment') and self.appointment.status == 'scheduled':
             return 'pending'
         return 'available'
+
+    def get_price(self):
+        """Get the price for this slot based on its appointment type and availability window."""
+        from decimal import Decimal
+
+        # If slot has an availability window, check type configs
+        if self.availability_window:
+            type_config = self.availability_window.type_configs.filter(
+                appointment_type=self.appointment_type,
+                is_enabled=True
+            ).first()
+
+            if type_config:
+                return type_config.price
+
+        # Fallback to doctor's default consultation fee
+        return self.doctor.consultation_fee if hasattr(self.doctor, 'consultation_fee') else Decimal('0')
 
 
 class Appointment(models.Model):

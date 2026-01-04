@@ -207,7 +207,7 @@ def doctor_availability_manage(request):
 @login_required
 @require_POST
 def doctor_create_availability_window(request):
-    """HTMX: Create a new availability window."""
+    """HTMX: Create a new availability window with multi-type support."""
     if request.user.role != 'doctor':
         return HttpResponse(status=403)
 
@@ -215,6 +215,12 @@ def doctor_create_availability_window(request):
     if form.is_valid():
         try:
             data = form.cleaned_data
+
+            # Get the first enabled type as the default appointment_type for legacy support
+            type_configs = form.get_type_configs()
+            enabled_types = [tc for tc in type_configs if tc[1]]  # (type, is_enabled, price)
+            default_type = enabled_types[0][0] if enabled_types else 'video'
+
             window = create_availability_window(
                 doctor_profile=request.user.doctor_profile,
                 weekday=data['weekday'],
@@ -223,10 +229,11 @@ def doctor_create_availability_window(request):
                 slot_duration_minutes=int(data['slot_duration_minutes']),
                 buffer_before_minutes=int(data.get('buffer_before_minutes') or 0),
                 buffer_after_minutes=int(data.get('buffer_after_minutes') or 0),
-                appointment_type=data.get('appointment_type', 'video'),
+                appointment_type=default_type,
                 is_recurring=data.get('is_recurring', True),
                 effective_date=data.get('effective_date'),
                 end_date=data.get('end_date'),
+                type_configs=type_configs,
             )
             messages.success(request, 'Availability window created successfully!')
             # Return updated windows list partial
@@ -255,16 +262,24 @@ def doctor_update_availability_window(request, window_id):
     if form.is_valid():
         try:
             data = form.cleaned_data
+
+            # Get type configs from form
+            type_configs = form.get_type_configs()
+            enabled_types = [tc for tc in type_configs if tc[1]]
+            default_type = enabled_types[0][0] if enabled_types else 'video'
+
             window = update_availability_window(
                 window_id=window_id,
                 doctor_profile=request.user.doctor_profile,
+                type_configs=type_configs,
+                regenerate_slots=True,
                 weekday=data['weekday'],
                 start_time=data['start_time'],
                 end_time=data['end_time'],
                 slot_duration_minutes=int(data['slot_duration_minutes']),
                 buffer_before_minutes=int(data.get('buffer_before_minutes') or 0),
                 buffer_after_minutes=int(data.get('buffer_after_minutes') or 0),
-                appointment_type=data.get('appointment_type', 'video'),
+                appointment_type=default_type,
                 is_recurring=data.get('is_recurring', True),
                 effective_date=data.get('effective_date'),
                 end_date=data.get('end_date'),
@@ -281,6 +296,28 @@ def doctor_update_availability_window(request, window_id):
         'form': form,
         'window_id': window_id
     }, status=400)
+
+
+@login_required
+def doctor_get_availability_window(request, window_id):
+    """HTMX: Get availability window form for editing."""
+    if request.user.role != 'doctor':
+        return HttpResponse(status=403)
+
+    try:
+        window = AvailabilityWindow.objects.get(
+            id=window_id,
+            doctor=request.user.doctor_profile
+        )
+    except AvailabilityWindow.DoesNotExist:
+        return HttpResponse('Window not found', status=404)
+
+    form = AvailabilityWindowForm(instance=window)
+
+    return render(request, 'scheduling/doctor/partials/_window_edit_form.html', {
+        'form': form,
+        'window': window
+    })
 
 
 @login_required

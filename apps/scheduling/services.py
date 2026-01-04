@@ -2,9 +2,11 @@
 Services for scheduling app - handles slot generation and booking logic.
 """
 from datetime import datetime, timedelta, time
+from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-from .models import AvailabilityWindow, Slot, Appointment, SlotChangeLog, AppointmentTypeConfig
+from .models import AvailabilityWindow, AvailabilityWindowTypeConfig, Slot, Appointment, SlotChangeLog, AppointmentTypeConfig
+from .consumers import sync_broadcast_to_doctor_calendar, sync_broadcast_to_patient_slots
 
 
 # ============ SLOT CHANGE LOGGING ============
@@ -57,11 +59,14 @@ def create_availability_window(
     effective_date=None,
     end_date=None,
     auto_generate_slots=True,
-    days_ahead=30
+    days_ahead=30,
+    type_configs=None
 ):
     """
     Create a new availability window for a doctor.
     Optionally generates slots immediately.
+
+    type_configs: list of (appointment_type, is_enabled, price) tuples for multi-type support
     """
     # Validate no overlap with existing windows
     if check_window_overlap(doctor_profile, weekday, start_time, end_time):
@@ -82,6 +87,16 @@ def create_availability_window(
         is_active=True
     )
 
+    # Save type configs if provided (for multi-type support)
+    if type_configs:
+        for type_code, is_enabled, price in type_configs:
+            AvailabilityWindowTypeConfig.objects.create(
+                window=window,
+                appointment_type=type_code,
+                is_enabled=is_enabled,
+                price=price if price else Decimal('0')
+            )
+
     if auto_generate_slots:
         generate_slots_for_window_v2(
             window,
@@ -93,9 +108,16 @@ def create_availability_window(
 
 
 @transaction.atomic
-def update_availability_window(window_id, doctor_profile, **kwargs):
+def update_availability_window(window_id, doctor_profile, type_configs=None, regenerate_slots=False, **kwargs):
     """
     Update an existing availability window.
+
+    Args:
+        window_id: The window ID to update
+        doctor_profile: The doctor profile
+        type_configs: Optional list of (appointment_type, is_enabled, price) tuples
+        regenerate_slots: If True, delete future unbooked slots and regenerate
+        **kwargs: Fields to update on the window
     """
     try:
         window = AvailabilityWindow.objects.get(id=window_id, doctor=doctor_profile)
@@ -114,10 +136,53 @@ def update_availability_window(window_id, doctor_profile, **kwargs):
         if overlapping:
             raise ValueError('This time window overlaps with an existing availability window.')
 
+    # Update window fields
     for key, value in kwargs.items():
         if hasattr(window, key):
             setattr(window, key, value)
     window.save()
+
+    # Update type configs if provided
+    if type_configs is not None:
+        # Delete existing type configs
+        window.type_configs.all().delete()
+
+        # Create new type configs
+        for type_code, is_enabled, price in type_configs:
+            AvailabilityWindowTypeConfig.objects.create(
+                window=window,
+                appointment_type=type_code,
+                is_enabled=is_enabled,
+                price=price if price else Decimal('0')
+            )
+
+    # Regenerate slots if requested
+    if regenerate_slots:
+        # Delete future unbooked slots
+        from django.utils import timezone
+        future_slots = Slot.objects.filter(
+            availability_window=window,
+            start_datetime__gt=timezone.now(),
+            is_booked=False
+        )
+        future_slots.delete()
+
+        # Generate new slots
+        generate_slots_for_window_v2(
+            window,
+            timezone.now().date(),
+            timezone.now().date() + timedelta(days=30)
+        )
+
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_profile.id, 'window_updated', {
+        'window_id': window_id,
+        'data': {
+            'weekday': window.weekday,
+            'start_time': str(window.start_time),
+            'end_time': str(window.end_time)
+        }
+    })
 
     return window
 
@@ -133,6 +198,7 @@ def delete_availability_window(window_id, doctor_profile, cancel_future_slots=Tr
         raise ValueError('Availability window not found.')
 
     deleted_count = 0
+    deleted_slot_ids = []
     if cancel_future_slots:
         # Delete future unbooked slots from this window
         future_slots = Slot.objects.filter(
@@ -141,6 +207,7 @@ def delete_availability_window(window_id, doctor_profile, cancel_future_slots=Tr
             is_booked=False
         )
         deleted_count = future_slots.count()
+        deleted_slot_ids = list(future_slots.values_list('id', flat=True))
 
         # Log deletions for real-time updates
         for slot in future_slots:
@@ -151,6 +218,19 @@ def delete_availability_window(window_id, doctor_profile, cancel_future_slots=Tr
     # Soft delete - mark as inactive
     window.is_active = False
     window.save()
+
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_profile.id, 'window_deleted', {
+        'window_id': window_id,
+        'data': {
+            'deleted_slots': deleted_slot_ids
+        }
+    })
+    # Notify patients about removed slots
+    for slot_id in deleted_slot_ids:
+        sync_broadcast_to_patient_slots(doctor_profile.id, 'slot_taken', {
+            'slot_id': slot_id
+        })
 
     return {'deleted_slots': deleted_count}
 
@@ -215,6 +295,18 @@ def block_slot(slot_id, doctor_profile, reason=''):
 
     log_slot_change(doctor_profile, slot, 'updated')
 
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_profile.id, 'slot_blocked', {
+        'slot_id': slot.id,
+        'data': {
+            'start_datetime': slot.start_datetime.isoformat(),
+            'reason': reason
+        }
+    })
+    sync_broadcast_to_patient_slots(doctor_profile.id, 'slot_taken', {
+        'slot_id': slot.id
+    })
+
     return slot
 
 
@@ -233,6 +325,21 @@ def unblock_slot(slot_id, doctor_profile):
 
     log_slot_change(doctor_profile, slot, 'updated')
 
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_profile.id, 'slot_unblocked', {
+        'slot_id': slot.id,
+        'data': {
+            'start_datetime': slot.start_datetime.isoformat()
+        }
+    })
+    sync_broadcast_to_patient_slots(doctor_profile.id, 'slot_available', {
+        'slot_id': slot.id,
+        'data': {
+            'start_datetime': slot.start_datetime.isoformat(),
+            'appointment_type': slot.appointment_type
+        }
+    })
+
     return slot
 
 
@@ -249,8 +356,17 @@ def delete_slot(slot_id, doctor_profile):
     if slot.is_booked:
         raise ValueError('Cannot delete a booked slot. Cancel the appointment first.')
 
+    slot_id_copy = slot.id
     log_slot_change(doctor_profile, slot, 'deleted')
     slot.delete()
+
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_profile.id, 'slot_deleted', {
+        'slot_id': slot_id_copy
+    })
+    sync_broadcast_to_patient_slots(doctor_profile.id, 'slot_taken', {
+        'slot_id': slot_id_copy
+    })
 
     return True
 
@@ -260,10 +376,20 @@ def delete_slot(slot_id, doctor_profile):
 def generate_slots_for_window_v2(availability_window, start_date, end_date):
     """
     Generate slots with buffer times and appointment types.
-    Enhanced version that respects all new fields.
+    Enhanced version that supports multi-type appointments.
+    Creates separate slots for each enabled appointment type in the window.
     """
     created_slots = []
     current_date = start_date
+
+    # Get enabled type configs for this window
+    type_configs = list(availability_window.type_configs.filter(is_enabled=True))
+
+    # If no type configs exist (legacy), use the window's default appointment_type
+    if not type_configs:
+        type_configs = [{'appointment_type': availability_window.appointment_type, 'price': Decimal('0')}]
+    else:
+        type_configs = [{'appointment_type': tc.appointment_type, 'price': tc.price} for tc in type_configs]
 
     while current_date <= end_date:
         # Check if current_date matches the availability window's weekday
@@ -298,22 +424,27 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
             current_slot_start = start_datetime + buffer_before
 
             while current_slot_start + slot_duration <= end_datetime - buffer_after:
-                # Check if slot already exists
-                existing_slot = Slot.objects.filter(
-                    doctor=availability_window.doctor,
-                    start_datetime=current_slot_start
-                ).first()
+                # Create a slot for each enabled appointment type
+                for type_config in type_configs:
+                    apt_type = type_config['appointment_type']
 
-                if not existing_slot:
-                    slot = Slot.objects.create(
+                    # Check if slot already exists for this time and type
+                    existing_slot = Slot.objects.filter(
                         doctor=availability_window.doctor,
-                        availability_window=availability_window,
                         start_datetime=current_slot_start,
-                        end_datetime=current_slot_start + slot_duration,
-                        appointment_type=availability_window.appointment_type
-                    )
-                    created_slots.append(slot)
-                    log_slot_change(availability_window.doctor, slot, 'created')
+                        appointment_type=apt_type
+                    ).first()
+
+                    if not existing_slot:
+                        slot = Slot.objects.create(
+                            doctor=availability_window.doctor,
+                            availability_window=availability_window,
+                            start_datetime=current_slot_start,
+                            end_datetime=current_slot_start + slot_duration,
+                            appointment_type=apt_type
+                        )
+                        created_slots.append(slot)
+                        log_slot_change(availability_window.doctor, slot, 'created')
 
                 current_slot_start += total_slot_time
 
@@ -407,6 +538,18 @@ def book_appointment(slot, patient, reason=''):
         status='scheduled'
     )
 
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(slot.doctor.id, 'slot_booked', {
+        'slot_id': slot.id,
+        'data': {
+            'patient_name': patient.user.get_full_name(),
+            'start_datetime': slot.start_datetime.isoformat()
+        }
+    })
+    sync_broadcast_to_patient_slots(slot.doctor.id, 'slot_taken', {
+        'slot_id': slot.id
+    })
+
     return appointment
 
 
@@ -418,13 +561,32 @@ def cancel_appointment(appointment):
     if not appointment.can_cancel():
         raise ValueError('This appointment cannot be cancelled.')
 
+    slot = appointment.slot
+    doctor_id = slot.doctor.id
+
     # Free up the slot
-    appointment.slot.is_booked = False
-    appointment.slot.save()
+    slot.is_booked = False
+    slot.save()
 
     # Update appointment status
     appointment.status = 'cancelled'
     appointment.save()
+
+    # Broadcast WebSocket updates
+    sync_broadcast_to_doctor_calendar(doctor_id, 'slot_unblocked', {
+        'slot_id': slot.id,
+        'data': {
+            'start_datetime': slot.start_datetime.isoformat(),
+            'reason': 'appointment_cancelled'
+        }
+    })
+    sync_broadcast_to_patient_slots(doctor_id, 'slot_available', {
+        'slot_id': slot.id,
+        'data': {
+            'start_datetime': slot.start_datetime.isoformat(),
+            'appointment_type': slot.appointment_type
+        }
+    })
 
     return appointment
 
@@ -445,6 +607,7 @@ def reschedule_appointment(appointment, new_slot):
 
     # Free up old slot
     old_slot = appointment.slot
+    doctor_id = old_slot.doctor.id
     old_slot.is_booked = False
     old_slot.save()
 
@@ -455,5 +618,18 @@ def reschedule_appointment(appointment, new_slot):
     # Update appointment
     appointment.slot = new_slot
     appointment.save()
+
+    # Broadcast WebSocket updates - old slot is now available
+    sync_broadcast_to_patient_slots(doctor_id, 'slot_available', {
+        'slot_id': old_slot.id,
+        'data': {
+            'start_datetime': old_slot.start_datetime.isoformat(),
+            'appointment_type': old_slot.appointment_type
+        }
+    })
+    # New slot is now taken
+    sync_broadcast_to_patient_slots(doctor_id, 'slot_taken', {
+        'slot_id': new_slot.id
+    })
 
     return appointment

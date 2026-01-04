@@ -312,3 +312,18 @@ def profile_view(request):
 def settings_view(request):
     """User settings page."""
     return render(request, 'accounts/settings.html')
+
+
+@login_required
+@require_http_methods(["POST"])
+def update_theme(request):
+    """Update user theme preference via HTMX."""
+    theme = request.POST.get('theme', 'light')
+    if theme in ['light', 'dark', 'auto']:
+        request.user.theme_preference = theme
+        request.user.save(update_fields=['theme_preference'])
+
+    # Return the updated theme toggle partial
+    return render(request, 'accounts/partials/_theme_toggle.html', {
+        'current_theme': theme
+    })

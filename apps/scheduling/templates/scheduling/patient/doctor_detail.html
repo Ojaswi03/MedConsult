@@ -5,7 +5,7 @@
 {% block content %}
 <div class="max-w-5xl mx-auto">
     <!-- Back Button -->
-    <a href="{% url 'patient:patient_doctors_list' %}" class="inline-flex items-center text-gray-600 hover:text-gray-900 mb-4">
+    <a href="{% url 'patient:patient_doctors_list' %}" class="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4">
         <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
         </svg>
@@ -13,37 +13,37 @@
     </a>
 
     <!-- Doctor Info -->
-    <div class="bg-white rounded-lg shadow-md p-8 mb-8">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 mb-8">
         <div class="flex flex-col md:flex-row md:items-start gap-6">
             <div class="w-24 h-24 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-3xl flex-shrink-0">
                 {{ doctor.user.get_initials }}
             </div>
             <div class="flex-grow">
-                <h1 class="text-3xl font-bold mb-2">Dr. {{ doctor.user.get_display_name }}</h1>
-                <p class="text-xl text-gray-600 mb-4">{{ doctor.specialization }}</p>
+                <h1 class="text-3xl font-bold mb-2 text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h1>
+                <p class="text-xl text-gray-600 dark:text-gray-400 mb-4">{{ doctor.specialization }}</p>
 
                 <div class="grid grid-cols-2 gap-4 mb-4">
                     <div>
-                        <p class="text-sm text-gray-500">Experience</p>
-                        <p class="font-semibold">{{ doctor.years_of_experience }} years</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Experience</p>
+                        <p class="font-semibold text-gray-900 dark:text-white">{{ doctor.years_of_experience }} years</p>
                     </div>
                     <div>
-                        <p class="text-sm text-gray-500">Consultation Fee</p>
-                        <p class="font-semibold">${{ doctor.consultation_fee }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Consultation Fee</p>
+                        <p class="font-semibold text-gray-900 dark:text-white">${{ doctor.consultation_fee }}</p>
                     </div>
                 </div>
 
                 {% if doctor.bio %}
                 <div class="mt-4">
-                    <h3 class="font-semibold mb-2">About</h3>
-                    <p class="text-gray-700">{{ doctor.bio }}</p>
+                    <h3 class="font-semibold mb-2 text-gray-900 dark:text-white">About</h3>
+                    <p class="text-gray-700 dark:text-gray-300">{{ doctor.bio }}</p>
                 </div>
                 {% endif %}
 
                 {% if doctor.education %}
                 <div class="mt-4">
-                    <h3 class="font-semibold mb-2">Education</h3>
-                    <p class="text-gray-700">{{ doctor.education }}</p>
+                    <h3 class="font-semibold mb-2 text-gray-900 dark:text-white">Education</h3>
+                    <p class="text-gray-700 dark:text-gray-300">{{ doctor.education }}</p>
                 </div>
                 {% endif %}
             </div>
@@ -51,10 +51,10 @@
     </div>
 
     <!-- Available Slots with Real-time Updates -->
-    <div class="bg-white rounded-lg shadow-md p-8">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">
         <div class="flex flex-col md:flex-row md:justify-between md:items-center mb-6 gap-4">
-            <h2 class="text-2xl font-semibold">Available Time Slots</h2>
-            <div id="update-indicator" class="text-sm text-gray-500 flex items-center gap-2">
+            <h2 class="text-2xl font-semibold text-gray-900 dark:text-white">Available Time Slots</h2>
+            <div id="update-indicator" class="text-sm text-gray-500 dark:text-gray-400 flex items-center gap-2">
                 <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
                 Live updates enabled
             </div>
@@ -78,21 +78,26 @@
                     <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
                         {% for slot in date_group.list %}
                         <a href="{% url 'patient:book_appointment' slot.id %}"
-                           class="block p-3 border rounded-lg text-center hover:border-blue-500 hover:bg-blue-50 transition-colors
-                                  {% if slot.is_urgent %}border-yellow-400 bg-yellow-50{% endif %}">
-                            <p class="font-medium text-gray-900">{{ slot.start_datetime|time:"g:i A" }}</p>
-                            <p class="text-xs text-gray-500">{{ slot.start_datetime|time:"g:i A" }} - {{ slot.end_datetime|time:"g:i A" }}</p>
+                           class="block p-3 border rounded-lg text-center hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:border-blue-400 transition-colors dark:border-gray-600 dark:bg-gray-800
+                                  {% if slot.is_urgent %}border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20{% endif %}">
+                            <p class="font-medium text-gray-900 dark:text-white">{{ slot.start_datetime|time:"g:i A" }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ slot.start_datetime|time:"g:i A" }} - {{ slot.end_datetime|time:"g:i A" }}</p>
 
                             <!-- Appointment Type Badge -->
                             <span class="inline-block mt-2 px-2 py-0.5 rounded text-xs
-                                {% if slot.appointment_type == 'video' %}bg-blue-100 text-blue-700
-                                {% elif slot.appointment_type == 'chat' %}bg-green-100 text-green-700
-                                {% else %}bg-purple-100 text-purple-700{% endif %}">
+                                {% if slot.appointment_type == 'video' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300
+                                {% elif slot.appointment_type == 'chat' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300
+                                {% else %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}">
                                 {{ slot.get_appointment_type_display }}
                             </span>
 
+                            <!-- Price Display -->
+                            <p class="mt-2 text-sm font-semibold text-green-600 dark:text-green-400">
+                                ${{ slot.get_price }}
+                            </p>
+
                             {% if slot.is_urgent %}
-                            <span class="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-yellow-200 text-yellow-800">
+                            <span class="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300">
                                 Urgent
                             </span>
                             {% endif %}
@@ -104,11 +109,11 @@
             </div>
             {% else %}
             <div class="text-center py-12">
-                <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
-                <p class="text-gray-600 mb-2">No available slots at the moment.</p>
-                <p class="text-sm text-gray-500">Please check back later or try a different doctor.</p>
+                <p class="text-gray-600 dark:text-gray-400 mb-2">No available slots at the moment.</p>
+                <p class="text-sm text-gray-500 dark:text-gray-500">Please check back later or try a different doctor.</p>
             </div>
             {% endif %}
         </div>
@@ -123,14 +128,35 @@
 
 {% block extra_js %}
 <script>
-// Show notification when slots are updated via HTMX
+// Track previous content hash to detect actual changes
+let previousContentHash = null;
+
+function simpleHash(str) {
+    let hash = 0;
+    for (let i = 0; i < str.length; i++) {
+        const char = str.charCodeAt(i);
+        hash = ((hash << 5) - hash) + char;
+        hash = hash & hash;
+    }
+    return hash;
+}
+
+// Show notification only when slots actually change
 document.body.addEventListener('htmx:afterSwap', function(event) {
     if (event.detail.target.id === 'available-slots') {
-        const notification = document.getElementById('update-notification');
-        notification.classList.remove('hidden');
-        setTimeout(() => {
-            notification.classList.add('hidden');
-        }, 3000);
+        const currentContent = event.detail.target.innerHTML;
+        const currentHash = simpleHash(currentContent);
+
+        // Only show notification if content actually changed (and not first load)
+        if (previousContentHash !== null && previousContentHash !== currentHash) {
+            const notification = document.getElementById('update-notification');
+            notification.classList.remove('hidden');
+            setTimeout(() => {
+                notification.classList.add('hidden');
+            }, 3000);
+        }
+
+        previousContentHash = currentHash;
     }
 });
 </script>

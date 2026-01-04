@@ -15,16 +15,20 @@ Built with **modularity** and **clean architecture** for easy feature additions 
 - **Slot-Based Scheduling**: Clean appointment system with availability windows and generated time slots
 - **Doctor Availability Management**: Full self-service UI for doctors to manage their schedules
   - Visual weekly calendar with color-coded slots (available/booked/blocked/urgent)
+  - Infinite calendar scrolling with arrow key navigation
   - Create/edit/delete recurring availability windows
+  - Multi-type appointments per window with individual pricing
   - Buffer times before/after appointments
   - Manual/urgent slot creation
   - Block/unblock individual slots
-- **Appointment Types & Pricing**: Video, Chat, Phone consultations with customizable pricing per doctor
-- **Real-time Patient Updates**: HTMX-powered live slot availability (5-second polling)
-- **Patient Booking**: Easy doctor discovery and appointment booking with live updates
+- **Appointment Types & Pricing**: Video, Chat, Phone consultations with customizable pricing per availability window
+- **Real-time Updates**: HTMX polling + WebSocket (Django Channels) for instant synchronization
+- **Patient Booking**: Easy doctor discovery, live availability updates, price display, reason for visit
+- **Dark Mode**: Full dark theme support with light/dark/auto preferences
 - **Admin Panel**: Doctor verification queue and system oversight
 - **Document Uploads**: Medical license and government ID verification for doctors
-- **Responsive UI**: Built with Tailwind CSS (CDN) and HTMX for dynamic updates
+- **Responsive UI**: Built with Tailwind CSS (CDN) with dark mode support and HTMX for dynamic updates
+- **WebSocket Support**: Django Channels with Redis for real-time calendar updates
 - **Modular Architecture**: Services/Selectors pattern for clean code organization
 - **Template Inheritance**: 4-layer system with reusable components
 
@@ -353,9 +357,11 @@ docker-compose exec redis redis-cli
 | Component | Technology | Version |
 |-----------|------------|---------|
 | **Backend** | Django | 5.2 |
+| **WebSocket** | Django Channels | 4.0.0 |
+| **ASGI Server** | Daphne | 4.0.0 |
 | **Database** | PostgreSQL | 16 |
-| **Cache** | Redis | 7 |
-| **Frontend** | Tailwind CSS | CDN (Phase 1) |
+| **Cache/Channel Layer** | Redis | 7 |
+| **Frontend** | Tailwind CSS | CDN (with dark mode) |
 | **Dynamic UI** | HTMX | 1.9.10 |
 | **JavaScript** | Vanilla JS | - |
 | **Container** | Docker & Docker Compose | - |
@@ -1049,14 +1055,19 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Availability Windows | ✅ Done | Doctors set available time ranges |
 | Availability Management UI | ✅ Done | Full self-service UI for doctors to manage availability |
 | Visual Weekly Calendar | ✅ Done | Color-coded slots (available/booked/blocked/urgent) |
+| Infinite Calendar Scrolling | ✅ Done | Arrow key navigation for seamless week browsing |
+| Editable Availability Windows | ✅ Done | Full edit capability with slot regeneration |
+| Multi-Type Pricing | ✅ Done | Individual pricing per appointment type per window |
 | Buffer Times | ✅ Done | Configure buffer before/after appointments |
 | Manual/Urgent Slots | ✅ Done | Create ad-hoc urgent slots |
 | Block/Unblock Slots | ✅ Done | Temporarily disable specific slots |
 | Appointment Types | ✅ Done | Video, Chat, Phone consultations |
-| Appointment Type Pricing | ✅ Done | Customizable pricing per doctor per type |
-| Real-time Patient Updates | ✅ Done | HTMX polling for live slot availability |
-| Slot Generation | ✅ Done | Auto-generate bookable time slots |
-| Appointment Booking | ✅ Done | Patients book available slots |
+| Appointment Type Pricing | ✅ Done | Customizable pricing per availability window |
+| Real-time Patient Updates | ✅ Done | HTMX polling + WebSocket for live availability |
+| Smart Change Detection | ✅ Done | Notifications only when content actually changes |
+| Price Display | ✅ Done | Slot prices shown on cards and booking page |
+| Slot Generation | ✅ Done | Auto-generate bookable time slots per type |
+| Appointment Booking | ✅ Done | Patients book with reason for visit |
 | Appointment Cancellation | ✅ Done | Cancel and free up slots |
 | Doctor Discovery | ✅ Done | Browse and search verified doctors |
 | Appointment History | ✅ Done | View past appointments |
@@ -1087,6 +1098,16 @@ path('doctors/<int:doctor_id>/favorite/', views.toggle_favorite, name='toggle_fa
 | Chat/Messaging | ❌ Pending | In-app messaging |
 | Screen Sharing | ❌ Pending | Share medical images |
 | Session Recording | ❌ Pending | Record consultations |
+
+### UI/UX Features
+
+| Feature | Status | Description |
+|---------|--------|-------------|
+| Dark Mode | ✅ Done | Light/dark/auto theme with user preference |
+| Theme Toggle | ✅ Done | Settings page toggle with instant preview |
+| WebSocket Updates | ✅ Done | Django Channels for real-time sync |
+| Smart Notifications | ✅ Done | Only notify on actual content changes |
+| Responsive Design | ✅ Done | Mobile-friendly with Tailwind CSS |
 
 ### Payments & Billing
 

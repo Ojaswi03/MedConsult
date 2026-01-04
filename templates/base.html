@@ -1,12 +1,32 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="{% if user.is_authenticated %}{% if user.theme_preference == 'dark' %}dark{% elif user.theme_preference == 'auto' %}{% endif %}{% endif %}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}MedConsult{% endblock %}</title>
 
+    <!-- Theme initialization (prevents flash) -->
+    <script>
+        (function() {
+            const stored = localStorage.getItem('theme');
+            const preference = stored || '{{ user.theme_preference|default:"light" }}';
+
+            if (preference === 'dark' ||
+                (preference === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            } else {
+                document.documentElement.classList.remove('dark');
+            }
+        })();
+    </script>
+
     <!-- Tailwind CSS CDN (Phase 1) -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+        }
+    </script>
 
     <!-- HTMX for dynamic updates -->
     <script src="https://unpkg.com/htmx.org@1.9.10"></script>
@@ -16,13 +36,14 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body class="bg-gray-50" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}'>
+<body class="bg-gray-50 dark:bg-gray-900 transition-colors duration-200" hx-headers='{"X-CSRFToken": "{{ csrf_token }}"}' {% block body_attrs %}{% endblock %}>
     {% block body %}
     <!-- Full page content -->
     {% endblock %}
 
     <!-- Custom JS -->
     <script src="/static/js/dropdown.js"></script>
+    <script src="/static/js/theme_switcher.js"></script>
 
     {% block extra_js %}{% endblock %}
 </body>

@@ -4,58 +4,70 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Settings</h1>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Settings</h1>
 
     <div class="space-y-6">
-        <!-- Account Settings -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Account Settings</h2>
+        <!-- Appearance Settings -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Appearance</h2>
             <div class="space-y-4">
-                <div class="flex justify-between items-center py-3 border-b">
-                    <div>
-                        <p class="font-medium">Email</p>
-                        <p class="text-sm text-gray-600">{{ user.email }}</p>
-                    </div>
-                    <button class="text-blue-600 hover:text-blue-700">Edit</button>
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white mb-1">Theme</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose how MedConsult looks to you</p>
+                    {% include "accounts/partials/_theme_toggle.html" with current_theme=user.theme_preference %}
                 </div>
-                <div class="flex justify-between items-center py-3 border-b">
+            </div>
+        </div>
+
+        <!-- Account Settings -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Account Settings</h2>
+            <div class="space-y-4">
+                <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
                     <div>
-                        <p class="font-medium">Password</p>
-                        <p class="text-sm text-gray-600">••••••••</p>
+                        <p class="font-medium text-gray-900 dark:text-white">Email</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ user.email }}</p>
                     </div>
-                    <button class="text-blue-600 hover:text-blue-700">Change</button>
+                    <button class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Edit</button>
+                </div>
+                <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Password</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">••••••••</p>
+                    </div>
+                    <button class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Change</button>
                 </div>
             </div>
         </div>
 
         <!-- Notification Settings -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Notifications</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Notifications</h2>
             <div class="space-y-4">
                 <div class="flex justify-between items-center">
                     <div>
-                        <p class="font-medium">Email Notifications</p>
-                        <p class="text-sm text-gray-600">Receive email updates about your appointments</p>
+                        <p class="font-medium text-gray-900 dark:text-white">Email Notifications</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Receive email updates about your appointments</p>
                     </div>
-                    <input type="checkbox" class="rounded" checked>
+                    <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.email_notifications %}checked{% endif %}>
                 </div>
                 <div class="flex justify-between items-center">
                     <div>
-                        <p class="font-medium">SMS Notifications</p>
-                        <p class="text-sm text-gray-600">Receive SMS reminders</p>
+                        <p class="font-medium text-gray-900 dark:text-white">SMS Notifications</p>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">Receive SMS reminders</p>
                     </div>
-                    <input type="checkbox" class="rounded">
+                    <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.phone_notifications %}checked{% endif %}>
                 </div>
             </div>
         </div>
 
         <!-- Privacy Settings -->
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Privacy</h2>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Privacy</h2>
             <div class="space-y-4">
-                <button class="text-blue-600 hover:text-blue-700">Download My Data</button>
+                <button class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Download My Data</button>
                 <br>
-                <button class="text-red-600 hover:text-red-700">Delete Account</button>
+                <button class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Delete Account</button>
             </div>
         </div>
     </div>

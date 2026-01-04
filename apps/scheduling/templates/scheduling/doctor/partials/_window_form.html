@@ -1,7 +1,7 @@
 <div class="space-y-4">
     <!-- Day of Week -->
     <div>
-        <label for="id_weekday" class="block text-sm font-medium text-gray-700 mb-1">
+        <label for="id_weekday" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
             Day of Week <span class="text-red-500">*</span>
         </label>
         {{ form.weekday }}
@@ -13,7 +13,7 @@
     <!-- Time Range -->
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="id_start_time" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_start_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Start Time <span class="text-red-500">*</span>
             </label>
             {{ form.start_time }}
@@ -22,7 +22,7 @@
             {% endif %}
         </div>
         <div>
-            <label for="id_end_time" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_end_time" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 End Time <span class="text-red-500">*</span>
             </label>
             {{ form.end_time }}
@@ -32,85 +32,197 @@
         </div>
     </div>
 
-    <!-- Slot Duration and Type -->
-    <div class="grid grid-cols-2 gap-4">
-        <div>
-            <label for="id_slot_duration_minutes" class="block text-sm font-medium text-gray-700 mb-1">
-                Slot Duration <span class="text-red-500">*</span>
-            </label>
-            {{ form.slot_duration_minutes }}
-        </div>
-        <div>
-            <label for="id_appointment_type" class="block text-sm font-medium text-gray-700 mb-1">
-                Appointment Type
-            </label>
-            {{ form.appointment_type }}
+    <!-- Slot Duration -->
+    <div>
+        <label for="id_slot_duration_minutes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+            Slot Duration <span class="text-red-500">*</span>
+        </label>
+        {{ form.slot_duration_minutes }}
+    </div>
+
+    <!-- Appointment Types with Inline Pricing -->
+    <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            Appointment Types & Pricing <span class="text-red-500">*</span>
+        </label>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mb-3">Select the consultation types you offer and set prices for each</p>
+
+        <div class="space-y-3">
+            <!-- Video Consultation -->
+            <div class="border dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700/50" id="type-video-container">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        {{ form.type_video }}
+                        <label for="type_video" class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+                            <svg class="w-5 h-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                            </svg>
+                            Video Consultation
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2" id="price-video-container">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">$</span>
+                        <div class="w-24">{{ form.price_video }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Consultation -->
+            <div class="border dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700/50" id="type-chat-container">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        {{ form.type_chat }}
+                        <label for="type_chat" class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+                            <svg class="w-5 h-5 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                            </svg>
+                            Chat Consultation
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2" id="price-chat-container">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">$</span>
+                        <div class="w-24">{{ form.price_chat }}</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Phone Consultation -->
+            <div class="border dark:border-gray-600 rounded-lg p-3 bg-gray-50 dark:bg-gray-700/50" id="type-phone-container">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-3">
+                        {{ form.type_phone }}
+                        <label for="type_phone" class="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-2 cursor-pointer">
+                            <svg class="w-5 h-5 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"/>
+                            </svg>
+                            Phone Consultation
+                        </label>
+                    </div>
+                    <div class="flex items-center gap-2" id="price-phone-container">
+                        <span class="text-sm text-gray-500 dark:text-gray-400">$</span>
+                        <div class="w-24">{{ form.price_phone }}</div>
+                    </div>
+                </div>
+            </div>
         </div>
     </div>
 
     <!-- Buffer Times -->
     <div class="grid grid-cols-2 gap-4">
         <div>
-            <label for="id_buffer_before_minutes" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_buffer_before_minutes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Buffer Before
             </label>
             {{ form.buffer_before_minutes }}
-            <p class="text-xs text-gray-500 mt-1">Prep time before each slot</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Prep time before each slot</p>
         </div>
         <div>
-            <label for="id_buffer_after_minutes" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_buffer_after_minutes" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Buffer After
             </label>
             {{ form.buffer_after_minutes }}
-            <p class="text-xs text-gray-500 mt-1">Notes/break time after each slot</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Notes/break time after each slot</p>
         </div>
     </div>
 
     <!-- Recurring Checkbox -->
     <div class="flex items-center gap-2">
         {{ form.is_recurring }}
-        <label for="id_is_recurring" class="text-sm font-medium text-gray-700">
+        <label for="id_is_recurring" class="text-sm font-medium text-gray-700 dark:text-gray-300">
             Repeat Weekly
         </label>
     </div>
 
     <!-- Date Range (optional) -->
-    <div class="grid grid-cols-2 gap-4">
+    <div class="grid grid-cols-2 gap-4" id="date-range-container">
         <div>
-            <label for="id_effective_date" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_effective_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Start Date (optional)
             </label>
             {{ form.effective_date }}
-            <p class="text-xs text-gray-500 mt-1">Leave blank to start immediately</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave blank to start immediately</p>
         </div>
         <div>
-            <label for="id_end_date" class="block text-sm font-medium text-gray-700 mb-1">
+            <label for="id_end_date" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 End Date (optional)
             </label>
             {{ form.end_date }}
-            <p class="text-xs text-gray-500 mt-1">Leave blank for no end date</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">Leave blank for no end date</p>
         </div>
     </div>
 
     <!-- Form Errors -->
     {% if form.non_field_errors %}
-    <div class="bg-red-50 border border-red-200 rounded-lg p-3">
+    <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
         {% for error in form.non_field_errors %}
-        <p class="text-red-600 text-sm">{{ error }}</p>
+        <p class="text-red-600 dark:text-red-400 text-sm">{{ error }}</p>
         {% endfor %}
     </div>
     {% endif %}
 
     <!-- Submit Button -->
-    <div class="flex justify-end gap-3 pt-4 border-t">
+    <div class="flex justify-end gap-3 pt-4 border-t dark:border-gray-600">
         <button type="button"
-                onclick="document.getElementById('window-modal').classList.add('hidden')"
-                class="px-4 py-2 text-gray-700 border rounded-lg hover:bg-gray-50">
+                onclick="this.closest('[id$=-modal]').classList.add('hidden')"
+                class="px-4 py-2 text-gray-700 dark:text-gray-300 border dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700">
             Cancel
         </button>
         <button type="submit"
                 class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-            Create Availability
+            {% if form.instance.pk %}Update{% else %}Create{% endif %} Availability
         </button>
     </div>
 </div>
+
+<script>
+// Toggle price visibility based on checkbox state
+function updatePriceVisibility() {
+    const types = ['video', 'chat', 'phone'];
+    types.forEach(type => {
+        const checkbox = document.getElementById('type_' + type);
+        const priceContainer = document.getElementById('price-' + type + '-container');
+        const typeContainer = document.getElementById('type-' + type + '-container');
+
+        if (checkbox && priceContainer && typeContainer) {
+            if (checkbox.checked) {
+                priceContainer.classList.remove('opacity-50');
+                priceContainer.querySelector('input').removeAttribute('disabled');
+                typeContainer.classList.add('ring-2', 'ring-blue-500', 'border-blue-500');
+            } else {
+                priceContainer.classList.add('opacity-50');
+                priceContainer.querySelector('input').setAttribute('disabled', 'disabled');
+                typeContainer.classList.remove('ring-2', 'ring-blue-500', 'border-blue-500');
+            }
+        }
+    });
+}
+
+// Initialize on load
+document.addEventListener('DOMContentLoaded', function() {
+    updatePriceVisibility();
+
+    // Add event listeners to checkboxes
+    const types = ['video', 'chat', 'phone'];
+    types.forEach(type => {
+        const checkbox = document.getElementById('type_' + type);
+        if (checkbox) {
+            checkbox.addEventListener('change', updatePriceVisibility);
+        }
+    });
+});
+
+// Also run when HTMX swaps content
+document.body.addEventListener('htmx:afterSwap', function(event) {
+    if (event.detail.target.id === 'window-modal-content') {
+        updatePriceVisibility();
+
+        const types = ['video', 'chat', 'phone'];
+        types.forEach(type => {
+            const checkbox = document.getElementById('type_' + type);
+            if (checkbox) {
+                checkbox.addEventListener('change', updatePriceVisibility);
+            }
+        });
+    }
+});
+</script>

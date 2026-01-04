@@ -21,6 +21,7 @@ urlpatterns = [
 
     # Doctor URLs - Availability Windows (HTMX)
     path('availability/windows/create/', views.doctor_create_availability_window, name='create_window'),
+    path('availability/windows/<int:window_id>/', views.doctor_get_availability_window, name='get_window'),
     path('availability/windows/<int:window_id>/update/', views.doctor_update_availability_window, name='update_window'),
     path('availability/windows/<int:window_id>/delete/', views.doctor_delete_availability_window, name='delete_window'),
 
