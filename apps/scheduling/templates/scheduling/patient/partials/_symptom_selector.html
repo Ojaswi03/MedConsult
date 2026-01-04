@@ -1,0 +1,135 @@
+<!-- Symptom/Injury Selector -->
+<div class="bg-gray-50 dark:bg-gray-700/50 rounded-lg p-4 mb-4" x-data="symptomSelector()">
+    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
+        What brings you in today?
+    </label>
+
+    <!-- Toggle: Condition vs Symptom -->
+    <div class="flex gap-2 mb-4">
+        <button type="button"
+                @click="mode = 'condition'; selectedBodyPart = null"
+                :class="mode === 'condition'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border dark:border-gray-600'"
+                class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+            Injury / Condition
+        </button>
+        <button type="button"
+                @click="mode = 'symptom'; selectedBodyPart = null"
+                :class="mode === 'symptom'
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border dark:border-gray-600'"
+                class="flex-1 py-2 px-4 rounded-lg text-sm font-medium transition-colors">
+            Symptoms
+        </button>
+    </div>
+
+    <!-- Selected Items Display -->
+    <div x-show="selectedItems.length > 0" class="mb-4">
+        <div class="flex flex-wrap gap-2">
+            <template x-for="item in selectedItems" :key="item">
+                <span class="inline-flex items-center gap-1 px-3 py-1 bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded-full text-sm">
+                    <span x-text="item"></span>
+                    <button type="button" @click="removeItem(item)" class="hover:text-blue-900 dark:hover:text-blue-100">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                        </svg>
+                    </button>
+                </span>
+            </template>
+        </div>
+    </div>
+
+    <!-- Condition Mode: Body Part Selection -->
+    <div x-show="mode === 'condition'" x-cloak>
+        <!-- Body Part Categories -->
+        <div x-show="!selectedBodyPart" id="body-parts-container"
+             hx-get="{% url 'patient:get_body_parts' %}"
+             hx-trigger="load"
+             hx-swap="innerHTML">
+            <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+                <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+            </div>
+        </div>
+
+        <!-- Conditions for Selected Body Part -->
+        <div x-show="selectedBodyPart" id="conditions-container">
+            <button type="button"
+                    @click="selectedBodyPart = null"
+                    class="mb-3 text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+                </svg>
+                Back to body parts
+            </button>
+            <div id="conditions-list"></div>
+        </div>
+    </div>
+
+    <!-- Symptom Mode -->
+    <div x-show="mode === 'symptom'" x-cloak id="symptoms-container"
+         hx-get="{% url 'patient:get_symptoms' %}"
+         hx-trigger="load"
+         hx-swap="innerHTML">
+        <div class="text-center py-4 text-gray-500 dark:text-gray-400">
+            <div class="animate-spin w-6 h-6 border-2 border-blue-600 border-t-transparent rounded-full mx-auto"></div>
+        </div>
+    </div>
+
+    <!-- Hidden input for form submission -->
+    <input type="hidden" name="selected_symptoms" x-model="selectedItemsJson">
+</div>
+
+<script>
+function symptomSelector() {
+    return {
+        mode: 'condition',
+        selectedBodyPart: null,
+        selectedItems: [],
+
+        get selectedItemsJson() {
+            return JSON.stringify(this.selectedItems);
+        },
+
+        addItem(item) {
+            if (!this.selectedItems.includes(item)) {
+                this.selectedItems.push(item);
+                this.updateReasonField();
+            }
+        },
+
+        removeItem(item) {
+            this.selectedItems = this.selectedItems.filter(i => i !== item);
+            this.updateReasonField();
+        },
+
+        toggleItem(item) {
+            if (this.selectedItems.includes(item)) {
+                this.removeItem(item);
+            } else {
+                this.addItem(item);
+            }
+        },
+
+        isSelected(item) {
+            return this.selectedItems.includes(item);
+        },
+
+        selectBodyPart(id, name) {
+            this.selectedBodyPart = { id, name };
+            // Load conditions via HTMX
+            htmx.ajax('GET', `/patient/symptoms/body-parts/${id}/conditions/`, {
+                target: '#conditions-list',
+                swap: 'innerHTML'
+            });
+        },
+
+        updateReasonField() {
+            const reasonField = document.getElementById('id_reason');
+            if (reasonField) {
+                reasonField.value = this.selectedItems.join(', ');
+            }
+        }
+    }
+}
+</script>

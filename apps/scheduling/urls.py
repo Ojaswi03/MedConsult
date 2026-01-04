@@ -14,6 +14,11 @@ urlpatterns = [
     path('appointments/', views.patient_appointments_list, name='patient_appointments'),
     path('appointments/<int:appointment_id>/cancel/', views.patient_cancel_appointment, name='cancel_appointment'),
 
+    # Patient URLs - Symptom Selector (HTMX)
+    path('symptoms/body-parts/', views.get_body_parts, name='get_body_parts'),
+    path('symptoms/body-parts/<int:body_part_id>/conditions/', views.get_conditions, name='get_conditions'),
+    path('symptoms/list/', views.get_symptoms, name='get_symptoms'),
+
     # Doctor URLs - Main Views
     path('availability/', views.doctor_availability_manage, name='doctor_availability'),
     path('schedule/', views.doctor_schedule_view, name='doctor_schedule'),

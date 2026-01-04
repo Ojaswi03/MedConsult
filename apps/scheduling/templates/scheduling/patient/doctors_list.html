@@ -4,31 +4,31 @@
 
 {% block content %}
 <div>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Find a Doctor</h1>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Find a Doctor</h1>
 
     {% if doctors %}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {% for doctor in doctors %}
-            <div class="bg-white rounded-lg shadow-md p-6 hover:shadow-lg transition">
+            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 hover:shadow-lg transition">
                 <div class="flex items-center mb-4">
                     <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-xl mr-4">
                         {{ doctor.user.get_initials }}
                     </div>
                     <div>
-                        <h3 class="text-lg font-semibold">Dr. {{ doctor.user.get_display_name }}</h3>
-                        <p class="text-sm text-gray-600">{{ doctor.specialization }}</p>
+                        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h3>
+                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ doctor.specialization }}</p>
                     </div>
                 </div>
 
                 <div class="mb-4">
-                    <p class="text-sm text-gray-700">{{ doctor.bio|truncatewords:20 }}</p>
+                    <p class="text-sm text-gray-700 dark:text-gray-300">{{ doctor.bio|truncatewords:20 }}</p>
                 </div>
 
                 <div class="flex justify-between items-center mt-4">
-                    <span class="text-sm text-gray-600">
+                    <span class="text-sm text-gray-600 dark:text-gray-400">
                         {{ doctor.years_of_experience }} years exp.
                     </span>
-                    <a href="{% url 'patient:doctor_detail' doctor.id %}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                    <a href="{% url 'patient:doctor_detail' doctor.id %}" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
                         View Profile
                     </a>
                 </div>
@@ -36,8 +36,8 @@
             {% endfor %}
         </div>
     {% else %}
-        <div class="bg-white rounded-lg shadow-md p-8 text-center">
-            <p class="text-gray-600">No doctors available at the moment.</p>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8 text-center">
+            <p class="text-gray-600 dark:text-gray-400">No doctors available at the moment.</p>
         </div>
     {% endif %}
 </div>

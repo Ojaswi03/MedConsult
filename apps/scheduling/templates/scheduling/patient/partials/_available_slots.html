@@ -4,22 +4,22 @@
 <div class="space-y-6">
     {% for date, slots in slots_by_date.items %}
     <div>
-        <h3 class="text-lg font-semibold text-gray-900 mb-3 sticky top-0 bg-white py-2">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-3 sticky top-0 bg-white dark:bg-gray-800 py-2">
             {{ date|date:"l, F j, Y" }}
         </h3>
         <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3">
             {% for slot in slots %}
             <a href="{% url 'patient:book_appointment' slot.id %}"
-               class="block p-3 border rounded-lg text-center hover:border-blue-500 hover:bg-blue-50 transition-colors
-                      {% if slot.is_urgent %}border-yellow-400 bg-yellow-50{% endif %}">
-                <p class="font-medium text-gray-900">{{ slot.start_datetime|time:"g:i A" }}</p>
-                <p class="text-xs text-gray-500">{{ slot.start_datetime|time:"g:i A" }} - {{ slot.end_datetime|time:"g:i A" }}</p>
+               class="block p-3 border rounded-lg text-center hover:border-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:border-blue-400 transition-colors dark:border-gray-600 dark:bg-gray-800
+                      {% if slot.is_urgent %}border-yellow-400 bg-yellow-50 dark:bg-yellow-900/20{% endif %}">
+                <p class="font-medium text-gray-900 dark:text-white">{{ slot.start_datetime|time:"g:i A" }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400">{{ slot.start_datetime|time:"g:i A" }} - {{ slot.end_datetime|time:"g:i A" }}</p>
 
                 <!-- Appointment Type Badge -->
                 <span class="inline-block mt-2 px-2 py-0.5 rounded text-xs
-                    {% if slot.appointment_type == 'video' %}bg-blue-100 text-blue-700
-                    {% elif slot.appointment_type == 'chat' %}bg-green-100 text-green-700
-                    {% else %}bg-purple-100 text-purple-700{% endif %}">
+                    {% if slot.appointment_type == 'video' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300
+                    {% elif slot.appointment_type == 'chat' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300
+                    {% else %}bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300{% endif %}">
                     {% if slot.appointment_type == 'video' %}
                     <svg class="w-3 h-3 inline mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
@@ -36,14 +36,19 @@
                     {{ slot.get_appointment_type_display }}
                 </span>
 
+                <!-- Price Display -->
+                <p class="mt-2 text-sm font-semibold text-green-600 dark:text-green-400">
+                    ${{ slot.get_price }}
+                </p>
+
                 {% if slot.is_urgent %}
-                <span class="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-yellow-200 text-yellow-800">
+                <span class="inline-block mt-1 px-2 py-0.5 rounded text-xs bg-yellow-200 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300">
                     Urgent
                 </span>
                 {% endif %}
 
                 {% if slot.max_capacity > 1 %}
-                <p class="text-xs text-gray-500 mt-1">
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">
                     {{ slot.max_capacity|add:"-"|add:slot.current_bookings }} spots left
                 </p>
                 {% endif %}
@@ -55,10 +60,10 @@
 </div>
 {% else %}
 <div class="text-center py-12">
-    <svg class="w-16 h-16 text-gray-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
     </svg>
-    <p class="text-gray-600 mb-2">No available slots at this time.</p>
-    <p class="text-sm text-gray-500">Please check back later or try a different doctor.</p>
+    <p class="text-gray-600 dark:text-gray-400 mb-2">No available slots at this time.</p>
+    <p class="text-sm text-gray-500 dark:text-gray-400">Please check back later or try a different doctor.</p>
 </div>
 {% endif %}

@@ -238,6 +238,89 @@ class AppointmentTypeConfig(models.Model):
         return f"{self.doctor.user.get_display_name()} - {self.get_appointment_type_display()} (${self.price})"
 
 
+# =============================================================================
+# Symptom & Injury Selector Models
+# =============================================================================
+
+class BodyPart(models.Model):
+    """
+    Body parts for injury/condition selection.
+    Organized by anatomical category for easy navigation.
+    """
+    CATEGORY_CHOICES = [
+        ('head_neck', 'Head & Neck'),
+        ('torso', 'Torso'),
+        ('organs', 'Internal Organs'),
+        ('limbs', 'Limbs & Joints'),
+        ('systems', 'Body Systems'),
+    ]
+
+    name = models.CharField(max_length=100)
+    category = models.CharField(max_length=50, choices=CATEGORY_CHOICES)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'body_parts'
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return self.name
+
+
+class Condition(models.Model):
+    """
+    Medical conditions associated with body parts.
+    Used for injury/condition selection during booking.
+    """
+    body_part = models.ForeignKey(BodyPart, on_delete=models.CASCADE, related_name='conditions')
+    name = models.CharField(max_length=100)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'conditions'
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.body_part.name})"
+
+
+class SymptomCategory(models.Model):
+    """
+    Categories for grouping symptoms.
+    """
+    name = models.CharField(max_length=100)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'symptom_categories'
+        ordering = ['display_order', 'name']
+        verbose_name_plural = 'Symptom categories'
+
+    def __str__(self):
+        return self.name
+
+
+class Symptom(models.Model):
+    """
+    Individual symptoms grouped by category.
+    Used for symptom selection during booking.
+    """
+    category = models.ForeignKey(SymptomCategory, on_delete=models.CASCADE, related_name='symptoms')
+    name = models.CharField(max_length=100)
+    display_order = models.IntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        db_table = 'symptoms'
+        ordering = ['display_order', 'name']
+
+    def __str__(self):
+        return f"{self.name} ({self.category.name})"
+
+
 class SlotChangeLog(models.Model):
     """
     Tracks slot changes for real-time notification to patients.

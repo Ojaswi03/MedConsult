@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from apps.accounts.models import DoctorProfile
 from apps.accounts.selectors import get_all_verified_doctors
-from .models import Slot, Appointment, AvailabilityWindow
+from .models import Slot, Appointment, AvailabilityWindow, BodyPart, Condition, SymptomCategory, Symptom
 from .forms import AvailabilityWindowForm, ManualSlotForm, BlockSlotForm, get_appointment_type_formset
 from .services import (
     book_appointment,
@@ -517,3 +517,57 @@ def patient_slots_updates(request, doctor_id):
     })
     response['X-Last-Update'] = timezone.now().isoformat()
     return response
+
+
+# ========== SYMPTOM SELECTOR VIEWS ==========
+
+@login_required
+@require_GET
+def get_body_parts(request):
+    """HTMX: Get all body parts grouped by category."""
+    if request.user.role != 'patient':
+        return HttpResponse(status=403)
+
+    body_parts = BodyPart.objects.filter(is_active=True).prefetch_related('conditions')
+
+    # Group by category
+    categories = {}
+    for bp in body_parts:
+        cat_display = bp.get_category_display()
+        if cat_display not in categories:
+            categories[cat_display] = []
+        categories[cat_display].append(bp)
+
+    return render(request, 'scheduling/patient/partials/_body_parts.html', {
+        'categories': categories
+    })
+
+
+@login_required
+@require_GET
+def get_conditions(request, body_part_id):
+    """HTMX: Get conditions for a specific body part."""
+    if request.user.role != 'patient':
+        return HttpResponse(status=403)
+
+    body_part = get_object_or_404(BodyPart, id=body_part_id, is_active=True)
+    conditions = body_part.conditions.filter(is_active=True)
+
+    return render(request, 'scheduling/patient/partials/_conditions.html', {
+        'body_part': body_part,
+        'conditions': conditions
+    })
+
+
+@login_required
+@require_GET
+def get_symptoms(request):
+    """HTMX: Get all symptoms grouped by category."""
+    if request.user.role != 'patient':
+        return HttpResponse(status=403)
+
+    categories = SymptomCategory.objects.filter(is_active=True).prefetch_related('symptoms')
+
+    return render(request, 'scheduling/patient/partials/_symptoms.html', {
+        'categories': categories
+    })

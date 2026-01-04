@@ -80,18 +80,21 @@
             <form method="post" class="space-y-6">
                 {% csrf_token %}
 
+                <!-- Symptom/Injury Selector -->
+                {% include "scheduling/patient/partials/_symptom_selector.html" %}
+
                 <div>
-                    <label for="reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                        Reason for Visit <span class="text-gray-400 dark:text-gray-500">(Optional)</span>
+                    <label for="id_reason" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Additional Details <span class="text-gray-400 dark:text-gray-500">(Optional)</span>
                     </label>
                     <textarea
                         name="reason"
-                        id="reason"
-                        rows="4"
+                        id="id_reason"
+                        rows="3"
                         class="w-full px-4 py-2 border dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
-                        placeholder="Describe your symptoms or reason for consultation..."
+                        placeholder="Add any additional details about your condition..."
                     ></textarea>
-                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">This helps the doctor prepare for your appointment.</p>
+                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">Selected symptoms/conditions will auto-populate above. Add any extra details here.</p>
                 </div>
 
                 <div class="flex flex-col sm:flex-row justify-between gap-4 pt-4">
