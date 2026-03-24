@@ -1,0 +1,198 @@
+{% extends "layouts/admin.html" %}
+
+{% block page_title %}Referral Tracking{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Referral Tracking</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Monitor doctor referrals and conversion rates</p>
+</div>
+
+<!-- Stats Cards -->
+<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+    <!-- Total Referrals -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Referrals</p>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ stats.total }}</p>
+            </div>
+            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">All time referrals issued</p>
+    </div>
+
+    <!-- Conversion Rate -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Conversion Rate</p>
+                <p class="text-3xl font-bold text-green-600 dark:text-green-400 mt-1">{{ stats.conversion_rate }}%</p>
+            </div>
+            <div class="p-3 bg-green-100 dark:bg-green-900 rounded-full">
+                <svg class="w-6 h-6 text-green-600 dark:text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Referrals that led to a booked appointment</p>
+    </div>
+
+    <!-- Pending -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Pending</p>
+                <p class="text-3xl font-bold text-yellow-600 dark:text-yellow-400 mt-1">{{ stats.pending }}</p>
+            </div>
+            <div class="p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
+                <svg class="w-6 h-6 text-yellow-600 dark:text-yellow-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Awaiting patient action</p>
+    </div>
+
+    <!-- Booked -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Booked</p>
+                <p class="text-3xl font-bold text-blue-600 dark:text-blue-400 mt-1">{{ stats.booked }}</p>
+            </div>
+            <div class="p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
+                <svg class="w-6 h-6 text-blue-600 dark:text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Appointment successfully booked</p>
+    </div>
+
+    <!-- Accepted -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Accepted</p>
+                <p class="text-3xl font-bold text-purple-600 dark:text-purple-400 mt-1">{{ stats.accepted }}</p>
+            </div>
+            <div class="p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
+                <svg class="w-6 h-6 text-purple-600 dark:text-purple-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Accepted by referred doctor</p>
+    </div>
+
+    <!-- Expired -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Expired</p>
+                <p class="text-3xl font-bold text-red-600 dark:text-red-400 mt-1">{{ stats.expired }}</p>
+            </div>
+            <div class="p-3 bg-red-100 dark:bg-red-900 rounded-full">
+                <svg class="w-6 h-6 text-red-600 dark:text-red-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                </svg>
+            </div>
+        </div>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Referrals past expiry date</p>
+    </div>
+</div>
+
+<!-- Recent Referrals Table -->
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Referrals</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Patient</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Referring Doctor</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Referred To</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Date</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for referral in stats.recent_referrals %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                                <span class="text-green-600 dark:text-green-300 font-medium text-xs">
+                                    {{ referral.patient.first_name|slice:":1"|upper }}{{ referral.patient.last_name|slice:":1"|upper }}
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ referral.patient.get_full_name|default:referral.patient.username }}
+                                </p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center flex-shrink-0">
+                                <span class="text-purple-600 dark:text-purple-300 font-medium text-xs">
+                                    {{ referral.referring_doctor.user.first_name|slice:":1"|upper }}{{ referral.referring_doctor.user.last_name|slice:":1"|upper }}
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    Dr. {{ referral.referring_doctor.user.get_full_name|default:referral.referring_doctor.user.username }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ referral.referring_doctor.specialization|default:"" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center flex-shrink-0">
+                                <span class="text-blue-600 dark:text-blue-300 font-medium text-xs">
+                                    {{ referral.referred_to_doctor.user.first_name|slice:":1"|upper }}{{ referral.referred_to_doctor.user.last_name|slice:":1"|upper }}
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    Dr. {{ referral.referred_to_doctor.user.get_full_name|default:referral.referred_to_doctor.user.username }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ referral.referred_to_doctor.specialization|default:"" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if referral.status == 'booked' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200
+                            {% elif referral.status == 'accepted' %}bg-green-100 dark:bg-green-900 text-green-800 dark:text-green-200
+                            {% elif referral.status == 'pending' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
+                            {% elif referral.status == 'expired' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
+                            {% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                            {{ referral.status|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {{ referral.created_at|date:"M d, Y" }}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        No referrals found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

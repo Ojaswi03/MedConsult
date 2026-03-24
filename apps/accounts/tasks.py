@@ -141,3 +141,48 @@ The MedConsult Team
         return f"User {user_id} not found"
     except Exception as exc:
         self.retry(exc=exc, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_doctor_rejection_email_task(self, doctor_user_id, reason=''):
+    """Send email to a doctor when their verification is rejected."""
+    from .models import User
+
+    try:
+        user = User.objects.get(id=doctor_user_id)
+
+        subject = 'Update on your MedConsult verification application'
+        html_message = render_to_string('accounts/emails/doctor_rejected.html', {
+            'user': user,
+            'reason': reason,
+        })
+        plain_message = f"""
+Hi {user.first_name or user.username},
+
+Thank you for applying to join MedConsult as a healthcare provider.
+
+After reviewing your application, we were unable to verify your credentials at this time.
+
+{"Reason: " + reason if reason else "Please ensure your documents are clear, valid, and unexpired."}
+
+You are welcome to reapply with updated documents. If you believe this decision was made in error, please contact our support team.
+
+Best regards,
+The MedConsult Team
+        """
+
+        send_mail(
+            subject=subject,
+            message=plain_message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[user.email],
+            html_message=html_message,
+            fail_silently=False,
+        )
+
+        return f"Rejection email sent to {user.email}"
+
+    except User.DoesNotExist:
+        return f"User {doctor_user_id} not found"
+    except Exception as exc:
+        self.retry(exc=exc, countdown=60)

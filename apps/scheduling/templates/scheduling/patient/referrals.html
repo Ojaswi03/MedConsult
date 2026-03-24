@@ -1,0 +1,67 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}My Referrals - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">My Referrals</h1>
+
+    {% if referrals %}
+    <div class="space-y-4">
+        {% for referral in referrals %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 border border-gray-200 dark:border-gray-700">
+            <div class="flex flex-col md:flex-row md:items-start gap-4">
+                <div class="flex-grow">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <span class="font-semibold text-gray-900 dark:text-white">
+                            Referred to Dr. {{ referral.referred_to_doctor.user.get_display_name }}
+                        </span>
+                        <span class="px-2 py-0.5 text-xs rounded-full
+                            {% if referral.status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-700 dark:text-yellow-300
+                            {% elif referral.status == 'accepted' %}bg-green-100 dark:bg-green-900/50 text-green-700 dark:text-green-300
+                            {% elif referral.status == 'booked' %}bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300
+                            {% else %}bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400{% endif %}">
+                            {{ referral.get_status_display }}
+                        </span>
+                    </div>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-1">
+                        Referring doctor: Dr. {{ referral.referring_doctor.user.get_display_name }}
+                        &mdash; {{ referral.referring_doctor.specialization }}
+                    </p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mb-2">
+                        Referred to: Dr. {{ referral.referred_to_doctor.user.get_display_name }}
+                        &mdash; {{ referral.referred_to_doctor.specialization }}
+                    </p>
+                    <div class="bg-gray-50 dark:bg-gray-700/50 rounded p-3 mb-3">
+                        <p class="text-sm text-gray-700 dark:text-gray-300"><span class="font-medium">Reason:</span> {{ referral.reason }}</p>
+                        {% if referral.notes %}
+                        <p class="text-sm text-gray-600 dark:text-gray-400 mt-1"><span class="font-medium">Notes:</span> {{ referral.notes }}</p>
+                        {% endif %}
+                    </div>
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-500">
+                        <span>Created: {{ referral.created_at|date:"M d, Y" }}</span>
+                        <span>Expires: {{ referral.expires_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+                {% if referral.status == 'pending' %}
+                <div class="flex-shrink-0">
+                    <a href="{% url 'patient:doctor_detail' referral.referred_to_doctor.id %}"
+                       class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors text-sm inline-block">
+                        Book Now
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+        <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400">No referrals yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

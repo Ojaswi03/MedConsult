@@ -7,12 +7,13 @@ from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
 
 from apps.accounts.models import DoctorProfile
-from apps.accounts.selectors import get_all_verified_doctors, get_filtered_doctors, get_all_specializations
-from .models import Slot, Appointment, AvailabilityWindow, BodyPart, Condition, SymptomCategory, Symptom
+from apps.accounts.selectors import get_filtered_doctors, get_all_specializations, get_all_languages
+from .models import Slot, Appointment, AvailabilityWindow, BodyPart, Condition, SymptomCategory, Symptom, HealthRecord, WaitlistEntry, Referral
 from .forms import AvailabilityWindowForm, ManualSlotForm, BlockSlotForm, get_appointment_type_formset
 from .services import (
     book_appointment,
     cancel_appointment,
+    reschedule_appointment,
     generate_slots_for_doctor,
     create_availability_window,
     update_availability_window,
@@ -21,8 +22,21 @@ from .services import (
     block_slot,
     unblock_slot,
     delete_slot,
-    log_slot_change,
-    create_review
+    create_review,
+    create_prescription,
+    create_time_off_block,
+    delete_time_off_block,
+    join_waitlist,
+    leave_waitlist,
+    create_health_record,
+    share_health_record_with_doctor,
+    get_patient_health_records,
+    get_shared_records_for_doctor,
+    create_referral,
+    create_availability_exception,
+    delete_availability_exception,
+    respond_to_review,
+    generate_billing_pdf,
 )
 from .selectors import (
     get_available_slots_for_doctor,
@@ -38,7 +52,12 @@ from .selectors import (
     get_enabled_appointment_types,
     get_doctor_reviews,
     get_patient_reviewable_appointments,
-    can_patient_review_appointment
+    can_patient_review_appointment,
+    get_doctor_analytics,
+    get_prescription_for_appointment,
+    get_doctor_time_off_blocks,
+    get_patient_history_for_doctor,
+    get_availability_exceptions,
 )
 
 
@@ -58,6 +77,9 @@ def patient_doctors_list(request):
     max_price = request.GET.get('max_price')
     has_availability = request.GET.get('has_availability') == 'on'
     sort_by = request.GET.get('sort_by', 'rating')
+    language = request.GET.get('language', '').strip()
+    available_today = request.GET.get('available_today') == 'on'
+    second_opinion = request.GET.get('second_opinion') == 'on'
 
     # Convert numeric filters
     try:
@@ -83,15 +105,20 @@ def patient_doctors_list(request):
         min_experience=min_experience,
         max_price=max_price,
         has_availability=has_availability,
-        sort_by=sort_by
+        sort_by=sort_by,
+        language=language if language else None,
+        available_today=available_today,
+        offers_second_opinions=True if second_opinion else None,
     )
 
-    # Get all specializations for filter dropdown
+    # Get all specializations and languages for filter dropdowns
     specializations = get_all_specializations()
+    languages = get_all_languages()
 
     context = {
         'doctors': doctors,
         'specializations': specializations,
+        'languages': languages,
         # Pass current filter values back to template
         'current_filters': {
             'search': search,
@@ -101,6 +128,9 @@ def patient_doctors_list(request):
             'max_price': max_price,
             'has_availability': has_availability,
             'sort_by': sort_by,
+            'language': language,
+            'available_today': available_today,
+            'second_opinion': second_opinion,
         }
     }
 
@@ -177,21 +207,39 @@ def patient_cancel_appointment(request, appointment_id):
     return redirect('patient:patient_appointments')
 
 
-# ========== DOCTOR VIEWS ==========
-
 @login_required
-def doctor_availability_view(request):
-    """Doctor view: Manage availability windows."""
-    if request.user.role != 'doctor':
-        return HttpResponseForbidden("Access denied. Doctors only.")
+def patient_reschedule_appointment(request, appointment_id):
+    """Patient view: Reschedule an appointment to a different slot."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
 
-    doctor_profile = request.user.doctor_profile
-    availability_windows = get_doctor_availability_windows(doctor_profile)
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
 
-    return render(request, 'scheduling/doctor/availability.html', {
-        'availability_windows': availability_windows
+    if appointment.status != 'scheduled' or appointment.start_datetime <= timezone.now():
+        messages.error(request, 'This appointment cannot be rescheduled.')
+        return redirect('patient:patient_appointments')
+
+    available_slots = get_available_slots_for_doctor(appointment.doctor)
+    # Exclude the currently booked slot
+    available_slots = [s for s in available_slots if s.id != appointment.slot.id]
+
+    if request.method == 'POST':
+        slot_id = request.POST.get('slot_id')
+        new_slot = get_object_or_404(Slot, id=slot_id)
+        try:
+            reschedule_appointment(appointment, new_slot)
+            messages.success(request, 'Appointment rescheduled successfully.')
+            return redirect('patient:patient_appointments')
+        except ValueError as e:
+            messages.error(request, str(e))
+
+    return render(request, 'scheduling/patient/reschedule.html', {
+        'appointment': appointment,
+        'available_slots': available_slots,
     })
 
+
+# ========== DOCTOR VIEWS ==========
 
 @login_required
 def doctor_schedule_view(request):
@@ -402,6 +450,32 @@ def doctor_delete_availability_window(request, window_id):
         return HttpResponse(f'<div class="text-red-600 p-2">{str(e)}</div>', status=400)
 
 
+def _render_doctor_calendar(request):
+    """Render the calendar grid partial for the doctor's current week."""
+    week_start_param = request.GET.get('week_start')
+    if week_start_param:
+        start_of_week = datetime.strptime(week_start_param, '%Y-%m-%d').date()
+    else:
+        today = timezone.now().date()
+        start_of_week = today - timedelta(days=today.weekday())
+
+    end_of_week = start_of_week + timedelta(days=6)
+    prev_week = start_of_week - timedelta(days=7)
+    next_week = start_of_week + timedelta(days=7)
+    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
+    slots = get_doctor_slots_for_calendar(request.user.doctor_profile, start_of_week, end_of_week)
+
+    return render(request, 'scheduling/doctor/partials/_calendar_grid.html', {
+        'slots': slots,
+        'start_of_week': start_of_week,
+        'end_of_week': end_of_week,
+        'prev_week': prev_week.strftime('%Y-%m-%d'),
+        'next_week': next_week.strftime('%Y-%m-%d'),
+        'week_dates': week_dates,
+        'today': timezone.now().date(),
+    })
+
+
 @login_required
 @require_POST
 def doctor_create_manual_slot(request):
@@ -420,7 +494,7 @@ def doctor_create_manual_slot(request):
                 datetime.combine(data['date'], data['end_time'])
             )
 
-            slot = create_manual_slot(
+            create_manual_slot(
                 doctor_profile=request.user.doctor_profile,
                 start_datetime=start_datetime,
                 end_datetime=end_datetime,
@@ -430,8 +504,7 @@ def doctor_create_manual_slot(request):
                 notes=data.get('notes', '')
             )
             messages.success(request, 'Slot created successfully!')
-            # Return updated calendar
-            return doctor_calendar_slots(request)
+            return _render_doctor_calendar(request)
         except ValueError as e:
             return HttpResponse(f'<div class="text-red-600 p-2">{str(e)}</div>', status=400)
 
@@ -449,9 +522,9 @@ def doctor_block_slot(request, slot_id):
 
     reason = request.POST.get('reason', '')
     try:
-        slot = block_slot(slot_id, request.user.doctor_profile, reason)
+        block_slot(slot_id, request.user.doctor_profile, reason)
         messages.success(request, 'Slot blocked.')
-        return doctor_calendar_slots(request)
+        return _render_doctor_calendar(request)
     except ValueError as e:
         return HttpResponse(f'<div class="text-red-600 p-2">{str(e)}</div>', status=400)
 
@@ -464,9 +537,9 @@ def doctor_unblock_slot(request, slot_id):
         return HttpResponse(status=403)
 
     try:
-        slot = unblock_slot(slot_id, request.user.doctor_profile)
+        unblock_slot(slot_id, request.user.doctor_profile)
         messages.success(request, 'Slot unblocked.')
-        return doctor_calendar_slots(request)
+        return _render_doctor_calendar(request)
     except ValueError as e:
         return HttpResponse(f'<div class="text-red-600 p-2">{str(e)}</div>', status=400)
 
@@ -481,7 +554,7 @@ def doctor_delete_slot(request, slot_id):
     try:
         delete_slot(slot_id, request.user.doctor_profile)
         messages.success(request, 'Slot deleted.')
-        return doctor_calendar_slots(request)
+        return _render_doctor_calendar(request)
     except ValueError as e:
         return HttpResponse(f'<div class="text-red-600 p-2">{str(e)}</div>', status=400)
 
@@ -492,39 +565,7 @@ def doctor_calendar_slots(request):
     """HTMX: Get calendar slots for a given week."""
     if request.user.role != 'doctor':
         return HttpResponse(status=403)
-
-    # Get week from query params or default to current week
-    week_start_param = request.GET.get('week_start')
-    if week_start_param:
-        start_of_week = datetime.strptime(week_start_param, '%Y-%m-%d').date()
-    else:
-        today = timezone.now().date()
-        start_of_week = today - timedelta(days=today.weekday())
-
-    end_of_week = start_of_week + timedelta(days=6)
-
-    # Calculate prev/next week dates
-    prev_week = start_of_week - timedelta(days=7)
-    next_week = start_of_week + timedelta(days=7)
-
-    # Generate list of dates for the week
-    week_dates = [start_of_week + timedelta(days=i) for i in range(7)]
-
-    slots = get_doctor_slots_for_calendar(
-        request.user.doctor_profile,
-        start_of_week,
-        end_of_week
-    )
-
-    return render(request, 'scheduling/doctor/partials/_calendar_grid.html', {
-        'slots': slots,
-        'start_of_week': start_of_week,
-        'end_of_week': end_of_week,
-        'prev_week': prev_week.strftime('%Y-%m-%d'),
-        'next_week': next_week.strftime('%Y-%m-%d'),
-        'week_dates': week_dates,
-        'today': timezone.now().date(),
-    })
+    return _render_doctor_calendar(request)
 
 
 @login_required
@@ -544,6 +585,17 @@ def doctor_appointment_type_config(request):
     return render(request, 'scheduling/doctor/appointment_types.html', {
         'formset': formset
     })
+
+
+@login_required
+def doctor_analytics_view(request):
+    """Doctor view: Personal analytics dashboard."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    analytics = get_doctor_analytics(request.user.doctor_profile)
+    reviews = get_doctor_reviews(request.user.doctor_profile)
+    return render(request, 'scheduling/doctor/analytics.html', {'analytics': analytics, 'reviews': reviews})
 
 
 # ========== PATIENT REAL-TIME UPDATES ==========
@@ -698,3 +750,543 @@ def doctor_reviews_partial(request, doctor_id):
         'doctor': doctor,
         'reviews': reviews
     })
+
+
+# ========== PRESCRIPTION VIEWS ==========
+
+@login_required
+def doctor_write_prescription(request, appointment_id):
+    """Doctor view: Write a prescription for a completed appointment."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, doctor=request.user.doctor_profile
+    )
+
+    if appointment.status != 'completed':
+        messages.error(request, 'Prescriptions can only be written for completed appointments.')
+        return redirect('doctor:doctor_schedule')
+
+    existing = get_prescription_for_appointment(appointment)
+    if existing:
+        messages.info(request, 'A prescription already exists for this appointment.')
+        return redirect('doctor:doctor_schedule')
+
+    if request.method == 'POST':
+        diagnosis = request.POST.get('diagnosis', '').strip()
+        medications = request.POST.get('medications', '').strip()
+        instructions = request.POST.get('instructions', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        if not medications:
+            messages.error(request, 'Please enter at least one medication.')
+        else:
+            try:
+                create_prescription(appointment, diagnosis, medications, instructions, notes)
+                messages.success(request, 'Prescription written successfully.')
+                return redirect('doctor:doctor_schedule')
+            except ValueError as e:
+                messages.error(request, str(e))
+
+    return render(request, 'scheduling/doctor/write_prescription.html', {
+        'appointment': appointment
+    })
+
+
+@login_required
+def patient_download_prescription(request, appointment_id):
+    """Patient view: Download prescription as PDF."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
+    prescription = get_prescription_for_appointment(appointment)
+
+    if not prescription:
+        messages.error(request, 'No prescription found for this appointment.')
+        return redirect('patient:patient_appointments')
+
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.lib import colors
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, HRFlowable, Table, TableStyle
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter,
+                            leftMargin=inch, rightMargin=inch,
+                            topMargin=inch, bottomMargin=inch)
+
+    styles = getSampleStyleSheet()
+    title_style = ParagraphStyle('title', parent=styles['Heading1'], fontSize=20, spaceAfter=4)
+    heading_style = ParagraphStyle('heading', parent=styles['Heading2'], fontSize=12, spaceAfter=4, textColor=colors.HexColor('#1d4ed8'))
+    normal_style = ParagraphStyle('normal', parent=styles['Normal'], fontSize=10, spaceAfter=6, leading=14)
+    small_style = ParagraphStyle('small', parent=styles['Normal'], fontSize=9, textColor=colors.gray)
+
+    story = []
+
+    # Header
+    story.append(Paragraph("MedConsult", title_style))
+    story.append(Paragraph("Digital Prescription", styles['Heading2']))
+    story.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor('#1d4ed8')))
+    story.append(Spacer(1, 0.2 * inch))
+
+    # Patient & Doctor info
+    info_data = [
+        ['Patient:', prescription.patient.get_display_name(), 'Doctor:', f"Dr. {prescription.doctor.user.get_display_name()}"],
+        ['Date:', prescription.created_at.strftime('%B %d, %Y'), 'Specialization:', prescription.doctor.specialization],
+    ]
+    info_table = Table(info_data, colWidths=[1.2*inch, 2.5*inch, 1.2*inch, 2.5*inch])
+    info_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+    ]))
+    story.append(info_table)
+    story.append(Spacer(1, 0.2 * inch))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    story.append(Spacer(1, 0.15 * inch))
+
+    if prescription.diagnosis:
+        story.append(Paragraph("Diagnosis", heading_style))
+        story.append(Paragraph(prescription.diagnosis, normal_style))
+        story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Paragraph("Medications", heading_style))
+    story.append(Paragraph(prescription.medications.replace('\n', '<br/>'), normal_style))
+    story.append(Spacer(1, 0.1 * inch))
+
+    if prescription.instructions:
+        story.append(Paragraph("Instructions", heading_style))
+        story.append(Paragraph(prescription.instructions.replace('\n', '<br/>'), normal_style))
+        story.append(Spacer(1, 0.1 * inch))
+
+    if prescription.notes:
+        story.append(Paragraph("Notes", heading_style))
+        story.append(Paragraph(prescription.notes.replace('\n', '<br/>'), normal_style))
+        story.append(Spacer(1, 0.1 * inch))
+
+    story.append(Spacer(1, 0.3 * inch))
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    story.append(Spacer(1, 0.1 * inch))
+    story.append(Paragraph(f"Generated by MedConsult on {prescription.created_at.strftime('%B %d, %Y')}", small_style))
+
+    doc.build(story)
+    buffer.seek(0)
+
+    filename = f"prescription_{appointment_id}_{prescription.created_at.strftime('%Y%m%d')}.pdf"
+    response = HttpResponse(buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+# ========== FEATURE 3: DOCTOR TIME-OFF VIEWS ==========
+
+@login_required
+def doctor_time_off_list(request):
+    """Doctor view: Manage time-off blocks."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    doctor_profile = request.user.doctor_profile
+    blocks = get_doctor_time_off_blocks(doctor_profile)
+
+    if request.method == 'POST':
+        start_date_str = request.POST.get('start_date', '').strip()
+        end_date_str = request.POST.get('end_date', '').strip()
+        reason = request.POST.get('reason', '').strip()
+
+        if not start_date_str or not end_date_str:
+            messages.error(request, 'Please provide both start and end dates.')
+        else:
+            try:
+                from datetime import date as date_type
+                start_date = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+                end_date = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+                if end_date < start_date:
+                    messages.error(request, 'End date must be on or after start date.')
+                else:
+                    create_time_off_block(doctor_profile, start_date, end_date, reason)
+                    messages.success(request, 'Time off block created. All slots in this range have been blocked.')
+                    return redirect('doctor:time_off_list')
+            except ValueError as e:
+                messages.error(request, f'Error: {str(e)}')
+
+    return render(request, 'scheduling/doctor/time_off.html', {
+        'blocks': blocks,
+    })
+
+
+@login_required
+@require_POST
+def doctor_delete_time_off(request, block_id):
+    """Doctor view: Delete a time-off block."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    try:
+        delete_time_off_block(block_id, request.user.doctor_profile)
+        messages.success(request, 'Time off block deleted. Affected slots have been unblocked.')
+    except Exception as e:
+        messages.error(request, f'Error: {str(e)}')
+
+    return redirect('doctor:time_off_list')
+
+
+# ========== FEATURE 4: WAITLIST VIEWS ==========
+
+@login_required
+@require_POST
+def patient_join_waitlist(request, doctor_id):
+    """Patient view: Join a doctor's waitlist."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id, verification_status='verified')
+    appointment_type = request.POST.get('appointment_type', '')
+    notes = request.POST.get('notes', '').strip()
+
+    entry, created = join_waitlist(doctor, request.user, appointment_type=appointment_type, notes=notes)
+    if created:
+        messages.success(request, f"You've been added to Dr. {doctor.user.get_display_name()}'s waitlist.")
+    else:
+        messages.info(request, "You're already on this doctor's waitlist.")
+
+    return redirect('patient:doctor_detail', doctor_id=doctor_id)
+
+
+@login_required
+@require_POST
+def patient_leave_waitlist(request, doctor_id):
+    """Patient view: Leave a doctor's waitlist."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id)
+    leave_waitlist(doctor, request.user)
+    messages.success(request, f"You've been removed from Dr. {doctor.user.get_display_name()}'s waitlist.")
+
+    return redirect('patient:doctor_detail', doctor_id=doctor_id)
+
+
+# ========== FEATURE 5: HEALTH RECORDS VIEWS ==========
+
+@login_required
+def patient_health_records(request):
+    """Patient view: List and upload health records."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    records = get_patient_health_records(request.user)
+
+    if request.method == 'POST':
+        record_type = request.POST.get('record_type', '').strip()
+        title = request.POST.get('title', '').strip()
+        description = request.POST.get('description', '').strip()
+        date_of_record_str = request.POST.get('date_of_record', '').strip()
+        file = request.FILES.get('file')
+
+        if not record_type or not title:
+            messages.error(request, 'Please provide a record type and title.')
+        else:
+            date_of_record = None
+            if date_of_record_str:
+                try:
+                    date_of_record = datetime.strptime(date_of_record_str, '%Y-%m-%d').date()
+                except ValueError:
+                    pass
+
+            create_health_record(
+                request.user, record_type, title,
+                description=description, file=file, date_of_record=date_of_record
+            )
+            messages.success(request, 'Health record uploaded successfully.')
+            return redirect('patient:patient_health_records')
+
+    # Doctors this patient has had appointments with (for share dropdown)
+    from apps.accounts.models import DoctorProfile
+    my_doctors = DoctorProfile.objects.filter(
+        doctor_appointments__patient=request.user
+    ).select_related('user').distinct()
+
+    return render(request, 'scheduling/patient/health_records.html', {
+        'records': records,
+        'record_types': HealthRecord.RECORD_TYPES,
+        'my_doctors': my_doctors,
+    })
+
+
+@login_required
+@require_POST
+def patient_delete_health_record(request, record_id):
+    """Patient view: Delete a health record."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    record = get_object_or_404(HealthRecord, id=record_id, patient=request.user)
+    record.delete()
+    messages.success(request, 'Health record deleted.')
+    return redirect('patient:patient_health_records')
+
+
+@login_required
+@require_POST
+def patient_share_health_record(request, record_id):
+    """Patient view: Share a health record with a doctor."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    record = get_object_or_404(HealthRecord, id=record_id, patient=request.user)
+    doctor_id = request.POST.get('doctor_id')
+    doctor = get_object_or_404(DoctorProfile, id=doctor_id, verification_status='verified')
+
+    share_health_record_with_doctor(record, doctor)
+    messages.success(request, f'Record shared with Dr. {doctor.user.get_display_name()}.')
+    return redirect('patient:patient_health_records')
+
+
+@login_required
+def doctor_view_shared_records(request, patient_id):
+    """Doctor view: See health records shared with them by a patient."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    from apps.accounts.models import User as UserModel
+    patient = get_object_or_404(UserModel, id=patient_id, role='patient')
+    doctor_profile = request.user.doctor_profile
+    records = get_shared_records_for_doctor(doctor_profile, patient)
+
+    return render(request, 'scheduling/doctor/patient_records.html', {
+        'patient': patient,
+        'records': records,
+    })
+
+
+# ========== FEATURE 6: FOLLOW-UP APPOINTMENT VIEWS ==========
+
+@login_required
+def doctor_schedule_followup(request, appointment_id):
+    """Doctor view: Suggest a follow-up slot to a patient."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, doctor=request.user.doctor_profile
+    )
+
+    # Get future available slots for this doctor (next 14 days)
+    future_slots = Slot.objects.filter(
+        doctor=request.user.doctor_profile,
+        is_booked=False,
+        is_blocked=False,
+        start_datetime__gt=timezone.now(),
+        start_datetime__date__lte=(timezone.now().date() + timedelta(days=14))
+    ).order_by('start_datetime')
+
+    if request.method == 'POST':
+        slot_id = request.POST.get('slot_id')
+        reason = request.POST.get('reason', '').strip()
+        slot = get_object_or_404(Slot, id=slot_id, doctor=request.user.doctor_profile)
+
+        from apps.accounts.services import create_notification
+        create_notification(
+            appointment.patient, 'appointment_rescheduled',
+            f"Dr. {request.user.get_display_name()} recommends a follow-up",
+            reason or f"Dr. {request.user.get_display_name()} has suggested a follow-up appointment.",
+            link=f"/patient/book/{slot.id}/"
+        )
+        messages.success(request, f'Follow-up suggestion sent to {appointment.patient.get_display_name()}.')
+        return redirect('doctor:doctor_schedule')
+
+    return render(request, 'scheduling/doctor/schedule_followup.html', {
+        'appointment': appointment,
+        'future_slots': future_slots,
+    })
+
+
+# ========== FEATURE 7: MEDICAL HISTORY VIEWS ==========
+
+@login_required
+def doctor_patient_history(request, patient_id):
+    """Doctor view: View full history of a patient with this doctor."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    from apps.accounts.models import User as UserModel
+    patient = get_object_or_404(UserModel, id=patient_id, role='patient')
+    doctor_profile = request.user.doctor_profile
+    history = get_patient_history_for_doctor(patient, doctor_profile)
+
+    return render(request, 'scheduling/doctor/patient_history.html', {
+        'patient': patient,
+        'history': history,
+    })
+
+
+# ========== FEATURE 9: REFERRAL VIEWS ==========
+
+@login_required
+def doctor_create_referral(request, appointment_id):
+    """Doctor view: Create a referral for a patient."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    appointment = get_object_or_404(
+        Appointment, id=appointment_id, doctor=request.user.doctor_profile
+    )
+
+    all_doctors = DoctorProfile.objects.filter(
+        verification_status='verified'
+    ).exclude(id=request.user.doctor_profile.id).select_related('user').order_by('user__first_name')
+
+    if request.method == 'POST':
+        referred_to_id = request.POST.get('referred_to_doctor_id')
+        reason = request.POST.get('reason', '').strip()
+        notes = request.POST.get('notes', '').strip()
+
+        if not referred_to_id or not reason:
+            messages.error(request, 'Please select a doctor and provide a reason.')
+        else:
+            referred_to = get_object_or_404(DoctorProfile, id=referred_to_id, verification_status='verified')
+            create_referral(
+                referring_doctor=request.user.doctor_profile,
+                referred_to_doctor=referred_to,
+                patient=appointment.patient,
+                reason=reason,
+                notes=notes,
+            )
+            messages.success(request, f'Referral sent to Dr. {referred_to.user.get_display_name()} for {appointment.patient.get_display_name()}.')
+            return redirect('doctor:doctor_schedule')
+
+    return render(request, 'scheduling/doctor/create_referral.html', {
+        'appointment': appointment,
+        'all_doctors': all_doctors,
+    })
+
+
+@login_required
+def patient_referrals_list(request):
+    """Patient view: List all referrals."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    referrals = Referral.objects.filter(patient=request.user).select_related(
+        'referring_doctor__user', 'referred_to_doctor__user'
+    ).order_by('-created_at')
+
+    return render(request, 'scheduling/patient/referrals.html', {
+        'referrals': referrals,
+    })
+
+
+# ============ BILLING DOWNLOAD ============
+
+@login_required
+def patient_billing_download(request, appointment_id):
+    """Download billing summary PDF for an appointment."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
+
+    if appointment.status != 'completed':
+        messages.error(request, 'Billing summary is only available for completed appointments.')
+        return redirect('patient:patient_appointments')
+
+    pdf_buffer = generate_billing_pdf(appointment)
+
+    response = HttpResponse(pdf_buffer, content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="billing_{appointment_id}.pdf"'
+    return response
+
+
+# ============ AVAILABILITY EXCEPTIONS ============
+
+@login_required
+def doctor_exception_list(request):
+    """Doctor view: List availability exceptions."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    doctor_profile = request.user.doctor_profile
+    exceptions = get_availability_exceptions(doctor_profile)
+
+    return render(request, 'scheduling/doctor/time_off.html', {
+        'time_off_blocks': get_doctor_time_off_blocks(doctor_profile),
+        'exceptions': exceptions,
+    })
+
+
+@login_required
+@require_POST
+def doctor_exception_create(request):
+    """Doctor view: Create a one-off availability exception."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    doctor_profile = request.user.doctor_profile
+    date_str = request.POST.get('date', '')
+    start_time_str = request.POST.get('start_time', '')
+    end_time_str = request.POST.get('end_time', '')
+    reason = request.POST.get('reason', '')
+
+    try:
+        from datetime import date as date_type, time as time_type
+        exc_date = date_type.fromisoformat(date_str)
+        start_time = None
+        end_time = None
+        if start_time_str:
+            start_time = time_type.fromisoformat(start_time_str)
+        if end_time_str:
+            end_time = time_type.fromisoformat(end_time_str)
+        create_availability_exception(doctor_profile, exc_date, start_time, end_time, reason)
+        messages.success(request, f'Exception added for {exc_date}.')
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    return redirect('doctor:time_off_list')
+
+
+@login_required
+@require_POST
+def doctor_exception_delete(request, exception_id):
+    """Doctor view: Delete an availability exception."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    doctor_profile = request.user.doctor_profile
+    try:
+        delete_availability_exception(exception_id, doctor_profile)
+        messages.success(request, 'Exception removed.')
+    except Exception as e:
+        messages.error(request, str(e))
+
+    return redirect('doctor:time_off_list')
+
+
+# ============ REVIEW RESPONSES ============
+
+@login_required
+@require_POST
+def doctor_respond_to_review(request, review_id):
+    """Doctor view: Respond to a patient review."""
+    if request.user.role != 'doctor':
+        return HttpResponseForbidden("Access denied. Doctors only.")
+
+    from .models import Review
+    review = get_object_or_404(Review, id=review_id)
+    doctor_profile = request.user.doctor_profile
+    response_text = request.POST.get('response_text', '').strip()
+
+    try:
+        respond_to_review(review, doctor_profile, response_text)
+        messages.success(request, 'Your response has been posted.')
+    except ValueError as e:
+        messages.error(request, str(e))
+
+    # Redirect back to analytics (where reviews are shown)
+    return redirect('doctor:doctor_analytics')

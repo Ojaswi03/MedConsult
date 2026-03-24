@@ -6,8 +6,8 @@
 <div>
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Welcome, {{ user_display_name }}!</h1>
 
+    <!-- Quick Actions -->
     <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <!-- Quick actions -->
         <a href="{% url 'patient:patient_doctors_list' %}" class="bg-blue-600 text-white p-6 rounded-lg shadow-md hover:bg-blue-700 transition-colors">
             <svg class="w-12 h-12 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
@@ -33,38 +33,144 @@
         </a>
     </div>
 
-    <!-- Upcoming Appointments -->
-    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-        <h2 class="text-2xl font-semibold text-gray-900 dark:text-white mb-4">Upcoming Appointments</h2>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Upcoming Appointments -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Upcoming Appointments</h2>
+                <a href="{% url 'patient:patient_appointments' %}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</a>
+            </div>
 
-        {% if upcoming_appointments %}
-            <div class="space-y-4">
-                {% for appointment in upcoming_appointments %}
-                <div class="flex justify-between items-center p-4 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
-                    <div class="flex items-center">
-                        {% if appointment.doctor.user.profile_image %}
-                        <img src="{{ appointment.doctor.user.profile_image.url }}" alt="Dr. {{ appointment.doctor.user.get_display_name }}"
-                            class="w-12 h-12 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 mr-4">
-                        {% else %}
-                        <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold mr-4">
-                            {{ appointment.doctor.user.get_initials }}
+            {% if upcoming_appointments %}
+                <div class="space-y-3">
+                    {% for appointment in upcoming_appointments %}
+                    <div class="flex justify-between items-center p-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                        <div class="flex items-center">
+                            {% if appointment.doctor.user.profile_image %}
+                            <img src="{{ appointment.doctor.user.profile_image.url }}" alt="Dr." class="w-10 h-10 rounded-full object-cover border-2 border-gray-200 dark:border-gray-600 mr-3">
+                            {% else %}
+                            <div class="w-10 h-10 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold mr-3 text-sm">
+                                {{ appointment.doctor.user.get_initials }}
+                            </div>
+                            {% endif %}
+                            <div>
+                                <p class="font-medium text-gray-900 dark:text-white text-sm">Dr. {{ appointment.doctor.user.get_display_name }}</p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ appointment.start_datetime|date:"M j, Y g:i A" }}</p>
+                            </div>
                         </div>
-                        {% endif %}
+                        <span class="px-2 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-full text-xs">
+                            {{ appointment.slot.get_appointment_type_display }}
+                        </span>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-sm">No upcoming appointments. <a href="{% url 'patient:patient_doctors_list' %}" class="text-blue-600 dark:text-blue-400 hover:underline">Book one now</a>.</p>
+            {% endif %}
+        </div>
+
+        <!-- Pending Reviews -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Pending Reviews</h2>
+                {% if pending_reviews %}
+                <span class="bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 text-xs px-2 py-1 rounded-full">{{ pending_reviews|length }} pending</span>
+                {% endif %}
+            </div>
+
+            {% if pending_reviews %}
+                <div class="space-y-3">
+                    {% for appointment in pending_reviews %}
+                    <div class="flex justify-between items-center p-3 border dark:border-gray-700 rounded-lg">
                         <div>
-                            <p class="font-semibold text-gray-900 dark:text-white">Dr. {{ appointment.doctor.user.get_display_name }}</p>
-                            <p class="text-sm text-gray-600 dark:text-gray-400">{{ appointment.doctor.specialization }}</p>
-                            <p class="text-sm text-gray-500 dark:text-gray-500 mt-1">{{ appointment.start_datetime|date:"F j, Y at g:i A" }}</p>
+                            <p class="font-medium text-gray-900 dark:text-white text-sm">Dr. {{ appointment.doctor.user.get_display_name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ appointment.start_datetime|date:"M j, Y" }}</p>
+                        </div>
+                        <a href="{% url 'patient:submit_review' appointment.id %}" class="px-3 py-1 bg-yellow-500 text-white text-xs rounded-lg hover:bg-yellow-600 transition-colors">
+                            Write Review
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-sm">No pending reviews.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Active Referrals -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Active Referrals</h2>
+                <a href="{% url 'patient:patient_referrals' %}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</a>
+            </div>
+
+            {% if active_referrals %}
+                <div class="space-y-3">
+                    {% for referral in active_referrals %}
+                    <div class="p-3 border dark:border-gray-700 rounded-lg">
+                        <p class="font-medium text-gray-900 dark:text-white text-sm">To Dr. {{ referral.referred_to_doctor.user.get_display_name }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ referral.reason|truncatewords:10 }}</p>
+                        <div class="flex justify-between items-center mt-2">
+                            <span class="text-xs px-2 py-1 rounded-full {% if referral.status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300{% else %}bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300{% endif %}">
+                                {{ referral.get_status_display }}
+                            </span>
+                            <a href="{% url 'patient:doctor_detail' referral.referred_to_doctor.id %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Book appointment</a>
                         </div>
                     </div>
-                    <span class="px-3 py-1 bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 rounded-full text-sm">
-                        {{ appointment.status|title }}
-                    </span>
+                    {% endfor %}
                 </div>
-                {% endfor %}
+            {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-sm">No active referrals.</p>
+            {% endif %}
+        </div>
+
+        <!-- Recent Notifications -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-900 dark:text-white">Recent Notifications</h2>
+                <a href="{% url 'notifications' %}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">View all</a>
             </div>
-        {% else %}
-            <p class="text-gray-600 dark:text-gray-400">No upcoming appointments. <a href="{% url 'patient:patient_doctors_list' %}" class="text-blue-600 dark:text-blue-400 hover:underline">Book one now</a>.</p>
-        {% endif %}
+
+            {% if recent_notifications %}
+                <div class="space-y-3">
+                    {% for notif in recent_notifications %}
+                    <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-100 dark:border-blue-800">
+                        <p class="font-medium text-gray-900 dark:text-white text-sm">{{ notif.title }}</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ notif.message|truncatewords:15 }}</p>
+                        <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">{{ notif.created_at|timesince }} ago</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            {% else %}
+                <p class="text-gray-500 dark:text-gray-400 text-sm">No unread notifications.</p>
+            {% endif %}
+        </div>
     </div>
+
+    <!-- Book Again Doctors -->
+    {% if book_again_doctors %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Book Again</h2>
+        <div class="flex flex-wrap gap-3">
+            {% for doctor in book_again_doctors %}
+            <a href="{% url 'patient:doctor_detail' doctor.id %}" class="flex items-center space-x-3 px-4 py-3 border dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                {% if doctor.user.profile_image %}
+                <img src="{{ doctor.user.profile_image.url }}" alt="Dr." class="w-10 h-10 rounded-full object-cover">
+                {% else %}
+                <div class="w-10 h-10 bg-indigo-600 rounded-full flex items-center justify-center text-white font-semibold text-sm">
+                    {{ doctor.user.get_initials }}
+                </div>
+                {% endif %}
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white text-sm">Dr. {{ doctor.user.get_display_name }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">{{ doctor.specialization }}</p>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

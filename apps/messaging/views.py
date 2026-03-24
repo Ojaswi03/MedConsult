@@ -8,8 +8,9 @@ from django.views.decorators.http import require_http_methods, require_POST
 from django.http import JsonResponse
 
 from apps.scheduling.models import Appointment
+from apps.accounts.models import DoctorProfile, User
 from .models import Conversation
-from .services import get_or_create_conversation, send_message, mark_messages_as_read
+from .services import get_or_create_conversation, get_or_create_direct_conversation, send_message, mark_messages_as_read, delete_conversation_for_user
 from .selectors import (
     get_user_conversations,
     get_conversation_messages,
@@ -24,6 +25,8 @@ def conversation_list(request):
     List all conversations for the current user.
     """
     conversations = get_user_conversations(request.user)
+    for conv in conversations:
+        conv.other_user = conv.get_other_participant(request.user)
 
     return render(request, 'messaging/conversations.html', {
         'conversations': conversations,
@@ -44,15 +47,17 @@ def conversation_detail(request, conversation_id):
     # Mark messages as read
     mark_messages_as_read(conversation, request.user)
 
-    # Get messages
+    # Get messages and annotate is_own
     chat_messages = get_conversation_messages(conversation)
+    for msg in chat_messages:
+        msg.is_own = msg.sender_id == request.user.id
 
     # Get the other participant
     other_user = conversation.get_other_participant(request.user)
 
     return render(request, 'messaging/chat.html', {
         'conversation': conversation,
-        'messages': chat_messages,
+        'chat_messages': chat_messages,
         'other_user': other_user,
     })
 
@@ -133,6 +138,43 @@ def get_messages(request, conversation_id):
             for m in messages_list
         ]
     })
+
+
+@login_required
+def start_direct_message(request, doctor_id=None, patient_id=None):
+    """
+    Start or resume a direct (no appointment) conversation.
+    Patients call with doctor_id; doctors call with patient_id.
+    """
+    if request.user.role == 'patient':
+        doctor_profile = get_object_or_404(DoctorProfile, id=doctor_id, verification_status='verified')
+        patient_user = request.user
+        doctor_user = doctor_profile.user
+    elif request.user.role == 'doctor':
+        patient_user = get_object_or_404(User, id=patient_id, role='patient')
+        doctor_user = request.user
+    else:
+        messages.error(request, 'Only patients and doctors can start conversations.')
+        return redirect('messaging:conversations')
+
+    conversation, _ = get_or_create_direct_conversation(patient_user, doctor_user)
+    return redirect('messaging:conversation_detail', conversation_id=conversation.id)
+
+
+@login_required
+@require_POST
+def delete_conversation(request, conversation_id):
+    """
+    Soft-delete a conversation for the current user.
+    Admin retains all records. Conversation reappears if a new message is sent.
+    """
+    conversation = get_conversation_for_user(conversation_id, request.user)
+    if not conversation:
+        messages.error(request, 'Conversation not found.')
+        return redirect('messaging:conversations')
+
+    delete_conversation_for_user(conversation, request.user)
+    return redirect('messaging:conversations')
 
 
 @login_required

@@ -1,0 +1,100 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Notifications - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto">
+    <div class="flex justify-between items-center mb-8">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Notifications</h1>
+        {% if notifications %}
+        <form method="post" action="{% url 'mark_all_notifications_read' %}">
+            {% csrf_token %}
+            <button type="submit"
+                    class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 border border-blue-600 dark:border-blue-400 px-3 py-1 rounded-lg transition-colors">
+                Mark all as read
+            </button>
+        </form>
+        {% endif %}
+    </div>
+
+    {% if notifications %}
+    <div class="space-y-3">
+        {% for notif in notifications %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm border p-4 flex items-start gap-4
+                    {% if not notif.is_read %}border-blue-300 dark:border-blue-600 bg-blue-50 dark:bg-blue-900/10{% else %}border-gray-200 dark:border-gray-700{% endif %}">
+            <!-- Icon -->
+            <div class="flex-shrink-0 mt-1">
+                {% if notif.notif_type == 'appointment_booked' %}
+                <div class="w-8 h-8 bg-green-100 dark:bg-green-900/50 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                {% elif notif.notif_type == 'appointment_cancelled' %}
+                <div class="w-8 h-8 bg-red-100 dark:bg-red-900/50 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                </div>
+                {% elif notif.notif_type == 'prescription_ready' %}
+                <div class="w-8 h-8 bg-purple-100 dark:bg-purple-900/50 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-purple-600 dark:text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                    </svg>
+                </div>
+                {% elif notif.notif_type == 'doctor_verified' %}
+                <div class="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/>
+                    </svg>
+                </div>
+                {% else %}
+                <div class="w-8 h-8 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center">
+                    <svg class="w-4 h-4 text-gray-500 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+                    </svg>
+                </div>
+                {% endif %}
+            </div>
+
+            <!-- Content -->
+            <div class="flex-grow min-w-0">
+                <div class="flex justify-between items-start gap-2">
+                    <div>
+                        <p class="font-semibold text-gray-900 dark:text-white text-sm">{{ notif.title }}</p>
+                        <p class="text-gray-600 dark:text-gray-400 text-sm mt-0.5">{{ notif.message }}</p>
+                        <p class="text-gray-400 dark:text-gray-500 text-xs mt-1">{{ notif.created_at|timesince }} ago</p>
+                    </div>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        {% if not notif.is_read %}
+                        <form method="post" action="{% url 'mark_notification_read' notif.id %}">
+                            {% csrf_token %}
+                            <button type="submit" class="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">Mark read</button>
+                        </form>
+                        {% endif %}
+                        {% if notif.link %}
+                        <a href="{{ notif.link }}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline whitespace-nowrap">View</a>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Unread dot -->
+            {% if not notif.is_read %}
+            <div class="flex-shrink-0 mt-2">
+                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+        <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/>
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400">No notifications yet.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

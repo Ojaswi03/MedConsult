@@ -6,12 +6,14 @@ from django.conf import settings
 
 
 class Conversation(models.Model):
-    """Conversation between patient and doctor for an appointment."""
+    """Conversation between patient and doctor, optionally linked to an appointment."""
 
     appointment = models.OneToOneField(
         'scheduling.Appointment',
         on_delete=models.CASCADE,
-        related_name='conversation'
+        related_name='conversation',
+        null=True,
+        blank=True,
     )
     patient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -23,7 +25,13 @@ class Conversation(models.Model):
         on_delete=models.CASCADE,
         related_name='doctor_conversations'
     )
+    is_direct = models.BooleanField(
+        default=False,
+        help_text='True when started without a scheduled appointment'
+    )
     is_active = models.BooleanField(default=True)
+    deleted_by_patient = models.BooleanField(default=False)
+    deleted_by_doctor = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
@@ -33,7 +41,9 @@ class Conversation(models.Model):
         ordering = ['-last_message_at', '-created_at']
 
     def __str__(self):
-        return f"Conversation for Appointment #{self.appointment.id}"
+        if self.appointment_id:
+            return f"Conversation for Appointment #{self.appointment_id}"
+        return f"Direct conversation between {self.patient} and {self.doctor}"
 
     def get_other_participant(self, user):
         """Get the other participant in the conversation."""
@@ -52,6 +62,7 @@ class Message(models.Model):
     MESSAGE_TYPES = [
         ('text', 'Text'),
         ('system', 'System'),
+        ('file', 'File Attachment'),
     ]
 
     conversation = models.ForeignKey(
@@ -69,6 +80,13 @@ class Message(models.Model):
     is_read = models.BooleanField(default=False)
     read_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
+    attachment = models.FileField(
+        upload_to='message_attachments/',
+        blank=True,
+        null=True,
+        help_text='Optional file attachment'
+    )
+    attachment_name = models.CharField(max_length=255, blank=True, help_text='Original filename for display')
 
     class Meta:
         db_table = 'messages'

@@ -1,0 +1,52 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Write Prescription - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Write Prescription</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">
+        Patient: {{ appointment.patient.get_display_name }} &mdash;
+        {{ appointment.start_datetime|date:"F j, Y" }}
+    </p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 space-y-5">
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Diagnosis</label>
+                <input type="text" name="diagnosis" placeholder="e.g. Acute upper respiratory infection"
+                    class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Medications <span class="text-red-500">*</span></label>
+                <textarea name="medications" rows="5" required placeholder="e.g.&#10;Amoxicillin 500mg &mdash; 1 capsule 3x daily for 7 days&#10;Paracetamol 500mg &mdash; as needed for fever"
+                    class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none font-mono text-sm"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Patient Instructions</label>
+                <textarea name="instructions" rows="3" placeholder="e.g. Take with food. Avoid alcohol. Complete the full course."
+                    class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Additional Notes</label>
+                <textarea name="notes" rows="2" placeholder="Follow-up in 1 week if symptoms persist."
+                    class="w-full border dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:outline-none"></textarea>
+            </div>
+        </div>
+
+        <div class="flex gap-3 mt-6">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Issue Prescription
+            </button>
+            <a href="{% url 'doctor:doctor_schedule' %}" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Cancel
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

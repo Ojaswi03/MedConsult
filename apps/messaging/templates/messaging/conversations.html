@@ -10,27 +10,38 @@
         <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
             <div class="divide-y divide-gray-200 dark:divide-gray-700">
                 {% for conversation in conversations %}
+                <div class="flex items-center group">
                 <a href="{% url 'messaging:conversation_detail' conversation.id %}"
-                   class="block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                   class="flex-grow block p-4 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
                     <div class="flex items-center">
                         <div class="flex-shrink-0">
-                            {% with other_user=conversation.get_other_participant:request.user %}
+                            {% if conversation.other_user.profile_image %}
+                            <img src="{{ conversation.other_user.profile_image.url }}" alt="{{ conversation.other_user.get_display_name }}"
+                                 class="w-12 h-12 rounded-full object-cover">
+                            {% else %}
                             <div class="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-semibold">
-                                {{ other_user.get_initials }}
+                                {{ conversation.other_user.get_initials }}
                             </div>
-                            {% endwith %}
+                            {% endif %}
                         </div>
                         <div class="ml-4 flex-grow">
                             <div class="flex justify-between items-start">
                                 <div>
-                                    {% with other_user=conversation.get_other_participant:request.user %}
                                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                                        {% if request.user.role == 'patient' %}Dr. {% endif %}{{ other_user.get_display_name }}
+                                        {% if request.user.role == 'patient' %}Dr. {% endif %}{{ conversation.other_user.get_display_name }}
                                     </h3>
-                                    {% endwith %}
+                                    {% if conversation.is_direct %}
+                                    <p class="text-sm text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                        </svg>
+                                        Direct message — replies may be delayed
+                                    </p>
+                                    {% elif conversation.appointment %}
                                     <p class="text-sm text-gray-600 dark:text-gray-400">
                                         Appointment: {{ conversation.appointment.start_datetime|date:"M j, Y" }}
                                     </p>
+                                    {% endif %}
                                 </div>
                                 <div class="text-right">
                                     {% if conversation.last_message_at %}
@@ -48,6 +59,19 @@
                         </div>
                     </div>
                 </a>
+                <form method="post" action="{% url 'messaging:delete_conversation' conversation.id %}"
+                      class="flex-shrink-0 pr-4"
+                      onsubmit="return confirm('Delete this conversation? It will be removed from your messages. The other person can still see it until they delete it too.')">
+                    {% csrf_token %}
+                    <button type="submit"
+                            class="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-gray-400 hover:text-red-500 dark:hover:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-900/20"
+                            title="Delete conversation">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/>
+                        </svg>
+                    </button>
+                </form>
+                </div>
                 {% endfor %}
             </div>
         </div>
@@ -58,8 +82,14 @@
             </svg>
             <p class="text-gray-600 dark:text-gray-400 mb-4">No conversations yet.</p>
             <p class="text-sm text-gray-500 dark:text-gray-500">
-                Conversations are created when you book an appointment.
+                Conversations start when you book an appointment or message a doctor directly.
             </p>
+            {% if request.user.role == 'patient' %}
+            <a href="{% url 'patient:patient_doctors_list' %}"
+               class="mt-4 inline-block bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium transition-colors">
+                Find a Doctor to Message
+            </a>
+            {% endif %}
         </div>
     {% endif %}
 </div>

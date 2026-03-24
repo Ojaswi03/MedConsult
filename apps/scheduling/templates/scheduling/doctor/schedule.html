@@ -63,6 +63,24 @@
                             {% else %}bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-300{% endif %}">
                             {{ appointment.status|title }}
                         </span>
+                        {% if appointment.status == 'completed' %}
+                            {% if appointment.prescription %}
+                            <span class="text-xs text-green-600 dark:text-green-400 mt-1">Rx issued</span>
+                            {% else %}
+                            <a href="{% url 'doctor:write_prescription' appointment.id %}" class="text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 mt-1">
+                                Write Rx
+                            </a>
+                            {% endif %}
+                            <a href="{% url 'doctor:schedule_followup' appointment.id %}" class="text-sm text-purple-600 dark:text-purple-400 hover:text-purple-700 dark:hover:text-purple-300 mt-1">
+                                Follow-Up
+                            </a>
+                            <a href="{% url 'doctor:create_referral' appointment.id %}" class="text-sm text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-300 mt-1">
+                                Refer
+                            </a>
+                        {% endif %}
+                        <a href="{% url 'doctor:patient_history' appointment.patient.id %}" class="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 mt-1">
+                            View History
+                        </a>
                     </div>
                 </div>
             </div>

@@ -101,6 +101,25 @@ def schedule_appointment_reminders():
     for appointment_id in appointments_1h:
         send_appointment_reminder_email.delay(appointment_id, '1h')
 
+    # SMS reminders for patients with phone_notifications=True
+    phone_notif_24h = Appointment.objects.filter(
+        status='scheduled',
+        start_datetime__gte=start_24h,
+        start_datetime__lte=end_24h,
+        patient__phone_notifications=True,
+    ).values_list('id', flat=True)
+    for appointment_id in phone_notif_24h:
+        send_sms_reminder.delay(appointment_id, '24h')
+
+    phone_notif_1h = Appointment.objects.filter(
+        status='scheduled',
+        start_datetime__gte=start_1h,
+        start_datetime__lte=end_1h,
+        patient__phone_notifications=True,
+    ).values_list('id', flat=True)
+    for appointment_id in phone_notif_1h:
+        send_sms_reminder.delay(appointment_id, '1h')
+
     return f"Scheduled {len(appointments_24h)} 24h reminders and {len(appointments_1h)} 1h reminders"
 
 
@@ -193,3 +212,124 @@ The MedConsult Team
         return f"Appointment {appointment_id} not found"
     except Exception as exc:
         self.retry(exc=exc, countdown=60)
+
+
+@shared_task(bind=True, max_retries=3)
+def send_sms_appointment_confirmation(self, appointment_id):
+    """
+    Send SMS confirmation when an appointment is booked.
+    """
+    from .models import Appointment
+
+    if not all([settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN, settings.TWILIO_PHONE_NUMBER]):
+        return "Twilio not configured, skipping SMS"
+
+    try:
+        from twilio.rest import Client
+
+        appointment = Appointment.objects.select_related(
+            'patient', 'doctor', 'doctor__user'
+        ).get(id=appointment_id)
+
+        if not appointment.patient.phone:
+            return "Patient has no phone number"
+
+        client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+
+        message_body = (
+            f"MedConsult: Your appointment with Dr. {appointment.doctor.user.get_display_name()} "
+            f"is confirmed for {appointment.start_datetime.strftime('%B %d at %I:%M %p')}."
+        )
+
+        message = client.messages.create(
+            body=message_body,
+            from_=settings.TWILIO_PHONE_NUMBER,
+            to=appointment.patient.phone
+        )
+
+        return f"SMS confirmation sent: {message.sid}"
+
+    except Appointment.DoesNotExist:
+        return f"Appointment {appointment_id} not found"
+    except Exception as exc:
+        self.retry(exc=exc, countdown=60)
+
+
+@shared_task
+def notify_waitlist_for_doctor(doctor_id):
+    """Notify waitlisted patients when slots become available for a doctor."""
+    from .models import WaitlistEntry, Slot
+    from apps.accounts.services import create_notification
+    from apps.accounts.models import DoctorProfile
+
+    try:
+        doctor = DoctorProfile.objects.get(id=doctor_id)
+    except DoctorProfile.DoesNotExist:
+        return "Doctor not found"
+
+    has_slots = Slot.objects.filter(
+        doctor=doctor,
+        is_booked=False,
+        is_blocked=False,
+        start_datetime__gt=timezone.now()
+    ).exists()
+
+    if not has_slots:
+        return "No available slots"
+
+    entries = WaitlistEntry.objects.filter(doctor=doctor, is_notified=False).select_related('patient')
+    count = 0
+    for entry in entries:
+        create_notification(
+            entry.patient, 'waitlist_slot_available',
+            f"Slot available: Dr. {doctor.user.get_display_name()}",
+            "A slot is now available. Book before it's gone!",
+            link=f"/patient/doctors/{doctor.id}/"
+        )
+        entry.is_notified = True
+        entry.notified_at = timezone.now()
+        entry.save()
+        count += 1
+    return f"Notified {count} waitlisted patients"
+
+
+@shared_task
+def extend_slots_for_all_doctors():
+    """Nightly task to extend slots 60 days out for all active doctors."""
+    from apps.accounts.models import DoctorProfile
+    from .services import generate_slots_for_doctor
+
+    doctors = DoctorProfile.objects.filter(
+        verification_status='verified',
+        user__is_active=True
+    )
+    total = 0
+    for doctor in doctors:
+        slots = generate_slots_for_doctor(doctor, days_ahead=60)
+        total += len(slots)
+    return f"Extended slots for {doctors.count()} doctors, created {total} new slots"
+
+
+@shared_task
+def mark_completed_appointments():
+    """Mark scheduled appointments as completed if their end_datetime has passed."""
+    from .models import Appointment
+    now = timezone.now()
+    count = Appointment.objects.filter(
+        status='scheduled',
+        slot__end_datetime__lt=now
+    ).update(status='completed')
+    return f"Marked {count} appointments as completed"
+
+
+@shared_task
+def mark_no_show_appointments():
+    """Mark appointments as no_show if 30+ minutes past start time and still scheduled."""
+    cutoff = timezone.now() - timedelta(minutes=30)
+    from .models import Appointment
+    count = Appointment.objects.filter(
+        status='scheduled',
+        slot__start_datetime__lt=cutoff,
+        slot__end_datetime__gt=timezone.now() - timedelta(hours=24)  # Safety: only recent ones
+    ).update(status='no_show')
+    return f"Marked {count} appointments as no_show"

@@ -20,14 +20,6 @@ def get_all_verified_doctors():
     ).select_related('user').order_by('-created_at')
 
 
-def get_doctors_by_specialization(specialization):
-    """Get verified doctors by specialization."""
-    return DoctorProfile.objects.filter(
-        verification_status='verified',
-        specialization__icontains=specialization
-    ).select_related('user')
-
-
 def get_pending_doctor_verifications():
     """Get all doctors pending verification."""
     return DoctorProfile.objects.filter(
@@ -44,7 +36,10 @@ def get_filtered_doctors(
     min_price=None,
     max_price=None,
     has_availability=None,
-    sort_by='rating'
+    sort_by='rating',
+    language=None,
+    available_today=False,
+    offers_second_opinions=None,
 ):
     """
     Get filtered and sorted list of verified doctors.
@@ -119,6 +114,26 @@ def get_filtered_doctors(
         ).values_list('doctor_id', flat=True).distinct()
         queryset = queryset.filter(id__in=doctors_with_slots)
 
+    # Language filter
+    if language:
+        queryset = queryset.filter(languages__icontains=language)
+
+    # Second opinions filter
+    if offers_second_opinions is not None:
+        queryset = queryset.filter(offers_second_opinions=offers_second_opinions)
+
+    # Available today filter
+    if available_today:
+        from apps.scheduling.models import Slot
+        from django.utils import timezone
+        today = timezone.now().date()
+        doctors_today = Slot.objects.filter(
+            start_datetime__date=today,
+            is_booked=False,
+            is_blocked=False
+        ).values_list('doctor_id', flat=True).distinct()
+        queryset = queryset.filter(id__in=doctors_today)
+
     # Sorting
     if sort_by == 'rating':
         queryset = queryset.order_by('-avg_rating', '-num_reviews', '-created_at')
@@ -130,6 +145,21 @@ def get_filtered_doctors(
         queryset = queryset.order_by('-consultation_fee', '-avg_rating')
     elif sort_by == 'name':
         queryset = queryset.order_by('user__first_name', 'user__last_name')
+    elif sort_by == 'availability':
+        from apps.scheduling.models import Slot
+        from django.utils import timezone
+        now = timezone.now()
+        from django.db.models import Count as AvailCount
+        queryset = queryset.annotate(
+            avail_slots=AvailCount(
+                'slots',
+                filter=Q(
+                    slots__start_datetime__gt=now,
+                    slots__is_booked=False,
+                    slots__is_blocked=False
+                )
+            )
+        ).order_by('-avail_slots', '-avg_rating')
     else:
         queryset = queryset.order_by('-avg_rating', '-created_at')
 
@@ -141,3 +171,18 @@ def get_all_specializations():
     return DoctorProfile.objects.filter(
         verification_status='verified'
     ).values_list('specialization', flat=True).distinct().order_by('specialization')
+
+
+def get_all_languages():
+    """Get distinct languages spoken across all verified doctors."""
+    import re
+    all_langs = DoctorProfile.objects.filter(
+        verification_status='verified'
+    ).exclude(languages='').values_list('languages', flat=True)
+    lang_set = set()
+    for lang_string in all_langs:
+        for lang in re.split(r'[,;]+', lang_string):
+            lang = lang.strip()
+            if lang:
+                lang_set.add(lang)
+    return sorted(lang_set)

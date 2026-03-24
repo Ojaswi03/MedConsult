@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="UTF-8"><title>Verification Update</title></head>
+<body style="font-family: Arial, sans-serif; background:#f9fafb; padding:40px 0; margin:0;">
+  <div style="max-width:560px; margin:0 auto; background:#ffffff; border-radius:8px; overflow:hidden; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+    <div style="background:#1d4ed8; padding:32px 40px;">
+      <h1 style="color:#ffffff; margin:0; font-size:24px;">MedConsult</h1>
+    </div>
+    <div style="padding:32px 40px;">
+      <h2 style="color:#111827; margin-top:0;">Verification Application Update</h2>
+      <p style="color:#374151;">Hi {{ user.first_name|default:user.username }},</p>
+      <p style="color:#374151;">Thank you for applying to join MedConsult as a healthcare provider.</p>
+      <p style="color:#374151;">After reviewing your application, we were unable to verify your credentials at this time.</p>
+      {% if reason %}
+      <div style="background:#fef2f2; border-left:4px solid #ef4444; padding:16px; margin:20px 0; border-radius:4px;">
+        <p style="color:#991b1b; margin:0;"><strong>Reason:</strong> {{ reason }}</p>
+      </div>
+      {% else %}
+      <p style="color:#374151;">Please ensure your documents are clear, valid, and unexpired before reapplying.</p>
+      {% endif %}
+      <p style="color:#374151;">You are welcome to reapply with updated documentation. If you believe this decision was made in error, please contact our support team.</p>
+      <p style="color:#6b7280; font-size:14px; margin-top:32px;">Best regards,<br>The MedConsult Team</p>
+    </div>
+    <div style="background:#f3f4f6; padding:16px 40px; text-align:center;">
+      <p style="color:#9ca3af; font-size:12px; margin:0;">&copy; MedConsult. All rights reserved.</p>
+    </div>
+  </div>
+</body>
+</html>

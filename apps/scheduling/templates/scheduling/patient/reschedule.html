@@ -1,0 +1,55 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Reschedule Appointment - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Reschedule Appointment</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">
+        Current: Dr. {{ appointment.doctor.user.get_display_name }} &mdash; {{ appointment.start_datetime|date:"F j, Y g:i A" }}
+    </p>
+
+    {% if available_slots %}
+    <form method="post">
+        {% csrf_token %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Select a New Time</h2>
+            <div class="space-y-2 max-h-96 overflow-y-auto">
+                {% regroup available_slots by start_datetime.date as slots_by_date %}
+                {% for group in slots_by_date %}
+                <div class="mb-4">
+                    <p class="text-sm font-semibold text-gray-500 dark:text-gray-400 mb-2">{{ group.grouper|date:"l, F j" }}</p>
+                    <div class="grid grid-cols-3 gap-2">
+                        {% for slot in group.list %}
+                        <label class="flex items-center justify-center border dark:border-gray-600 rounded-lg p-2 cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/30 has-[:checked]:bg-blue-100 has-[:checked]:border-blue-500 dark:has-[:checked]:bg-blue-900/50">
+                            <input type="radio" name="slot_id" value="{{ slot.id }}" class="sr-only">
+                            <span class="text-sm text-gray-700 dark:text-gray-300">
+                                {{ slot.start_datetime|date:"g:i A" }}
+                                <span class="block text-xs text-gray-500 dark:text-gray-400 capitalize">{{ slot.appointment_type }}</span>
+                            </span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+        <div class="flex gap-3">
+            <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition-colors">
+                Confirm Reschedule
+            </button>
+            <a href="{% url 'patient:patient_appointments' %}" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-6 py-2 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors">
+                Cancel
+            </a>
+        </div>
+    </form>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
+        <p class="text-gray-600 dark:text-gray-400 mb-4">No other available slots for this doctor at the moment.</p>
+        <a href="{% url 'patient:patient_appointments' %}" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+            Back to Appointments
+        </a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

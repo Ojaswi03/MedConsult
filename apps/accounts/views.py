@@ -1,13 +1,16 @@
 """
 Views for accounts app - authentication and profile management.
 """
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import login, logout, authenticate
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.http import require_POST
+from django_ratelimit.decorators import ratelimit
 from django.core.files.storage import default_storage
 from django.core.files.base import ContentFile
+from django.http import JsonResponse, HttpResponse
 from datetime import date
 
 from .forms import (
@@ -16,7 +19,7 @@ from .forms import (
     PatientStep4Form, PatientStep5Form,
     DoctorStep1Form, DoctorStep2Form, DoctorStep3Form,
     DoctorStep4Form, DoctorStep5Form, DoctorStep6Form,
-    PatientProfileForm, DoctorProfileForm,
+    PatientProfileForm, DoctorProfileForm, UserInfoForm,
 )
 from .services import (
     create_patient_from_wizard,
@@ -29,7 +32,7 @@ from .services import (
     reset_user_password,
 )
 from .selectors import get_user_profile
-from .models import User
+from .models import User, Notification
 
 
 def serialize_form_data(cleaned_data):
@@ -70,6 +73,7 @@ PATIENT_STEPS = [
 ]
 
 
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
 @require_http_methods(["GET", "POST"])
 def patient_signup_wizard(request, step=1):
     """Handle patient multi-step signup wizard."""
@@ -148,6 +152,7 @@ DOCTOR_STEPS = [
 ]
 
 
+@ratelimit(key='ip', rate='5/h', method='POST', block=True)
 @require_http_methods(["GET", "POST"])
 def doctor_signup_wizard(request, step=1):
     """Handle doctor multi-step signup wizard."""
@@ -250,6 +255,7 @@ def doctor_signup_wizard(request, step=1):
 
 # ============ LOGIN VIEW ============
 
+@ratelimit(key='ip', rate='10/m', method='POST', block=True)
 @require_http_methods(["GET", "POST"])
 def login_view(request):
     """User login with username OR email."""
@@ -296,29 +302,34 @@ def profile_view(request):
     profile = get_user_profile(request.user)
 
     if request.method == 'POST':
+        user_form = UserInfoForm(request.POST, instance=request.user)
         if request.user.role == 'patient':
-            form = PatientProfileForm(request.POST, instance=profile)
+            profile_form = PatientProfileForm(request.POST, instance=profile)
         elif request.user.role == 'doctor':
-            form = DoctorProfileForm(request.POST, instance=profile)
+            profile_form = DoctorProfileForm(request.POST, instance=profile)
         else:
-            messages.error(request, 'Invalid user role.')
-            return redirect('profile')
+            profile_form = None
 
-        if form.is_valid():
-            form.save()
+        forms_valid = user_form.is_valid() and (profile_form is None or profile_form.is_valid())
+        if forms_valid:
+            user_form.save()
+            if profile_form:
+                profile_form.save()
             messages.success(request, 'Profile updated successfully!')
             return redirect('profile')
     else:
+        user_form = UserInfoForm(instance=request.user)
         if request.user.role == 'patient':
-            form = PatientProfileForm(instance=profile)
+            profile_form = PatientProfileForm(instance=profile)
         elif request.user.role == 'doctor':
-            form = DoctorProfileForm(instance=profile)
+            profile_form = DoctorProfileForm(instance=profile)
         else:
-            form = None
+            profile_form = None
 
     return render(request, 'accounts/profile.html', {
         'profile': profile,
-        'form': form
+        'user_form': user_form,
+        'profile_form': profile_form,
     })
 
 
@@ -479,3 +490,37 @@ def reset_password(request, token):
     return render(request, 'accounts/reset_password.html', {
         'token': token,
     })
+
+
+# ============ NOTIFICATION VIEWS ============
+
+@login_required
+def notifications_list(request):
+    """View all notifications for the current user."""
+    notifications = request.user.notifications.all()[:20]
+    # HTMX requests (e.g. from navbar dropdown) get a compact partial
+    if request.headers.get('HX-Request'):
+        return render(request, 'accounts/partials/_notifications_dropdown.html', {
+            'notifications': notifications[:5],
+        })
+    return render(request, 'accounts/notifications.html', {
+        'notifications': notifications,
+    })
+
+
+@login_required
+@require_POST
+def mark_notification_read(request, notif_id):
+    """Mark a single notification as read."""
+    notification = get_object_or_404(Notification, id=notif_id, user=request.user)
+    notification.is_read = True
+    notification.save(update_fields=['is_read'])
+    return HttpResponse(status=200)
+
+
+@login_required
+@require_POST
+def mark_all_notifications_read(request):
+    """Mark all notifications as read for current user."""
+    request.user.notifications.filter(is_read=False).update(is_read=True)
+    return JsonResponse({'unread_count': 0})

@@ -297,14 +297,6 @@ def get_appointments_filtered(
     }
 
 
-def get_appointments_calendar_data(start_date, end_date):
-    """Get appointments for calendar view."""
-    return Appointment.objects.filter(
-        slot__start_datetime__date__gte=start_date,
-        slot__start_datetime__date__lte=end_date
-    ).select_related('patient', 'doctor__user', 'slot').order_by('slot__start_datetime')
-
-
 # ============ FINANCIAL OVERVIEW ============
 
 def get_pricing_overview():
@@ -428,15 +420,6 @@ def get_doctor_availability_windows_for_admin(doctor_id):
     ).order_by('weekday', 'start_time')
 
 
-def get_patient_appointments_for_admin(patient_id, limit=50):
-    """Get all appointments for a patient for admin view."""
-    return Appointment.objects.filter(
-        patient_id=patient_id
-    ).select_related(
-        'doctor__user', 'slot'
-    ).order_by('-slot__start_datetime')[:limit]
-
-
 def get_patient_detail_for_admin(patient_id):
     """Get detailed patient info for admin management."""
     user = User.objects.get(id=patient_id)
@@ -461,4 +444,63 @@ def get_patient_detail_for_admin(patient_id):
         'profile': profile,
         'appointments': appointments[:20],
         'stats': stats,
+    }
+
+
+# ============ NEW SELECTORS ============
+
+def get_waitlist_overview():
+    """Get waitlist counts grouped by doctor."""
+    from apps.scheduling.models import WaitlistEntry
+    from django.db.models import Count
+
+    return list(WaitlistEntry.objects.values(
+        'doctor_id',
+        'doctor__user__first_name',
+        'doctor__user__last_name',
+        'doctor__specialization',
+    ).annotate(
+        total_waiting=Count('id'),
+        notified_count=Count('id', filter=Q(is_notified=True))
+    ).order_by('-total_waiting'))
+
+
+def get_referral_tracking():
+    """Get referral conversion rate statistics."""
+    from apps.scheduling.models import Referral
+
+    total = Referral.objects.count()
+    booked = Referral.objects.filter(status='booked').count()
+    expired = Referral.objects.filter(status='expired').count()
+    pending = Referral.objects.filter(status='pending').count()
+    accepted = Referral.objects.filter(status='accepted').count()
+
+    return {
+        'total': total,
+        'booked': booked,
+        'expired': expired,
+        'pending': pending,
+        'accepted': accepted,
+        'conversion_rate': round((booked / total * 100) if total > 0 else 0, 1),
+        'recent_referrals': list(
+            Referral.objects.select_related(
+                'referring_doctor__user', 'referred_to_doctor__user', 'patient'
+            ).order_by('-created_at')[:20]
+        ),
+    }
+
+
+def get_health_record_access_logs(limit=100, offset=0):
+    """Get HIPAA health record access logs."""
+    from .models import HealthRecordAccessLog
+
+    qs = HealthRecordAccessLog.objects.select_related(
+        'record', 'record__patient', 'accessed_by'
+    ).order_by('-created_at')
+    total = qs.count()
+
+    return {
+        'logs': qs[offset:offset + limit],
+        'total': total,
+        'has_more': (offset + limit) < total,
     }

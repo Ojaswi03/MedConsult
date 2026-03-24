@@ -13,7 +13,7 @@
 
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-4">Waiting Room</h1>
 
-        <div class="mb-8">
+        <div class="mb-6">
             <p class="text-gray-600 dark:text-gray-400 mb-2">Your appointment with</p>
             <p class="text-xl font-semibold text-gray-900 dark:text-white">
                 {% if request.user == appointment.patient %}
@@ -26,6 +26,37 @@
                 {{ appointment.start_datetime|date:"F j, Y" }} at {{ appointment.start_datetime|date:"g:i A" }}
             </p>
         </div>
+
+        <!-- Countdown Timer -->
+        {% if time_until_start_seconds > 0 %}
+        <div class="mb-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">Appointment starts in</p>
+            <div id="countdown" class="text-3xl font-bold text-blue-600 dark:text-blue-400">
+                --:--:--
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Notify Doctor Button (patients only) -->
+        {% if is_patient %}
+        <div class="mb-6" x-data="{ notified: false }">
+            <button
+                @click="
+                    fetch('{% url 'consultations:notify_waiting' appointment.id %}', {
+                        method: 'POST',
+                        headers: {'X-CSRFToken': '{{ csrf_token }}', 'Content-Type': 'application/json'}
+                    }).then(r => r.json()).then(d => { if(d.notified) notified = true; });
+                "
+                x-show="!notified"
+                class="px-6 py-2 bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300 rounded-lg hover:bg-blue-200 dark:hover:bg-blue-800 transition-colors text-sm font-medium mb-4"
+            >
+                Notify Doctor I'm Here
+            </button>
+            <p x-show="notified" class="text-green-600 dark:text-green-400 text-sm font-medium mb-4">
+                ✓ Doctor has been notified
+            </p>
+        </div>
+        {% endif %}
 
         <!-- Camera/Mic Test -->
         <div class="mb-8">
@@ -64,14 +95,36 @@ document.addEventListener('DOMContentLoaded', function() {
     const placeholder = document.getElementById('video-placeholder');
     const testCameraBtn = document.getElementById('test-camera');
     const testMicBtn = document.getElementById('test-mic');
+    const countdownEl = document.getElementById('countdown');
 
     let stream = null;
+    let secondsLeft = {{ time_until_start_seconds }};
+
+    // Countdown timer
+    if (countdownEl && secondsLeft > 0) {
+        function updateCountdown() {
+            if (secondsLeft <= 0) {
+                countdownEl.textContent = 'Starting now!';
+                // Auto-redirect to join
+                window.location.href = "{% url 'consultations:join' appointment.id %}";
+                return;
+            }
+            const h = Math.floor(secondsLeft / 3600);
+            const m = Math.floor((secondsLeft % 3600) / 60);
+            const s = secondsLeft % 60;
+            countdownEl.textContent =
+                String(h).padStart(2,'0') + ':' +
+                String(m).padStart(2,'0') + ':' +
+                String(s).padStart(2,'0');
+            secondsLeft--;
+        }
+        updateCountdown();
+        setInterval(updateCountdown, 1000);
+    }
 
     testCameraBtn.addEventListener('click', async function() {
         try {
-            if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-            }
+            if (stream) { stream.getTracks().forEach(track => track.stop()); }
             stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
             video.srcObject = stream;
             placeholder.style.display = 'none';
@@ -90,11 +143,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
 
-    // Cleanup on page leave
     window.addEventListener('beforeunload', function() {
-        if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-        }
+        if (stream) { stream.getTracks().forEach(track => track.stop()); }
     });
 });
 </script>

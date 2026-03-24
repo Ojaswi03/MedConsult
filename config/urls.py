@@ -35,6 +35,9 @@ urlpatterns = [
     # Video Consultations
     path('consultation/', include('apps.consultations.urls')),
 
+    # REST API v1
+    path('api/v1/', include('apps.api.urls')),
+
     # Landing page
     path('', include('apps.accounts.urls')),
 ]

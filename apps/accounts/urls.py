@@ -34,4 +34,9 @@ urlpatterns = [
     path('profile/remove-image/', views.remove_profile_image, name='remove_profile_image'),
     path('settings/', views.settings_view, name='settings'),
     path('settings/theme/', views.update_theme, name='update_theme'),
+
+    # Notifications
+    path('notifications/', views.notifications_list, name='notifications'),
+    path('notifications/<int:notif_id>/read/', views.mark_notification_read, name='mark_notification_read'),
+    path('notifications/read-all/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
 ]

@@ -1,0 +1,102 @@
+{% extends "layouts/admin.html" %}
+
+{% block page_title %}Health Record Access Logs{% endblock %}
+
+{% block content %}
+<div class="mb-6">
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Health Record Access Logs (HIPAA)</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">
+        Audit trail for all health record access events &mdash;
+        <span class="font-medium text-gray-700 dark:text-gray-300">{{ total }} total log{{ total|pluralize }}</span>
+    </p>
+</div>
+
+<!-- Logs Table -->
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm overflow-hidden">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Access Events</h3>
+    </div>
+    <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-700">
+                <tr>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Record Patient</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accessed By</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Access Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">IP Address</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Timestamp</th>
+                </tr>
+            </thead>
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                {% for log in logs %}
+                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
+                                <span class="text-green-600 dark:text-green-300 font-medium text-xs">
+                                    {{ log.record.patient.first_name|slice:":1"|upper }}{{ log.record.patient.last_name|slice:":1"|upper }}
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ log.record.patient.get_full_name|default:log.record.patient.username }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ log.record.patient.email }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <div class="flex items-center">
+                            <div class="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900 flex items-center justify-center flex-shrink-0">
+                                <span class="text-purple-600 dark:text-purple-300 font-medium text-xs">
+                                    {{ log.accessed_by.first_name|slice:":1"|upper }}{{ log.accessed_by.last_name|slice:":1"|upper }}
+                                </span>
+                            </div>
+                            <div class="ml-3">
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                                    {{ log.accessed_by.get_full_name|default:log.accessed_by.username }}
+                                </p>
+                                <p class="text-xs text-gray-500 dark:text-gray-400">{{ log.accessed_by.role|title|default:"" }}</p>
+                            </div>
+                        </div>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap">
+                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                            {% if log.access_type == 'view' %}bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-200
+                            {% elif log.access_type == 'download' %}bg-purple-100 dark:bg-purple-900 text-purple-800 dark:text-purple-200
+                            {% elif log.access_type == 'edit' or log.access_type == 'update' %}bg-yellow-100 dark:bg-yellow-900 text-yellow-800 dark:text-yellow-200
+                            {% elif log.access_type == 'delete' %}bg-red-100 dark:bg-red-900 text-red-800 dark:text-red-200
+                            {% else %}bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300{% endif %}">
+                            {{ log.access_type|title }}
+                        </span>
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700 dark:text-gray-300">
+                        {{ log.ip_address|default:"—" }}
+                    </td>
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                        {{ log.created_at|date:"M d, Y" }}
+                        <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">{{ log.created_at|time:"H:i:s" }}</span>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
+                        No health record access logs found.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Pagination -->
+{% if has_more %}
+<div class="mt-4 flex justify-center">
+    <a href="?page={{ page|add:1 }}"
+       class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+        Next Page
+    </a>
+</div>
+{% endif %}
+{% endblock %}

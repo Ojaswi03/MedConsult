@@ -51,6 +51,15 @@ def verify_doctor_with_logging(doctor_id, admin, ip_address=None):
         }
     )
 
+    # Notify doctor
+    from apps.accounts.services import create_notification
+    create_notification(
+        doctor.user, 'doctor_verified',
+        "Your account has been verified!",
+        "Congratulations! Your doctor profile has been verified. You can now start accepting patients.",
+        link="/doctor/schedule/"
+    )
+
     return doctor
 
 
@@ -61,6 +70,19 @@ def reject_doctor_with_logging(doctor_id, admin, reason='', ip_address=None):
     doctor.verification_status = 'rejected'
     doctor.verified_at = None
     doctor.save()
+
+    # Notify doctor by email
+    from apps.accounts.tasks import send_doctor_rejection_email_task
+    send_doctor_rejection_email_task.delay(doctor.user.id, reason)
+
+    # Notify doctor in-app
+    from apps.accounts.services import create_notification
+    create_notification(
+        doctor.user, 'doctor_rejected',
+        "Your verification was not approved",
+        f"Unfortunately, your doctor profile verification was not approved. Reason: {reason}" if reason else "Unfortunately, your doctor profile verification was not approved.",
+        link="/auth/profile/"
+    )
 
     log_admin_action(
         admin=admin,
@@ -181,28 +203,6 @@ def export_appointments_csv(appointments):
             apt.slot.get_appointment_type_display() if apt.slot else '',
             apt.status,
             apt.created_at.strftime('%Y-%m-%d %H:%M'),
-        ])
-
-    return output.getvalue()
-
-
-def export_doctors_csv(doctors):
-    """Generate CSV export of doctors."""
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Email', 'Name', 'Specialization', 'License Number',
-                     'Experience (years)', 'Fee', 'Status', 'Created At'])
-
-    for doctor in doctors:
-        writer.writerow([
-            doctor.user.email,
-            doctor.user.get_display_name(),
-            doctor.specialization,
-            doctor.medical_license_number,
-            doctor.years_of_experience,
-            doctor.consultation_fee,
-            doctor.verification_status,
-            doctor.created_at.strftime('%Y-%m-%d %H:%M'),
         ])
 
     return output.getvalue()
@@ -397,3 +397,131 @@ def admin_create_slot(doctor_id, start_datetime, end_datetime, appointment_type,
     )
 
     return slot
+
+
+# ============ BULK OPERATIONS ============
+
+@transaction.atomic
+def bulk_verify_doctors(doctor_ids, admin, ip_address=None):
+    """Verify multiple doctors at once with a single audit log entry."""
+    from apps.accounts.models import DoctorProfile
+    from apps.accounts.services import create_notification
+
+    doctors = list(DoctorProfile.objects.filter(
+        id__in=doctor_ids, verification_status='pending'
+    ).select_related('user'))
+
+    for doctor in doctors:
+        doctor.verification_status = 'verified'
+        doctor.verified_at = timezone.now()
+
+    DoctorProfile.objects.bulk_update(doctors, ['verification_status', 'verified_at'])
+
+    for doctor in doctors:
+        create_notification(
+            doctor.user, 'doctor_verified',
+            "Your account has been verified!",
+            "Congratulations! Your doctor profile has been verified. You can now start accepting patients.",
+            link="/doctor/schedule/"
+        )
+
+    log_admin_action(
+        admin=admin,
+        action_type='bulk_verify',
+        description=f'Bulk verified {len(doctors)} doctors',
+        ip_address=ip_address,
+        metadata={'doctor_ids': list(doctor_ids), 'count': len(doctors)}
+    )
+
+    return len(doctors)
+
+
+@transaction.atomic
+def bulk_reject_doctors(doctor_ids, reason, admin, ip_address=None):
+    """Reject multiple doctors at once."""
+    from apps.accounts.models import DoctorProfile
+    from apps.accounts.services import create_notification
+    from apps.accounts.tasks import send_doctor_rejection_email_task
+
+    doctors = list(DoctorProfile.objects.filter(
+        id__in=doctor_ids, verification_status='pending'
+    ).select_related('user'))
+
+    for doctor in doctors:
+        doctor.verification_status = 'rejected'
+        doctor.verified_at = None
+
+    DoctorProfile.objects.bulk_update(doctors, ['verification_status', 'verified_at'])
+
+    for doctor in doctors:
+        send_doctor_rejection_email_task.delay(doctor.user.id, reason)
+        create_notification(
+            doctor.user, 'doctor_rejected',
+            "Your verification was not approved",
+            f"Unfortunately, your doctor profile verification was not approved. Reason: {reason}" if reason else "Unfortunately, your doctor profile verification was not approved.",
+            link="/auth/profile/"
+        )
+
+    log_admin_action(
+        admin=admin,
+        action_type='bulk_reject',
+        description=f'Bulk rejected {len(doctors)} doctors. Reason: {reason}',
+        ip_address=ip_address,
+        metadata={'doctor_ids': list(doctor_ids), 'count': len(doctors), 'reason': reason}
+    )
+
+    return len(doctors)
+
+
+# ============ HEALTH RECORD ACCESS LOGGING ============
+
+def log_health_record_access(record, user, access_type, ip_address=None):
+    """Log access to a health record for HIPAA compliance."""
+    from .models import HealthRecordAccessLog
+    HealthRecordAccessLog.objects.create(
+        record=record,
+        accessed_by=user,
+        access_type=access_type,
+        ip_address=ip_address,
+    )
+
+
+# ============ REFUND PROCESSING ============
+
+@transaction.atomic
+def admin_process_refund(appointment_id, admin, amount=None, reason='appointment_cancelled', reason_text='', ip_address=None):
+    """Admin processes a refund for an appointment payment."""
+    from apps.payments.models import Payment
+    from apps.payments.services import create_refund
+
+    try:
+        payment = Payment.objects.get(appointment_id=appointment_id)
+    except Payment.DoesNotExist:
+        raise ValueError("No payment found for this appointment.")
+
+    if not payment.can_refund:
+        raise ValueError("This payment cannot be refunded.")
+
+    refund = create_refund(
+        payment=payment,
+        amount=amount,
+        reason=reason,
+        reason_text=reason_text,
+        processed_by=admin,
+    )
+
+    log_admin_action(
+        admin=admin,
+        action_type='refund_processed',
+        target_user=payment.patient,
+        description=f'Refund of ${refund.amount} processed for appointment #{appointment_id}',
+        ip_address=ip_address,
+        metadata={
+            'appointment_id': appointment_id,
+            'refund_id': refund.id,
+            'amount': str(refund.amount),
+            'reason': reason,
+        }
+    )
+
+    return refund

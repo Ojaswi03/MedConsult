@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, time
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-from .models import AvailabilityWindow, AvailabilityWindowTypeConfig, Slot, Appointment, SlotChangeLog, AppointmentTypeConfig
+from .models import AvailabilityWindow, AvailabilityWindowTypeConfig, Slot, Appointment, SlotChangeLog, AppointmentTypeConfig, HealthRecord
 from .consumers import sync_broadcast_to_doctor_calendar, sync_broadcast_to_patient_slots
 
 
@@ -325,6 +325,10 @@ def unblock_slot(slot_id, doctor_profile):
 
     log_slot_change(doctor_profile, slot, 'updated')
 
+    # Notify waitlisted patients
+    from .tasks import notify_waitlist_for_doctor
+    notify_waitlist_for_doctor.delay(doctor_profile.id)
+
     # Broadcast WebSocket updates
     sync_broadcast_to_doctor_calendar(doctor_profile.id, 'slot_unblocked', {
         'slot_id': slot.id,
@@ -392,13 +396,28 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
         type_configs = [{'appointment_type': tc.appointment_type, 'price': tc.price} for tc in type_configs]
 
     while current_date <= end_date:
+        # Check for full-day availability exceptions
+        from .models import AvailabilityException
+        exception = AvailabilityException.objects.filter(
+            doctor=availability_window.doctor,
+            date=current_date
+        ).first()
+        if exception and not exception.start_time:
+            # Full-day block — skip slot generation entirely for this date
+            current_date += timedelta(days=1)
+            continue
+
         # Check if current_date matches the availability window's weekday
         if current_date.weekday() == availability_window.weekday:
             # Check effective dates for non-recurring
             if not availability_window.is_recurring:
-                if availability_window.effective_date and current_date != availability_window.effective_date:
-                    current_date += timedelta(days=1)
-                    continue
+                if availability_window.effective_date:
+                    if current_date != availability_window.effective_date:
+                        current_date += timedelta(days=1)
+                        continue
+                else:
+                    # No specific date set — generate only the first matching weekday, then stop
+                    pass  # slots will be created below, then we break after
             elif availability_window.end_date and current_date > availability_window.end_date:
                 break
 
@@ -448,50 +467,9 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
 
                 current_slot_start += total_slot_time
 
-        current_date += timedelta(days=1)
-
-    return created_slots
-
-
-def generate_slots_for_window(availability_window, start_date, end_date):
-    """
-    Generate slots for a specific availability window between start_date and end_date.
-    Returns list of created Slot objects.
-    """
-    created_slots = []
-    current_date = start_date
-
-    while current_date <= end_date:
-        # Check if current_date matches the availability window's weekday
-        if current_date.weekday() == availability_window.weekday:
-            # Generate slots for this day
-            start_datetime = timezone.make_aware(
-                datetime.combine(current_date, availability_window.start_time)
-            )
-            end_datetime = timezone.make_aware(
-                datetime.combine(current_date, availability_window.end_time)
-            )
-
-            current_slot_start = start_datetime
-            slot_duration = timedelta(minutes=availability_window.slot_duration_minutes)
-
-            while current_slot_start + slot_duration <= end_datetime:
-                # Check if slot already exists
-                existing_slot = Slot.objects.filter(
-                    doctor=availability_window.doctor,
-                    start_datetime=current_slot_start
-                ).first()
-
-                if not existing_slot:
-                    slot = Slot.objects.create(
-                        doctor=availability_window.doctor,
-                        availability_window=availability_window,
-                        start_datetime=current_slot_start,
-                        end_datetime=current_slot_start + slot_duration
-                    )
-                    created_slots.append(slot)
-
-                current_slot_start += slot_duration
+            # Non-recurring: stop after the first matching day is processed
+            if not availability_window.is_recurring:
+                break
 
         current_date += timedelta(days=1)
 
@@ -507,7 +485,7 @@ def generate_slots_for_doctor(doctor_profile, days_ahead=30):
 
     all_created_slots = []
     for window in doctor_profile.availability_windows.filter(is_active=True):
-        slots = generate_slots_for_window(window, start_date, end_date)
+        slots = generate_slots_for_window_v2(window, start_date, end_date)
         all_created_slots.extend(slots)
 
     return all_created_slots
@@ -518,16 +496,27 @@ def book_appointment(slot, patient, reason=''):
     """
     Book an appointment for a patient in a specific slot.
     Returns the created Appointment object or raises an exception.
+    Supports group sessions (max_capacity > 1).
     """
-    if slot.is_booked:
-        raise ValueError('This slot is already booked.')
-
     if slot.start_datetime <= timezone.now():
         raise ValueError('Cannot book a slot in the past.')
 
-    # Mark slot as booked
-    slot.is_booked = True
-    slot.save()
+    if slot.is_blocked:
+        raise ValueError('This slot is not available.')
+
+    # Handle group vs single slot
+    if slot.max_capacity > 1:
+        if slot.current_bookings >= slot.max_capacity:
+            raise ValueError('This slot is fully booked.')
+        slot.current_bookings += 1
+        if slot.current_bookings >= slot.max_capacity:
+            slot.is_booked = True
+        slot.save()
+    else:
+        if slot.is_booked:
+            raise ValueError('This slot is already booked.')
+        slot.is_booked = True
+        slot.save()
 
     # Create appointment
     appointment = Appointment.objects.create(
@@ -538,11 +527,35 @@ def book_appointment(slot, patient, reason=''):
         status='scheduled'
     )
 
+    # Send confirmation email async
+    from .tasks import send_appointment_confirmation_email
+    send_appointment_confirmation_email.delay(appointment.id)
+
+    # Send SMS confirmation for patients with phone notifications
+    if patient.phone_notifications and patient.phone:
+        from .tasks import send_sms_appointment_confirmation
+        send_sms_appointment_confirmation.delay(appointment.id)
+
+    # In-app notifications
+    from apps.accounts.services import create_notification
+    create_notification(
+        patient, 'appointment_booked',
+        f"Appointment booked with Dr. {slot.doctor.user.get_display_name()}",
+        f"Your appointment is on {slot.start_datetime.strftime('%B %d, %Y at %I:%M %p')}.",
+        link=f"/patient/appointments/"
+    )
+    create_notification(
+        slot.doctor.user, 'appointment_booked',
+        f"New appointment: {patient.get_display_name()}",
+        f"{patient.get_display_name()} booked a slot on {slot.start_datetime.strftime('%B %d, %Y at %I:%M %p')}.",
+        link=f"/doctor/schedule/"
+    )
+
     # Broadcast WebSocket updates
     sync_broadcast_to_doctor_calendar(slot.doctor.id, 'slot_booked', {
         'slot_id': slot.id,
         'data': {
-            'patient_name': patient.user.get_full_name(),
+            'patient_name': patient.get_full_name(),
             'start_datetime': slot.start_datetime.isoformat()
         }
     })
@@ -563,14 +576,37 @@ def cancel_appointment(appointment):
 
     slot = appointment.slot
     doctor_id = slot.doctor.id
+    patient = appointment.patient
+    doctor = appointment.doctor
 
     # Free up the slot
     slot.is_booked = False
+    if slot.current_bookings > 0:
+        slot.current_bookings -= 1
     slot.save()
 
     # Update appointment status
     appointment.status = 'cancelled'
     appointment.save()
+
+    # In-app notifications
+    from apps.accounts.services import create_notification
+    create_notification(
+        patient, 'appointment_cancelled',
+        "Appointment cancelled",
+        f"Your appointment with Dr. {doctor.user.get_display_name()} on {slot.start_datetime.strftime('%B %d, %Y')} has been cancelled.",
+        link="/patient/appointments/"
+    )
+    create_notification(
+        doctor.user, 'appointment_cancelled',
+        f"Appointment cancelled by {patient.get_display_name()}",
+        f"{patient.get_display_name()} cancelled their appointment on {slot.start_datetime.strftime('%B %d, %Y at %I:%M %p')}.",
+        link="/doctor/schedule/"
+    )
+
+    # Notify waitlisted patients
+    from .tasks import notify_waitlist_for_doctor
+    notify_waitlist_for_doctor.delay(doctor_id)
 
     # Broadcast WebSocket updates
     sync_broadcast_to_doctor_calendar(doctor_id, 'slot_unblocked', {
@@ -595,47 +631,77 @@ def cancel_appointment(appointment):
 def reschedule_appointment(appointment, new_slot):
     """
     Reschedule an appointment to a new slot.
+    Old slot is freed; new slot is booked.
     """
-    if not appointment.can_cancel():
-        raise ValueError('This appointment cannot be rescheduled.')
+    if appointment.status != 'scheduled':
+        raise ValueError('Only scheduled appointments can be rescheduled.')
 
-    if new_slot.is_booked:
-        raise ValueError('The new slot is already booked.')
+    if appointment.start_datetime <= timezone.now():
+        raise ValueError('Cannot reschedule a past appointment.')
+
+    if new_slot.is_booked or new_slot.is_blocked:
+        raise ValueError('The selected slot is not available.')
 
     if new_slot.start_datetime <= timezone.now():
         raise ValueError('Cannot reschedule to a slot in the past.')
 
-    # Free up old slot
     old_slot = appointment.slot
     doctor_id = old_slot.doctor.id
+
+    # Free the old slot
     old_slot.is_booked = False
     old_slot.save()
 
-    # Book new slot
+    # Book the new slot
     new_slot.is_booked = True
     new_slot.save()
 
-    # Update appointment
     appointment.slot = new_slot
     appointment.save()
 
-    # Broadcast WebSocket updates - old slot is now available
-    sync_broadcast_to_patient_slots(doctor_id, 'slot_available', {
-        'slot_id': old_slot.id,
-        'data': {
-            'start_datetime': old_slot.start_datetime.isoformat(),
-            'appointment_type': old_slot.appointment_type
-        }
-    })
-    # New slot is now taken
-    sync_broadcast_to_patient_slots(doctor_id, 'slot_taken', {
-        'slot_id': new_slot.id
-    })
+    log_slot_change(old_slot.doctor, old_slot, 'updated')
+    log_slot_change(new_slot.doctor, new_slot, 'booked')
+
+    sync_broadcast_to_patient_slots(doctor_id, 'slot_available', {'slot_id': old_slot.id})
+    sync_broadcast_to_patient_slots(doctor_id, 'slot_taken', {'slot_id': new_slot.id})
 
     return appointment
 
 
 # ============ REVIEW SERVICES ============
+
+@transaction.atomic
+def create_prescription(appointment, diagnosis, medications, instructions='', notes=''):
+    """Create a prescription for a completed appointment."""
+    from .models import Prescription
+
+    if appointment.status != 'completed':
+        raise ValueError('Prescriptions can only be written for completed appointments.')
+
+    if Prescription.objects.filter(appointment=appointment).exists():
+        raise ValueError('A prescription has already been written for this appointment.')
+
+    prescription = Prescription.objects.create(
+        appointment=appointment,
+        doctor=appointment.doctor,
+        patient=appointment.patient,
+        diagnosis=diagnosis,
+        medications=medications,
+        instructions=instructions,
+        notes=notes,
+    )
+
+    # Notify patient
+    from apps.accounts.services import create_notification
+    create_notification(
+        appointment.patient, 'prescription_ready',
+        f"Prescription ready from Dr. {appointment.doctor.user.get_display_name()}",
+        "Your prescription is now available. You can download it from your appointments.",
+        link=f"/patient/appointments/{appointment.id}/prescription/download/"
+    )
+
+    return prescription
+
 
 @transaction.atomic
 def create_review(appointment, patient, rating, comment=''):
@@ -729,3 +795,306 @@ def delete_review(review, patient):
 
     review.delete()
     return True
+
+
+# ============ TIME-OFF SERVICES ============
+
+@transaction.atomic
+def create_time_off_block(doctor_profile, start_date, end_date, reason=''):
+    """Create a time-off block and block all existing unbooked slots in that range."""
+    from .models import TimeOffBlock, Slot
+    block = TimeOffBlock.objects.create(
+        doctor=doctor_profile, start_date=start_date, end_date=end_date, reason=reason
+    )
+    Slot.objects.filter(
+        doctor=doctor_profile,
+        start_datetime__date__gte=start_date,
+        start_datetime__date__lte=end_date,
+        is_booked=False
+    ).update(is_blocked=True, notes=f'Time off: {reason}' if reason else 'Time off')
+    return block
+
+
+@transaction.atomic
+def delete_time_off_block(block_id, doctor_profile):
+    """Delete a time-off block and unblock slots that were blocked by it."""
+    from .models import TimeOffBlock, Slot
+    block = TimeOffBlock.objects.get(id=block_id, doctor=doctor_profile)
+    Slot.objects.filter(
+        doctor=doctor_profile,
+        start_datetime__date__gte=block.start_date,
+        start_datetime__date__lte=block.end_date,
+        is_blocked=True,
+        is_booked=False,
+        notes__startswith='Time off'
+    ).update(is_blocked=False, notes='')
+    block.delete()
+
+
+# ============ WAITLIST SERVICES ============
+
+@transaction.atomic
+def join_waitlist(doctor_profile, patient, appointment_type='', preferred_date=None, notes=''):
+    """Add a patient to the waitlist for a doctor."""
+    from .models import WaitlistEntry
+    entry, created = WaitlistEntry.objects.get_or_create(
+        doctor=doctor_profile, patient=patient,
+        defaults={
+            'appointment_type': appointment_type,
+            'preferred_date': preferred_date,
+            'notes': notes
+        }
+    )
+    if created:
+        from apps.accounts.services import create_notification
+        create_notification(
+            patient, 'waitlist_slot_available',
+            f"Added to waitlist for Dr. {doctor_profile.user.get_display_name()}",
+            "You'll be notified when a slot opens up.",
+            link=f"/patient/doctors/{doctor_profile.id}/"
+        )
+    return entry, created
+
+
+@transaction.atomic
+def leave_waitlist(doctor_profile, patient):
+    """Remove a patient from the waitlist."""
+    from .models import WaitlistEntry
+    WaitlistEntry.objects.filter(doctor=doctor_profile, patient=patient).delete()
+
+
+# ============ HEALTH RECORD SERVICES ============
+
+@transaction.atomic
+def create_health_record(patient, record_type, title, description='', file=None, date_of_record=None):
+    """Create a health record for a patient."""
+    return HealthRecord.objects.create(
+        patient=patient,
+        record_type=record_type,
+        title=title,
+        description=description,
+        file=file,
+        date_of_record=date_of_record
+    )
+
+
+@transaction.atomic
+def share_health_record_with_doctor(record, doctor_profile):
+    """Share a health record with a doctor and notify them."""
+    record.shared_with_doctors.add(doctor_profile)
+    from apps.accounts.services import create_notification
+    create_notification(
+        doctor_profile.user, 'health_record_shared',
+        f"{record.patient.get_display_name()} shared a health record",
+        f"'{record.title}' has been shared with you.",
+        link=f"/patient/health-records/{record.id}/"
+    )
+
+
+def get_patient_health_records(patient):
+    """Get all health records for a patient."""
+    return HealthRecord.objects.filter(patient=patient)
+
+
+def get_shared_records_for_doctor(doctor_profile, patient):
+    """Get health records shared with a specific doctor by a patient."""
+    return HealthRecord.objects.filter(patient=patient, shared_with_doctors=doctor_profile)
+
+
+# ============ REFERRAL SERVICES ============
+
+@transaction.atomic
+def create_referral(referring_doctor, referred_to_doctor, patient, reason, notes=''):
+    """Create a referral from one doctor to another for a patient."""
+    from .models import Referral
+    from datetime import timedelta
+    from apps.accounts.services import create_notification
+    referral = Referral.objects.create(
+        referring_doctor=referring_doctor,
+        referred_to_doctor=referred_to_doctor,
+        patient=patient,
+        reason=reason,
+        notes=notes,
+        expires_at=timezone.now() + timedelta(days=30)
+    )
+    create_notification(
+        patient, 'referral_received',
+        f"Dr. {referring_doctor.user.get_display_name()} referred you to Dr. {referred_to_doctor.user.get_display_name()}",
+        reason,
+        link=f"/patient/doctors/{referred_to_doctor.id}/"
+    )
+    return referral
+
+
+# ============ AVAILABILITY EXCEPTION SERVICES ============
+
+@transaction.atomic
+def create_availability_exception(doctor_profile, date, start_time=None, end_time=None, reason=''):
+    """Create a one-off availability exception for a doctor on a specific date."""
+    from .models import AvailabilityException
+    exception, created = AvailabilityException.objects.update_or_create(
+        doctor=doctor_profile, date=date,
+        defaults={'start_time': start_time, 'end_time': end_time, 'reason': reason}
+    )
+    # Block existing unbooked slots on that date that fall outside the exception window
+    _apply_exception_to_slots(doctor_profile, exception)
+    return exception, created
+
+
+def _apply_exception_to_slots(doctor_profile, exception):
+    """Block slots on the exception date outside the allowed time window."""
+    qs = Slot.objects.filter(
+        doctor=doctor_profile,
+        start_datetime__date=exception.date,
+        is_booked=False
+    )
+    if exception.start_time and exception.end_time:
+        # Block slots that are OUTSIDE the exception window
+        qs = qs.exclude(
+            start_datetime__time__gte=exception.start_time,
+            end_datetime__time__lte=exception.end_time
+        )
+    # Block everything (full-day block) or the filtered slots
+    qs.update(is_blocked=True, notes='Exception block')
+
+
+@transaction.atomic
+def delete_availability_exception(exception_id, doctor_profile):
+    """Delete an availability exception and unblock slots that were blocked by it."""
+    from .models import AvailabilityException
+    exc = AvailabilityException.objects.get(id=exception_id, doctor=doctor_profile)
+    exc_date = exc.date
+    exc.delete()
+    # Unblock slots that were blocked by this exception (only if no time-off covers them)
+    from .models import TimeOffBlock
+    time_off_active = TimeOffBlock.objects.filter(
+        doctor=doctor_profile,
+        start_date__lte=exc_date,
+        end_date__gte=exc_date
+    ).exists()
+    if not time_off_active:
+        Slot.objects.filter(
+            doctor=doctor_profile,
+            start_datetime__date=exc_date,
+            is_blocked=True,
+            is_booked=False,
+            notes='Exception block'
+        ).update(is_blocked=False, notes='')
+
+
+# ============ BILLING SERVICES ============
+
+def generate_billing_pdf(appointment):
+    """Generate a billing summary PDF for an appointment. Returns BytesIO buffer."""
+    from io import BytesIO
+    from reportlab.lib.pagesizes import letter
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib import colors
+    from reportlab.lib.units import inch
+
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    styles = getSampleStyleSheet()
+    story = []
+
+    # Header
+    story.append(Paragraph("BILLING SUMMARY", styles['Title']))
+    story.append(Paragraph("MedConsult Telehealth Platform", styles['Normal']))
+    story.append(Spacer(1, 0.25 * inch))
+
+    # Patient Info
+    patient_profile = getattr(appointment.patient, 'patient_profile', None)
+    story.append(Paragraph("<b>Patient Information</b>", styles['Heading2']))
+    data = [
+        ["Patient Name:", appointment.patient.get_display_name()],
+        ["Email:", appointment.patient.email],
+    ]
+    if patient_profile:
+        if patient_profile.date_of_birth:
+            data.append(["Date of Birth:", str(patient_profile.date_of_birth)])
+        if patient_profile.insurance_provider:
+            data.append(["Insurance Provider:", patient_profile.insurance_provider])
+        if patient_profile.insurance_policy_number:
+            data.append(["Policy Number:", patient_profile.insurance_policy_number])
+
+    table = Table(data, colWidths=[2 * inch, 4 * inch])
+    table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(table)
+    story.append(Spacer(1, 0.2 * inch))
+
+    # Doctor Info
+    story.append(Paragraph("<b>Provider Information</b>", styles['Heading2']))
+    doctor_data = [
+        ["Provider Name:", f"Dr. {appointment.doctor.user.get_display_name()}"],
+        ["Specialization:", appointment.doctor.specialization],
+    ]
+    if appointment.doctor.npi_number:
+        doctor_data.append(["NPI Number:", appointment.doctor.npi_number])
+    doctor_table = Table(doctor_data, colWidths=[2 * inch, 4 * inch])
+    doctor_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+    ]))
+    story.append(doctor_table)
+    story.append(Spacer(1, 0.2 * inch))
+
+    # Appointment / Billing Info
+    story.append(Paragraph("<b>Appointment & Billing Details</b>", styles['Heading2']))
+    price = appointment.slot.get_price()
+    billing_data = [
+        ["Date of Service:", appointment.start_datetime.strftime('%B %d, %Y')],
+        ["Appointment Type:", appointment.slot.get_appointment_type_display()],
+        ["Amount Due:", f"${price}"],
+    ]
+    if appointment.cpt_code:
+        billing_data.insert(2, ["CPT Code:", appointment.cpt_code])
+    billing_table = Table(billing_data, colWidths=[2 * inch, 4 * inch])
+    billing_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+    ]))
+    story.append(billing_table)
+    story.append(Spacer(1, 0.3 * inch))
+
+    story.append(Paragraph(
+        "This document is for insurance and personal records. Please contact your insurance provider for claim submission.",
+        styles['Italic']
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+    return buffer
+
+
+@transaction.atomic
+def set_appointment_cpt_code(appointment, cpt_code):
+    """Set the CPT billing code for an appointment."""
+    appointment.cpt_code = cpt_code
+    appointment.save(update_fields=['cpt_code'])
+    return appointment
+
+
+# ============ REVIEW RESPONSE SERVICES ============
+
+@transaction.atomic
+def respond_to_review(review, doctor_profile, response_text):
+    """Doctor responds to a patient review."""
+    from .models import Review
+    if review.doctor != doctor_profile:
+        raise ValueError('You can only respond to reviews for your own appointments.')
+    if review.response_text:
+        raise ValueError('You have already responded to this review.')
+    if not response_text.strip():
+        raise ValueError('Response text cannot be empty.')
+    review.response_text = response_text.strip()
+    review.responded_at = timezone.now()
+    review.save(update_fields=['response_text', 'responded_at'])
+    return review

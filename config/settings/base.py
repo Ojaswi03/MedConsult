@@ -41,11 +41,17 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.messaging',
     'apps.consultations',
+
+    # REST API
+    'rest_framework',
+    'django_filters',
+    'apps.api',
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
@@ -156,6 +162,36 @@ CELERY_TASK_TIME_LIMIT = 30 * 60  # 30 minutes
 # Celery Beat Schedule (for periodic tasks like reminders)
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
+# REST Framework Configuration
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'rest_framework_simplejwt.authentication.JWTAuthentication',
+        'rest_framework.authentication.SessionAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+    'DEFAULT_FILTER_BACKENDS': [
+        'django_filters.rest_framework.DjangoFilterBackend',
+        'rest_framework.filters.SearchFilter',
+    ],
+    'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
+    'PAGE_SIZE': 20,
+}
+
+# Internationalization languages supported
+LANGUAGES = [
+    ('en', 'English'),
+    ('es', 'Spanish'),
+    ('fr', 'French'),
+    ('de', 'German'),
+    ('zh', 'Chinese'),
+    ('ar', 'Arabic'),
+    ('pt', 'Portuguese'),
+    ('ru', 'Russian'),
+]
+LOCALE_PATHS = [BASE_DIR / 'locale']
+
 # Email Configuration (base settings, override in dev/prod)
 DEFAULT_FROM_EMAIL = os.environ.get('DEFAULT_FROM_EMAIL', 'MedConsult <noreply@medconsult.com>')
 EMAIL_SUBJECT_PREFIX = '[MedConsult] '
@@ -172,3 +208,24 @@ DAILY_API_KEY = os.environ.get('DAILY_API_KEY', '')
 TWILIO_ACCOUNT_SID = os.environ.get('TWILIO_ACCOUNT_SID', '')
 TWILIO_AUTH_TOKEN = os.environ.get('TWILIO_AUTH_TOKEN', '')
 TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
+
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'schedule-appointment-reminders': {
+        'task': 'apps.scheduling.tasks.schedule_appointment_reminders',
+        'schedule': crontab(minute='*/15'),
+    },
+    'extend-slots-daily': {
+        'task': 'apps.scheduling.tasks.extend_slots_for_all_doctors',
+        'schedule': crontab(hour=2, minute=0),
+    },
+    'mark-completed-appointments': {
+        'task': 'apps.scheduling.tasks.mark_completed_appointments',
+        'schedule': crontab(minute='*/5'),
+    },
+    'mark-no-show-appointments': {
+        'task': 'apps.scheduling.tasks.mark_no_show_appointments',
+        'schedule': crontab(minute='*/10'),
+    },
+}

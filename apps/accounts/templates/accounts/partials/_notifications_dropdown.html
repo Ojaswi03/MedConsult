@@ -1,0 +1,25 @@
+{% if notifications %}
+    {% for notif in notifications %}
+    <div class="p-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors {% if not notif.is_read %}bg-blue-50 dark:bg-blue-900/10{% endif %}">
+        <div class="flex items-start gap-2">
+            <div class="flex-grow min-w-0">
+                <p class="text-sm font-medium text-gray-900 dark:text-white truncate">{{ notif.title }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5 truncate">{{ notif.message }}</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-0.5">{{ notif.created_at|timesince }} ago</p>
+            </div>
+            {% if not notif.is_read %}
+            <div class="flex-shrink-0 mt-1.5">
+                <div class="w-2 h-2 bg-blue-500 rounded-full"></div>
+            </div>
+            {% endif %}
+        </div>
+        {% if notif.link %}
+        <a href="{{ notif.link }}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">View &rarr;</a>
+        {% endif %}
+    </div>
+    {% endfor %}
+{% else %}
+    <div class="p-6 text-center text-sm text-gray-500 dark:text-gray-400">
+        No notifications
+    </div>
+{% endif %}

@@ -294,6 +294,18 @@ def create_doctor_from_wizard(wizard_data: dict, files: dict = None) -> User:
     return user
 
 
+def create_notification(user, notif_type, title, message, link=''):
+    """Create an in-app notification for a user."""
+    from .models import Notification
+    return Notification.objects.create(
+        user=user,
+        notif_type=notif_type,
+        title=title,
+        message=message,
+        link=link,
+    )
+
+
 def clear_signup_session(request):
     """Clear all signup wizard data from session."""
     keys_to_delete = [
@@ -306,17 +318,3 @@ def clear_signup_session(request):
             del request.session[key]
 
 
-def update_patient_profile(profile, **kwargs):
-    """Update patient profile."""
-    for key, value in kwargs.items():
-        setattr(profile, key, value)
-    profile.save()
-    return profile
-
-
-def update_doctor_profile(profile, **kwargs):
-    """Update doctor profile."""
-    for key, value in kwargs.items():
-        setattr(profile, key, value)
-    profile.save()
-    return profile

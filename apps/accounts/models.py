@@ -140,6 +140,7 @@ class PatientProfile(models.Model):
     current_medications = models.TextField(blank=True)
     insurance_provider = models.CharField(max_length=200, blank=True)
     insurance_policy_number = models.CharField(max_length=100, blank=True)
+    preferred_language = models.CharField(max_length=50, blank=True, help_text='Patient preferred language for consultations')
     terms_accepted = models.BooleanField(default=False)
     terms_accepted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -211,6 +212,10 @@ class DoctorProfile(models.Model):
     verified_at = models.DateTimeField(null=True, blank=True)
     is_accepting_patients = models.BooleanField(default=True)
 
+    languages = models.CharField(max_length=200, blank=True, help_text='Comma-separated languages spoken (e.g., English, Spanish)')
+    npi_number = models.CharField(max_length=20, blank=True, help_text='National Provider Identifier (10-digit NPI)')
+    offers_second_opinions = models.BooleanField(default=False, help_text='Whether doctor offers second opinion consultations')
+
     # Compliance
     hipaa_acknowledged = models.BooleanField(default=False)
     hipaa_acknowledged_at = models.DateTimeField(null=True, blank=True)
@@ -247,6 +252,61 @@ class DoctorProfile(models.Model):
         for item in counts:
             distribution[item['rating']] = item['count']
         return distribution
+
+    @property
+    def onboarding_score(self):
+        """Return 0-100 completion score across 8 profile dimensions."""
+        score = 0
+        if self.bio and len(self.bio) >= 50:
+            score += 15
+        if self.education:
+            score += 10
+        if self.user.has_profile_image():
+            score += 15
+        if self.languages:
+            score += 10
+        if self.npi_number:
+            score += 10
+        if self.availability_windows.filter(is_active=True).exists():
+            score += 20
+        if self.appointment_type_configs.filter(is_enabled=True).exists():
+            score += 10
+        if self.consultation_fee and self.consultation_fee > 0:
+            score += 10
+        return score
+
+
+class Notification(models.Model):
+    """In-app notification for users."""
+    NOTIF_TYPES = [
+        ('appointment_booked', 'Appointment Booked'),
+        ('appointment_cancelled', 'Appointment Cancelled'),
+        ('appointment_reminder', 'Appointment Reminder'),
+        ('appointment_rescheduled', 'Appointment Rescheduled'),
+        ('doctor_verified', 'Doctor Verified'),
+        ('doctor_rejected', 'Doctor Rejected'),
+        ('new_review', 'New Review'),
+        ('prescription_ready', 'Prescription Ready'),
+        ('waitlist_slot_available', 'Slot Available'),
+        ('referral_received', 'Referral Received'),
+        ('health_record_shared', 'Health Record Shared'),
+        ('patient_waiting', 'Patient in Waiting Room'),
+    ]
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='notifications')
+    notif_type = models.CharField(max_length=50, choices=NOTIF_TYPES)
+    title = models.CharField(max_length=200)
+    message = models.TextField()
+    link = models.CharField(max_length=500, blank=True)
+    is_read = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'notifications'
+        ordering = ['-created_at']
+        indexes = [models.Index(fields=['user', 'is_read', 'created_at'], name='notif_user_read_idx')]
+
+    def __str__(self):
+        return f"{self.user.email} - {self.title}"
 
 
 class EmailVerificationToken(models.Model):

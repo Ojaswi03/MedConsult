@@ -8,14 +8,35 @@ from .models import Conversation, Message
 def get_user_conversations(user):
     """
     Get all conversations for a user.
+    Only shows conversations that have at least one real (non-system) message,
+    and excludes conversations the user has deleted.
     """
-    return Conversation.objects.filter(
+    from django.db.models import Exists, OuterRef
+    has_real_message = Message.objects.filter(
+        conversation=OuterRef('pk'),
+        message_type='text',
+    )
+
+    qs = Conversation.objects.filter(
         Q(patient=user) | Q(doctor=user)
-    ).select_related(
+    ).annotate(
+        has_real_message=Exists(has_real_message)
+    ).filter(
+        has_real_message=True
+    )
+
+    # Hide conversations the user has deleted
+    if user.role == 'patient':
+        qs = qs.filter(deleted_by_patient=False)
+    elif user.role == 'doctor':
+        qs = qs.filter(deleted_by_doctor=False)
+
+    return qs.select_related(
         'appointment',
         'appointment__slot',
         'patient',
         'doctor',
+        'patient__patient_profile',
         'doctor__doctor_profile',
     ).prefetch_related(
         'messages'

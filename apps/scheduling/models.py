@@ -182,6 +182,8 @@ class Appointment(models.Model):
     doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='doctor_appointments')
     reason = models.TextField(blank=True)
     notes = models.TextField(blank=True)
+    cpt_code = models.CharField(max_length=20, blank=True, help_text='CPT billing code for insurance claims')
+    is_second_opinion = models.BooleanField(default=False, help_text='Whether this appointment is a second opinion request')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -387,6 +389,8 @@ class Review(models.Model):
     is_visible = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    response_text = models.TextField(blank=True, help_text='Doctor response to this review')
+    responded_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         db_table = 'reviews'
@@ -394,3 +398,155 @@ class Review(models.Model):
 
     def __str__(self):
         return f"Review by {self.patient.get_display_name()} for Dr. {self.doctor.user.get_display_name()} - {self.rating} stars"
+
+
+class TimeOffBlock(models.Model):
+    """Doctor time-off / availability exceptions."""
+    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='time_off_blocks')
+    start_date = models.DateField()
+    end_date = models.DateField()
+    reason = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'time_off_blocks'
+        ordering = ['start_date']
+
+    def __str__(self):
+        return f"Dr. {self.doctor.user.get_display_name()} off {self.start_date} to {self.end_date}"
+
+
+class WaitlistEntry(models.Model):
+    """Patient waitlist entry for a doctor."""
+    doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='waitlist_entries')
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='waitlist_entries')
+    appointment_type = models.CharField(max_length=20, choices=APPOINTMENT_TYPE_CHOICES, blank=True)
+    preferred_date = models.DateField(null=True, blank=True)
+    notes = models.TextField(blank=True)
+    is_notified = models.BooleanField(default=False)
+    notified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'waitlist_entries'
+        unique_together = ['doctor', 'patient']
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f"{self.patient.get_display_name()} waiting for Dr. {self.doctor.user.get_display_name()}"
+
+
+class HealthRecord(models.Model):
+    """Patient health record (file upload)."""
+    RECORD_TYPES = [
+        ('lab_result', 'Lab Result'),
+        ('imaging', 'Imaging / X-Ray'),
+        ('prescription', 'Prior Prescription'),
+        ('vaccination', 'Vaccination Record'),
+        ('discharge_summary', 'Discharge Summary'),
+        ('other', 'Other'),
+    ]
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='health_records')
+    record_type = models.CharField(max_length=50, choices=RECORD_TYPES)
+    title = models.CharField(max_length=200)
+    description = models.TextField(blank=True)
+    file = models.FileField(upload_to='health_records/', blank=True, null=True)
+    date_of_record = models.DateField(null=True, blank=True)
+    shared_with_doctors = models.ManyToManyField(DoctorProfile, blank=True, related_name='shared_health_records')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'health_records'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"{self.patient.get_display_name()} - {self.title}"
+
+
+class Referral(models.Model):
+    """Doctor referral for a patient to another doctor."""
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('booked', 'Booked'),
+        ('expired', 'Expired'),
+    ]
+    referring_doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='referrals_sent')
+    referred_to_doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='referrals_received')
+    patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='referrals')
+    reason = models.TextField()
+    notes = models.TextField(blank=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    appointment = models.ForeignKey(
+        'Appointment', on_delete=models.SET_NULL, null=True, blank=True, related_name='referral'
+    )
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'referrals'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Referral: {self.patient.get_display_name()} from Dr. {self.referring_doctor.user.get_display_name()} to Dr. {self.referred_to_doctor.user.get_display_name()}"
+
+
+class Prescription(models.Model):
+    """Digital prescription written by a doctor after a consultation."""
+
+    appointment = models.OneToOneField(
+        Appointment,
+        on_delete=models.CASCADE,
+        related_name='prescription'
+    )
+    doctor = models.ForeignKey(
+        DoctorProfile,
+        on_delete=models.CASCADE,
+        related_name='prescriptions'
+    )
+    patient = models.ForeignKey(
+        User,
+        on_delete=models.CASCADE,
+        related_name='prescriptions'
+    )
+    diagnosis = models.CharField(max_length=500, blank=True)
+    medications = models.TextField(help_text='Medications, dosage, and frequency')
+    instructions = models.TextField(blank=True)
+    notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'prescriptions'
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Rx: {self.patient.get_display_name()} by Dr. {self.doctor.user.get_display_name()} ({self.created_at.date()})"
+
+
+class AvailabilityException(models.Model):
+    """
+    One-off exception dates that override a doctor's regular availability.
+    Use for one-off schedule changes without altering recurring patterns.
+    """
+    doctor = models.ForeignKey(
+        DoctorProfile,
+        on_delete=models.CASCADE,
+        related_name='availability_exceptions'
+    )
+    date = models.DateField(help_text='The date this exception applies to')
+    start_time = models.TimeField(
+        null=True, blank=True,
+        help_text='If set, only this time window is available. If null, entire day is blocked.'
+    )
+    end_time = models.TimeField(null=True, blank=True)
+    reason = models.CharField(max_length=200, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'availability_exceptions'
+        ordering = ['date']
+        unique_together = ['doctor', 'date']
+
+    def __str__(self):
+        return f"Exception for Dr. {self.doctor.user.get_display_name()} on {self.date}"

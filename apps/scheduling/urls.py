@@ -13,6 +13,8 @@ urlpatterns = [
     path('book/<int:slot_id>/', views.patient_book_appointment, name='book_appointment'),
     path('appointments/', views.patient_appointments_list, name='patient_appointments'),
     path('appointments/<int:appointment_id>/cancel/', views.patient_cancel_appointment, name='cancel_appointment'),
+    path('appointments/<int:appointment_id>/reschedule/', views.patient_reschedule_appointment, name='reschedule_appointment'),
+    path('appointments/<int:appointment_id>/prescription/download/', views.patient_download_prescription, name='download_prescription'),
 
     # Patient URLs - Symptom Selector (HTMX)
     path('symptoms/body-parts/', views.get_body_parts, name='get_body_parts'),
@@ -44,4 +46,44 @@ urlpatterns = [
 
     # Doctor URLs - Appointment Types
     path('availability/types/', views.doctor_appointment_type_config, name='appointment_types'),
+
+    # Doctor URLs - Analytics
+    path('analytics/', views.doctor_analytics_view, name='doctor_analytics'),
+
+    # Doctor URLs - Prescriptions
+    path('appointments/<int:appointment_id>/prescription/write/', views.doctor_write_prescription, name='write_prescription'),
+
+    # Feature 3: Doctor Time-Off
+    path('availability/time-off/', views.doctor_time_off_list, name='time_off_list'),
+    path('availability/time-off/<int:block_id>/delete/', views.doctor_delete_time_off, name='delete_time_off'),
+
+    # Feature 4: Waitlist
+    path('doctors/<int:doctor_id>/waitlist/join/', views.patient_join_waitlist, name='join_waitlist'),
+    path('doctors/<int:doctor_id>/waitlist/leave/', views.patient_leave_waitlist, name='leave_waitlist'),
+
+    # Feature 5: Health Records
+    path('health-records/', views.patient_health_records, name='patient_health_records'),
+    path('health-records/<int:record_id>/delete/', views.patient_delete_health_record, name='delete_health_record'),
+    path('health-records/<int:record_id>/share/', views.patient_share_health_record, name='share_health_record'),
+    path('patient/<int:patient_id>/records/', views.doctor_view_shared_records, name='doctor_view_patient_records'),
+
+    # Feature 6: Follow-Up
+    path('appointments/<int:appointment_id>/followup/', views.doctor_schedule_followup, name='schedule_followup'),
+
+    # Feature 7: Medical History
+    path('patients/<int:patient_id>/history/', views.doctor_patient_history, name='patient_history'),
+
+    # Feature 9: Referrals
+    path('appointments/<int:appointment_id>/referral/', views.doctor_create_referral, name='create_referral'),
+    path('referrals/', views.patient_referrals_list, name='patient_referrals'),
+
+    # Billing download
+    path('appointments/<int:appointment_id>/billing/', views.patient_billing_download, name='billing_download'),
+
+    # Availability exceptions
+    path('availability/exceptions/create/', views.doctor_exception_create, name='create_exception'),
+    path('availability/exceptions/<int:exception_id>/delete/', views.doctor_exception_delete, name='delete_exception'),
+
+    # Review responses
+    path('reviews/<int:review_id>/respond/', views.doctor_respond_to_review, name='respond_to_review'),
 ]

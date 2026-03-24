@@ -1,0 +1,123 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Health Records - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-5xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">My Health Records</h1>
+
+    <!-- Upload Form -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Upload New Record</h2>
+        <form method="post" enctype="multipart/form-data" class="space-y-4">
+            {% csrf_token %}
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Title <span class="text-red-500">*</span></label>
+                    <input type="text" name="title" id="title" required placeholder="e.g., Blood Test Results 2024"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label for="record_type" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Record Type <span class="text-red-500">*</span></label>
+                    <select name="record_type" id="record_type" required
+                            class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                        <option value="">Select type...</option>
+                        {% for value, label in record_types %}
+                        <option value="{{ value }}">{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div>
+                    <label for="date_of_record" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Date of Record</label>
+                    <input type="date" name="date_of_record" id="date_of_record"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+                <div>
+                    <label for="file" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">File (optional)</label>
+                    <input type="file" name="file" id="file"
+                           class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white">
+                </div>
+            </div>
+            <div>
+                <label for="description" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Description</label>
+                <textarea name="description" id="description" rows="2" placeholder="Optional notes about this record..."
+                          class="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:text-white"></textarea>
+            </div>
+            <button type="submit"
+                    class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 font-medium transition-colors">
+                Upload Record
+            </button>
+        </form>
+    </div>
+
+    <!-- Records List -->
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">My Records</h2>
+
+        {% if records %}
+        <div class="space-y-4">
+            {% for record in records %}
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4 flex flex-col md:flex-row md:items-start gap-4">
+                <div class="flex-grow">
+                    <div class="flex flex-wrap items-center gap-2 mb-1">
+                        <h3 class="font-semibold text-gray-900 dark:text-white">{{ record.title }}</h3>
+                        <span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                            {{ record.get_record_type_display }}
+                        </span>
+                    </div>
+                    {% if record.description %}
+                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-1">{{ record.description }}</p>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-4 text-xs text-gray-500 dark:text-gray-500">
+                        {% if record.date_of_record %}
+                        <span>Record date: {{ record.date_of_record|date:"M d, Y" }}</span>
+                        {% endif %}
+                        <span>Uploaded: {{ record.created_at|date:"M d, Y" }}</span>
+                        {% if record.shared_with_doctors.count > 0 %}
+                        <span class="text-green-600 dark:text-green-400">Shared with {{ record.shared_with_doctors.count }} doctor(s)</span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="flex items-center gap-3 flex-shrink-0">
+                    {% if record.file %}
+                    <a href="{{ record.file.url }}" target="_blank"
+                       class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Download</a>
+                    {% endif %}
+                    <form method="post" action="{% url 'patient:share_health_record' record.id %}">
+                        {% csrf_token %}
+                        <div class="flex gap-2 items-center">
+                            <select name="doctor_id" class="text-sm border border-gray-300 dark:border-gray-600 rounded px-2 py-1 dark:bg-gray-700 dark:text-white">
+                                <option value="">Share with doctor...</option>
+                                {% for doc in my_doctors %}
+                                <option value="{{ doc.id }}"
+                                    {% if doc in record.shared_with_doctors.all %}disabled{% endif %}>
+                                    Dr. {{ doc.user.get_display_name }}
+                                    {% if doc in record.shared_with_doctors.all %} (already shared){% endif %}
+                                </option>
+                                {% empty %}
+                                <option value="" disabled>No past doctors</option>
+                                {% endfor %}
+                            </select>
+                            <button type="submit" class="text-sm text-green-600 dark:text-green-400 hover:underline">Share</button>
+                        </div>
+                    </form>
+                    <form method="post" action="{% url 'patient:delete_health_record' record.id %}"
+                          onsubmit="return confirm('Delete this health record?')">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:underline">Delete</button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-8">
+            <svg class="w-12 h-12 text-gray-300 dark:text-gray-600 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+            </svg>
+            <p class="text-gray-500 dark:text-gray-400">No health records uploaded yet. Upload your first record above.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

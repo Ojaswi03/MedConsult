@@ -3,134 +3,336 @@
 {% block title %}Profile - MedConsult{% endblock %}
 
 {% block content %}
-<div class="max-w-4xl mx-auto">
+<div class="max-w-5xl mx-auto">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">My Profile</h1>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <!-- Profile Image Section (Left Column) -->
-        <div class="md:col-span-1">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Profile Photo</h2>
+    <form method="post" class="space-y-8">
+        {% csrf_token %}
 
-                <!-- Profile Image Display -->
-                <div class="flex flex-col items-center">
-                    <div class="relative group">
-                        {% if user.profile_image %}
-                        <img src="{{ user.profile_image.url }}" alt="Profile"
-                            class="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600">
-                        {% else %}
-                        <div class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-gray-200 dark:border-gray-600">
-                            {{ user.get_initials }}
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+            <!-- Left column: photo + account meta -->
+            <div class="md:col-span-1 space-y-6">
+
+                <!-- Profile Photo -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Profile Photo</h2>
+                    <div class="flex flex-col items-center">
+                        <div class="relative group">
+                            {% if user.profile_image %}
+                            <img src="{{ user.profile_image.url }}" alt="Profile"
+                                class="w-32 h-32 rounded-full object-cover border-4 border-gray-200 dark:border-gray-600">
+                            {% else %}
+                            <div class="w-32 h-32 rounded-full bg-blue-600 flex items-center justify-center text-white text-4xl font-bold border-4 border-gray-200 dark:border-gray-600">
+                                {{ user.get_initials }}
+                            </div>
+                            {% endif %}
+                            <label for="profile-image-input"
+                                class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
+                                <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                </svg>
+                            </label>
                         </div>
+
+                        <form id="image-upload-form" action="{% url 'upload_profile_image' %}" method="post" enctype="multipart/form-data">
+                            {% csrf_token %}
+                            <input type="file" name="profile_image" id="profile-image-input"
+                                accept="image/png,image/jpeg,image/jpg"
+                                style="display:none"
+                                onchange="document.getElementById('image-upload-form').submit();">
+                        </form>
+
+                        <label for="profile-image-input"
+                            class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
+                            Upload Photo
+                        </label>
+
+                        {% if user.profile_image %}
+                        <form action="{% url 'remove_profile_image' %}" method="post" class="mt-2">
+                            {% csrf_token %}
+                            <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700">Remove Photo</button>
+                        </form>
                         {% endif %}
 
-                        <!-- Upload Overlay -->
-                        <label for="profile-image-input"
-                            class="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full opacity-0 group-hover:opacity-100 cursor-pointer transition-opacity">
-                            <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"/>
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"/>
-                            </svg>
-                        </label>
-                    </div>
-
-                    <!-- Upload Form (Hidden) -->
-                    <form id="image-upload-form" action="{% url 'upload_profile_image' %}" method="post" enctype="multipart/form-data" class="hidden">
-                        {% csrf_token %}
-                        <input type="file" name="profile_image" id="profile-image-input"
-                            accept="image/png,image/jpeg,image/jpg"
-                            onchange="document.getElementById('image-upload-form').submit();">
-                    </form>
-
-                    <!-- Upload Button -->
-                    <label for="profile-image-input"
-                        class="mt-4 inline-flex items-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600 cursor-pointer transition-colors">
-                        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-                        </svg>
-                        Upload Photo
-                    </label>
-
-                    {% if user.profile_image %}
-                    <!-- Remove Button -->
-                    <form action="{% url 'remove_profile_image' %}" method="post" class="mt-2">
-                        {% csrf_token %}
-                        <button type="submit" class="text-sm text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300">
-                            Remove Photo
-                        </button>
-                    </form>
-                    {% endif %}
-
-                    <p class="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">
-                        PNG, JPG or JPEG<br>Max size: 5MB
-                    </p>
-                </div>
-            </div>
-
-            <!-- Account Info -->
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mt-6">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account Info</h2>
-                <div class="space-y-3 text-sm">
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Username:</span>
-                        <span class="ml-2 text-gray-900 dark:text-white font-medium">{{ user.username }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Email:</span>
-                        <span class="ml-2 text-gray-900 dark:text-white font-medium">{{ user.email }}</span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Role:</span>
-                        <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium
-                            {% if user.role == 'admin' %}bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300
-                            {% elif user.role == 'doctor' %}bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300
-                            {% else %}bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300{% endif %}">
-                            {{ user.get_role_display }}
-                        </span>
-                    </div>
-                    <div>
-                        <span class="text-gray-500 dark:text-gray-400">Member since:</span>
-                        <span class="ml-2 text-gray-900 dark:text-white font-medium">{{ user.created_at|date:"M d, Y" }}</span>
+                        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400 text-center">PNG, JPG or JPEG — Max 5MB</p>
                     </div>
                 </div>
+
+                <!-- Account Meta -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account</h2>
+                    <div class="space-y-3 text-sm">
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Role:</span>
+                            <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium
+                                {% if user.role == 'admin' %}bg-purple-100 dark:bg-purple-900/50 text-purple-800 dark:text-purple-300
+                                {% elif user.role == 'doctor' %}bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300
+                                {% else %}bg-blue-100 dark:bg-blue-900/50 text-blue-800 dark:text-blue-300{% endif %}">
+                                {{ user.get_role_display }}
+                            </span>
+                        </div>
+                        {% if user.role == 'doctor' %}
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Verification:</span>
+                            <span class="ml-2 px-2 py-0.5 rounded-full text-xs font-medium
+                                {% if profile.verification_status == 'verified' %}bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300
+                                {% elif profile.verification_status == 'rejected' %}bg-red-100 dark:bg-red-900/50 text-red-800 dark:text-red-300
+                                {% else %}bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300{% endif %}">
+                                {{ profile.verification_status|title }}
+                            </span>
+                        </div>
+                        {% endif %}
+                        <div>
+                            <span class="text-gray-500 dark:text-gray-400">Member since:</span>
+                            <span class="ml-2 text-gray-900 dark:text-white">{{ user.created_at|date:"M d, Y" }}</span>
+                        </div>
+                    </div>
+                </div>
+
             </div>
-        </div>
 
-        <!-- Profile Form Section (Right Column) -->
-        <div class="md:col-span-2">
-            <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-                <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6">Profile Details</h2>
+            <!-- Right column: all editable sections -->
+            <div class="md:col-span-2 space-y-6">
 
-                <form method="post" class="space-y-6">
-                    {% csrf_token %}
-
-                    {% if form %}
-                        {% for field in form %}
-                            <div>
-                                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                                    {{ field.label }}
+                <!-- Section: Personal Information (all roles) -->
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                        Personal Information
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {% for field in user_form %}
+                            {% if field.name in 'first_name,middle_name,last_name,username,email,phone' %}
+                            <div {% if field.name == 'email' or field.name == 'username' %}class="sm:col-span-1"{% endif %}>
+                                <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                    {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
                                 </label>
                                 {{ field }}
                                 {% if field.errors %}
-                                    <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
-                                {% endif %}
-                                {% if field.help_text %}
-                                    <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>
+                                <p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
                                 {% endif %}
                             </div>
+                            {% endif %}
                         {% endfor %}
+                    </div>
 
-                        <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
-                            <button type="submit" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 font-semibold transition-colors">
-                                Save Changes
-                            </button>
+                    <!-- Notification preferences -->
+                    <div class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-3">Notification Preferences</h3>
+                        <div class="space-y-2">
+                            {% for field in user_form %}
+                                {% if field.name == 'email_notifications' or field.name == 'phone_notifications' %}
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    {{ field }}
+                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ field.label }}</span>
+                                    {% if field.errors %}
+                                    <p class="text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>
+                                    {% endif %}
+                                </label>
+                                {% endif %}
+                            {% endfor %}
                         </div>
-                    {% else %}
-                        <p class="text-gray-600 dark:text-gray-400">Please complete your profile to continue.</p>
+                    </div>
+                </div>
+
+                {% if profile_form %}
+
+                    {% if user.role == 'patient' %}
+
+                    <!-- Section: Health & Demographics -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Health & Demographics
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'date_of_birth,gender,gender_other,address,preferred_language' %}
+                                <div {% if field.name == 'address' %}class="sm:col-span-2"{% endif %}>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                    {% if field.help_text %}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Section: Medical History -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Medical History
+                        </h2>
+                        <div class="space-y-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'medical_history,allergies,current_medications' %}
+                                <div>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Section: Insurance -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Insurance
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'insurance_provider,insurance_policy_number' %}
+                                <div>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Section: Emergency Contact -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Emergency Contact
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'emergency_contact_name,emergency_contact_phone' %}
+                                <div>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    {% elif user.role == 'doctor' %}
+
+                    <!-- Section: Professional Details -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-6 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Professional Details
+                        </h2>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'date_of_birth,gender,gender_other,specialization,years_of_experience,consultation_fee,languages' %}
+                                <div {% if field.name in 'bio,education' %}class="sm:col-span-2"{% endif %}>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                    {% if field.help_text %}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                            {% for field in profile_form %}
+                                {% if field.name in 'bio,education' %}
+                                <div class="sm:col-span-2">
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                        <!-- Checkboxes -->
+                        <div class="mt-4 space-y-2">
+                            {% for field in profile_form %}
+                                {% if field.name in 'is_accepting_patients,offers_second_opinions' %}
+                                <label class="flex items-center gap-3 cursor-pointer">
+                                    {{ field }}
+                                    <span class="text-sm text-gray-700 dark:text-gray-300">{{ field.label }}</span>
+                                </label>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Section: Credentials -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Credentials
+                        </h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">
+                            Your license and NPI serve different purposes — both are required for billing.
+                        </p>
+                        <div class="space-y-6">
+                            {% for field in profile_form %}
+                                {% if field.name == 'medical_license_number' %}
+                                <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                                        {{ field.label }}
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                        <span class="inline-flex items-center gap-1 font-medium text-amber-600 dark:text-amber-400">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm-1 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                                            State-specific &amp; renewable
+                                        </span>
+                                        — {{ field.help_text }}
+                                    </p>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                                {% if field.name == 'npi_number' %}
+                                <div class="rounded-lg border border-gray-200 dark:border-gray-700 p-4">
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-semibold text-gray-800 dark:text-gray-200 mb-1">
+                                        {{ field.label }}
+                                    </label>
+                                    <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">
+                                        <span class="inline-flex items-center gap-1 font-medium text-blue-600 dark:text-blue-400">
+                                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v4a1 1 0 102 0V7zm-1 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/></svg>
+                                            Federal &amp; permanent (HIPAA)
+                                        </span>
+                                        — {{ field.help_text }}
+                                    </p>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Section: Banking -->
+                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
+                        <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-2 pb-2 border-b border-gray-200 dark:border-gray-700">
+                            Bank Information
+                        </h2>
+                        <p class="text-sm text-gray-500 dark:text-gray-400 mb-6">Used for payment disbursements. Stored securely.</p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            {% for field in profile_form %}
+                                {% if field.name in 'bank_name,account_holder_name,account_number,routing_number' %}
+                                <div>
+                                    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+                                    {{ field }}
+                                    {% if field.errors %}<p class="mt-1 text-sm text-red-600 dark:text-red-400">{{ field.errors.0 }}</p>{% endif %}
+                                    {% if field.help_text %}<p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ field.help_text }}</p>{% endif %}
+                                </div>
+                                {% endif %}
+                            {% endfor %}
+                        </div>
+                    </div>
+
                     {% endif %}
-                </form>
+                {% endif %}
+
+                <!-- Save Button -->
+                <div class="flex justify-end pt-2">
+                    <button type="submit"
+                        class="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 font-semibold transition-colors">
+                        Save Changes
+                    </button>
+                </div>
+
             </div>
         </div>
-    </div>
+    </form>
 </div>
 {% endblock %}

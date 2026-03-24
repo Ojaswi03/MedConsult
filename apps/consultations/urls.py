@@ -8,4 +8,5 @@ urlpatterns = [
     path('waiting/<int:appointment_id>/', views.waiting_room, name='waiting_room'),
     path('end/<int:appointment_id>/', views.end_consultation_view, name='end'),
     path('status/<int:appointment_id>/', views.consultation_status, name='status'),
+    path('notify-waiting/<int:appointment_id>/', views.patient_notify_waiting, name='notify_waiting'),
 ]

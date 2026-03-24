@@ -70,9 +70,56 @@
                     <p class="text-gray-700 dark:text-gray-300">{{ doctor.education }}</p>
                 </div>
                 {% endif %}
+
+                {% if doctor.languages %}
+                <div class="mt-4">
+                    <h3 class="font-semibold mb-2 text-gray-900 dark:text-white">Languages</h3>
+                    <div class="flex flex-wrap gap-2">
+                        {% for lang in doctor.languages.split %}
+                        <span class="px-2 py-1 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-full text-sm">{{ lang|cut:"," }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
+
+        <!-- Action Buttons -->
+        <div class="flex flex-wrap gap-3 mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <a href="{% url 'messaging:start_direct_doctor' doctor.id %}"
+               class="inline-flex items-center gap-2 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-200 px-4 py-2 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 text-sm font-medium transition-colors">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+                </svg>
+                Message Doctor
+            </a>
+        </div>
     </div>
+
+    <!-- Waitlist Section (shown when no available slots) -->
+    {% if not available_slots %}
+    <div class="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg p-6 mb-8">
+        <h3 class="font-semibold text-yellow-800 dark:text-yellow-200 mb-2">No slots currently available</h3>
+        <p class="text-yellow-700 dark:text-yellow-300 text-sm mb-4">Join the waitlist and we'll notify you when a slot opens up.</p>
+        <div class="flex gap-3">
+            {% if request.user in doctor.waitlist_entries.values_list %}
+            <form method="post" action="{% url 'patient:leave_waitlist' doctor.id %}">
+                {% csrf_token %}
+                <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm font-medium">
+                    Leave Waitlist
+                </button>
+            </form>
+            {% else %}
+            <form method="post" action="{% url 'patient:join_waitlist' doctor.id %}">
+                {% csrf_token %}
+                <button type="submit" class="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 text-sm font-medium">
+                    Join Waitlist
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Available Slots with Real-time Updates -->
     <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-8">

@@ -39,7 +39,8 @@ def checkout(request, appointment_id):
         return redirect('patient:patient_appointments')
 
     # Check if slot has a price
-    if not appointment.slot.price or appointment.slot.price <= 0:
+    slot_price = appointment.slot.get_price()
+    if not slot_price or slot_price <= 0:
         messages.info(request, 'This appointment is free. No payment required.')
         return redirect('patient:patient_appointments')
 

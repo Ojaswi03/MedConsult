@@ -1,0 +1,187 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}My Analytics - MedConsult{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+{% endblock %}
+
+{% block content %}
+<div>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">My Analytics</h1>
+
+    <!-- Stats Grid -->
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 text-center">
+            <p class="text-3xl font-bold text-blue-600 dark:text-blue-400">{{ analytics.total_appointments }}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Total Appointments</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 text-center">
+            <p class="text-3xl font-bold text-green-600 dark:text-green-400">{{ analytics.completion_rate }}%</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Completion Rate</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 text-center">
+            <p class="text-3xl font-bold text-yellow-500 dark:text-yellow-400">{{ analytics.avg_rating }}<span class="text-lg">&#9733;</span></p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Avg Rating ({{ analytics.review_count }} reviews)</p>
+        </div>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-5 text-center">
+            <p class="text-3xl font-bold text-purple-600 dark:text-purple-400">{{ analytics.upcoming_available_slots }}</p>
+            <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Available Slots</p>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <!-- Monthly Volume Chart -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Monthly Appointments (Last 6 Months)</h2>
+            <canvas id="monthlyChart" height="200"></canvas>
+        </div>
+
+        <!-- Appointment Status Breakdown -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Appointment Status</h2>
+            <canvas id="statusChart" height="200"></canvas>
+        </div>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Busiest Days -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Busiest Days</h2>
+            {% if analytics.busiest_days %}
+            <div class="space-y-2">
+                {% for day in analytics.busiest_days %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-700 dark:text-gray-300 w-24">{{ day.day }}</span>
+                    <div class="flex-1 mx-3 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                        <div class="bg-blue-500 h-2 rounded-full" style="width: {{ day.count|floatformat:0 }}0%"></div>
+                    </div>
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ day.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400 text-sm">No completed appointments yet.</p>
+            {% endif %}
+        </div>
+
+        <!-- Appointment Type Breakdown -->
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">By Appointment Type</h2>
+            {% if analytics.type_breakdown %}
+            <div class="space-y-3">
+                {% for item in analytics.type_breakdown %}
+                <div class="flex items-center justify-between">
+                    <span class="text-sm font-medium text-gray-700 dark:text-gray-300 capitalize">{{ item.slot__appointment_type }}</span>
+                    <span class="px-2 py-1 bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 rounded text-sm font-semibold">{{ item.count }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p class="text-gray-500 dark:text-gray-400 text-sm">No appointment data yet.</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Patient Reviews -->
+    <div class="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Patient Reviews</h2>
+        {% if reviews %}
+        <div class="space-y-4">
+            {% for review in reviews %}
+            <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="flex items-center space-x-3">
+                        <div class="flex text-yellow-400">
+                            {% for i in "12345" %}
+                            <svg class="w-4 h-4 {% if forloop.counter <= review.rating %}fill-current{% else %}text-gray-300 dark:text-gray-600 fill-current{% endif %}" viewBox="0 0 20 20">
+                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/>
+                            </svg>
+                            {% endfor %}
+                        </div>
+                        <span class="text-sm text-gray-500 dark:text-gray-400">{{ review.appointment.patient.get_display_name }}</span>
+                    </div>
+                    <span class="text-xs text-gray-400 dark:text-gray-500">{{ review.created_at|date:"M d, Y" }}</span>
+                </div>
+                {% if review.comment %}
+                <p class="text-gray-700 dark:text-gray-300 text-sm mb-3">{{ review.comment }}</p>
+                {% endif %}
+                {% if review.response_text %}
+                <div class="mt-2 pl-4 border-l-2 border-blue-400 dark:border-blue-600">
+                    <p class="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Your response:</p>
+                    <p class="text-sm text-gray-600 dark:text-gray-400">{{ review.response_text }}</p>
+                </div>
+                {% else %}
+                <form method="post" action="{% url 'doctor:respond_to_review' review.id %}" class="mt-2">
+                    {% csrf_token %}
+                    <div class="flex gap-2">
+                        <input type="text" name="response_text" placeholder="Write a response..." required
+                               class="flex-1 text-sm px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                        <button type="submit" class="px-4 py-2 bg-blue-600 text-white text-sm rounded-lg hover:bg-blue-700">
+                            Reply
+                        </button>
+                    </div>
+                </form>
+                {% endif %}
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-gray-500 dark:text-gray-400 text-sm">No reviews yet.</p>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+const isDark = document.documentElement.classList.contains('dark');
+const gridColor = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.05)';
+const labelColor = isDark ? '#9ca3af' : '#6b7280';
+
+// Monthly chart
+const monthlyData = {{ analytics.monthly_volume|safe }};
+new Chart(document.getElementById('monthlyChart'), {
+    type: 'bar',
+    data: {
+        labels: monthlyData.map(d => {
+            const date = new Date(d.month);
+            return date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' });
+        }),
+        datasets: [{
+            label: 'Appointments',
+            data: monthlyData.map(d => d.count),
+            backgroundColor: 'rgba(59,130,246,0.7)',
+            borderColor: 'rgba(59,130,246,1)',
+            borderWidth: 1,
+            borderRadius: 4,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: {
+            y: { beginAtZero: true, ticks: { color: labelColor }, grid: { color: gridColor } },
+            x: { ticks: { color: labelColor }, grid: { display: false } }
+        }
+    }
+});
+
+// Status donut chart
+new Chart(document.getElementById('statusChart'), {
+    type: 'doughnut',
+    data: {
+        labels: ['Completed', 'Cancelled', 'Scheduled'],
+        datasets: [{
+            data: [{{ analytics.completed_appointments }}, {{ analytics.cancelled_appointments }}, {{ analytics.scheduled_appointments }}],
+            backgroundColor: ['rgba(34,197,94,0.8)', 'rgba(239,68,68,0.8)', 'rgba(59,130,246,0.8)'],
+            borderWidth: 0,
+        }]
+    },
+    options: {
+        responsive: true,
+        plugins: {
+            legend: { position: 'bottom', labels: { color: labelColor } }
+        }
+    }
+});
+</script>
+{% endblock %}

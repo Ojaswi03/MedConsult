@@ -45,4 +45,15 @@ urlpatterns = [
 
     # Audit
     path('audit/', views.audit_logs, name='audit_logs'),
+
+    # Bulk operations
+    path('verify/bulk-verify/', views.bulk_verify_doctors_view, name='bulk_verify'),
+    path('verify/bulk-reject/', views.bulk_reject_doctors_view, name='bulk_reject'),
+
+    # New admin pages
+    path('waitlist/', views.waitlist_overview, name='waitlist_overview'),
+    path('referrals/', views.referral_tracking, name='referral_tracking'),
+    path('health-records/logs/', views.health_record_logs, name='health_record_logs'),
+    path('financial/insurance/', views.insurance_breakdown, name='insurance_breakdown'),
+    path('appointments/<int:appointment_id>/refund/', views.admin_refund_appointment, name='refund_appointment'),
 ]

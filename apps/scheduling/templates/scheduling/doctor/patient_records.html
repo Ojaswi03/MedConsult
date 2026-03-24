@@ -1,0 +1,58 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Patient Records - MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <a href="{% url 'doctor:doctor_schedule' %}" class="inline-flex items-center text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 mb-4">
+        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+        </svg>
+        Back to Schedule
+    </a>
+
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Health Records</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">Shared by {{ patient.get_display_name }}</p>
+
+    {% if records %}
+    <div class="space-y-4">
+        {% for record in records %}
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-5 border border-gray-200 dark:border-gray-700">
+            <div class="flex justify-between items-start">
+                <div class="flex-grow">
+                    <div class="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 class="font-semibold text-gray-900 dark:text-white text-lg">{{ record.title }}</h3>
+                        <span class="px-2 py-0.5 text-xs rounded-full bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300">
+                            {{ record.get_record_type_display }}
+                        </span>
+                    </div>
+                    {% if record.description %}
+                    <p class="text-gray-600 dark:text-gray-400 mb-2">{{ record.description }}</p>
+                    {% endif %}
+                    <div class="flex flex-wrap gap-4 text-sm text-gray-500 dark:text-gray-500">
+                        {% if record.date_of_record %}
+                        <span>Record date: {{ record.date_of_record|date:"M d, Y" }}</span>
+                        {% endif %}
+                        <span>Uploaded: {{ record.created_at|date:"M d, Y" }}</span>
+                    </div>
+                </div>
+                {% if record.file %}
+                <a href="{{ record.file.url }}" target="_blank"
+                   class="text-blue-600 dark:text-blue-400 hover:underline text-sm flex-shrink-0 ml-4">
+                    Download File
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-12 text-center">
+        <svg class="w-16 h-16 text-gray-300 dark:text-gray-600 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+        </svg>
+        <p class="text-gray-500 dark:text-gray-400">{{ patient.get_display_name }} has not shared any health records with you.</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

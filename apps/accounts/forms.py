@@ -380,6 +380,39 @@ class DoctorStep6Form(forms.Form):
 
 # ============ PROFILE FORMS (for editing existing profiles) ============
 
+class UserInfoForm(forms.ModelForm):
+    """Editable user-level fields for all roles."""
+
+    class Meta:
+        model = User
+        fields = ['first_name', 'middle_name', 'last_name', 'username', 'email', 'phone',
+                  'email_notifications', 'phone_notifications']
+        widgets = {
+            'first_name': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'middle_name': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'last_name': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'username': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'email': forms.EmailInput(attrs={'class': INPUT_CLASS}),
+            'phone': forms.TextInput(attrs={'class': INPUT_CLASS, 'placeholder': '(555) 123-4567'}),
+            'email_notifications': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'phone_notifications': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+        }
+
+    def clean_username(self):
+        username = self.cleaned_data.get('username')
+        qs = User.objects.filter(username__iexact=username).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('This username is already taken.')
+        return username
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        qs = User.objects.filter(email__iexact=email).exclude(pk=self.instance.pk)
+        if qs.exists():
+            raise forms.ValidationError('An account with this email already exists.')
+        return email
+
+
 class PatientProfileForm(forms.ModelForm):
     """Patient profile form for editing."""
 
@@ -387,19 +420,26 @@ class PatientProfileForm(forms.ModelForm):
         model = PatientProfile
         fields = ['date_of_birth', 'gender', 'gender_other', 'address', 'emergency_contact_name',
                   'emergency_contact_phone', 'medical_history', 'allergies', 'current_medications',
-                  'insurance_provider', 'insurance_policy_number']
+                  'insurance_provider', 'insurance_policy_number', 'preferred_language']
         widgets = {
             'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': INPUT_CLASS}),
             'gender': forms.Select(attrs={'class': INPUT_CLASS}),
-            'gender_other': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'gender_other': forms.TextInput(attrs={'class': INPUT_CLASS, 'placeholder': 'Please specify'}),
             'address': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 3}),
             'emergency_contact_name': forms.TextInput(attrs={'class': INPUT_CLASS}),
             'emergency_contact_phone': forms.TextInput(attrs={'class': INPUT_CLASS}),
-            'medical_history': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 4}),
-            'allergies': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 2}),
-            'current_medications': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 2}),
-            'insurance_provider': forms.TextInput(attrs={'class': INPUT_CLASS}),
-            'insurance_policy_number': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'medical_history': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 4,
+                'placeholder': 'List any medical conditions, past surgeries, chronic illnesses, etc.'}),
+            'allergies': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 2,
+                'placeholder': 'List any allergies (medications, food, environmental)'}),
+            'current_medications': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 2,
+                'placeholder': 'List current medications and dosages'}),
+            'insurance_provider': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'e.g., Blue Cross Blue Shield, Aetna'}),
+            'insurance_policy_number': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'Policy/Member ID number'}),
+            'preferred_language': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'e.g., English, Spanish'}),
         }
 
 
@@ -408,14 +448,72 @@ class DoctorProfileForm(forms.ModelForm):
 
     class Meta:
         model = DoctorProfile
-        fields = ['medical_license_number', 'specialization', 'years_of_experience',
-                  'bio', 'education', 'consultation_fee', 'is_accepting_patients']
-        widgets = {
-            'medical_license_number': forms.TextInput(attrs={'class': INPUT_CLASS}),
-            'specialization': forms.TextInput(attrs={'class': INPUT_CLASS}),
-            'years_of_experience': forms.NumberInput(attrs={'class': INPUT_CLASS}),
-            'bio': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 4}),
-            'education': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 3}),
-            'consultation_fee': forms.NumberInput(attrs={'class': INPUT_CLASS}),
-            'is_accepting_patients': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+        fields = [
+            # Personal
+            'date_of_birth', 'gender', 'gender_other',
+            # Professional
+            'specialization', 'years_of_experience', 'bio', 'education',
+            'languages', 'consultation_fee', 'is_accepting_patients', 'offers_second_opinions',
+            # Credentials
+            'medical_license_number', 'npi_number',
+            # Banking
+            'bank_name', 'account_holder_name', 'account_number', 'routing_number',
+        ]
+        labels = {
+            'medical_license_number': 'Medical License Number',
+            'npi_number': 'NPI Number (National Provider Identifier)',
+            'offers_second_opinions': 'Offer Second Opinion Consultations',
         }
+        help_texts = {
+            'medical_license_number': (
+                'State-specific credential that legally authorizes you to practice medicine. '
+                'Issued by your state medical board. Must be renewed periodically.'
+            ),
+            'npi_number': (
+                'Permanent 10-digit federal identifier (HIPAA-mandated) used for billing, '
+                'claims, and administrative transactions nationwide. Issued once by CMS — '
+                'it never changes even if you move states.'
+            ),
+            'languages': 'Comma-separated list, e.g.: English, Spanish, French',
+            'routing_number': 'Must be exactly 9 digits.',
+        }
+        widgets = {
+            'date_of_birth': forms.DateInput(attrs={'type': 'date', 'class': INPUT_CLASS}),
+            'gender': forms.Select(attrs={'class': INPUT_CLASS}),
+            'gender_other': forms.TextInput(attrs={'class': INPUT_CLASS, 'placeholder': 'Please specify'}),
+            'specialization': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'e.g., Cardiology, Family Medicine, Pediatrics'}),
+            'years_of_experience': forms.NumberInput(attrs={'class': INPUT_CLASS}),
+            'bio': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 4,
+                'placeholder': 'Brief professional biography visible to patients'}),
+            'education': forms.Textarea(attrs={'class': INPUT_CLASS, 'rows': 3,
+                'placeholder': 'e.g., MD from Harvard Medical School, 2015\nResidency at Johns Hopkins, 2019'}),
+            'languages': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'e.g., English, Spanish, French'}),
+            'consultation_fee': forms.NumberInput(attrs={'class': INPUT_CLASS, 'step': '0.01'}),
+            'is_accepting_patients': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'offers_second_opinions': forms.CheckboxInput(attrs={'class': CHECKBOX_CLASS}),
+            'medical_license_number': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'State-issued license number'}),
+            'npi_number': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': '10-digit NPI number', 'maxlength': '10', 'pattern': r'\d{10}'}),
+            'bank_name': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'e.g., Chase, Bank of America'}),
+            'account_holder_name': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': 'Name as it appears on account'}),
+            'account_number': forms.TextInput(attrs={'class': INPUT_CLASS}),
+            'routing_number': forms.TextInput(attrs={'class': INPUT_CLASS,
+                'placeholder': '9-digit routing number', 'maxlength': '9'}),
+        }
+
+    def clean_npi_number(self):
+        npi = self.cleaned_data.get('npi_number', '').strip()
+        if npi and (not npi.isdigit() or len(npi) != 10):
+            raise forms.ValidationError('NPI must be exactly 10 digits.')
+        return npi
+
+    def clean_routing_number(self):
+        routing = self.cleaned_data.get('routing_number', '').strip()
+        if routing and (not routing.isdigit() or len(routing) != 9):
+            raise forms.ValidationError('Routing number must be exactly 9 digits.')
+        return routing

@@ -77,6 +77,7 @@ def join_consultation(request, appointment_id):
 def waiting_room(request, appointment_id):
     """
     Waiting room before joining the video consultation.
+    Shows countdown and allows patient to notify doctor of arrival.
     """
     appointment = get_object_or_404(Appointment, id=appointment_id)
 
@@ -85,9 +86,34 @@ def waiting_room(request, appointment_id):
         messages.error(request, 'You do not have access to this consultation.')
         return redirect('dashboard:home')
 
+    now = timezone.now()
+    time_until_start_seconds = max(0, int((appointment.start_datetime - now).total_seconds()))
+
     return render(request, 'consultations/waiting_room.html', {
         'appointment': appointment,
+        'time_until_start_seconds': time_until_start_seconds,
+        'is_patient': request.user == appointment.patient,
     })
+
+
+@login_required
+@require_POST
+def patient_notify_waiting(request, appointment_id):
+    """
+    Patient notifies doctor that they are in the waiting room.
+    """
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
+
+    from apps.accounts.services import create_notification
+    create_notification(
+        appointment.doctor.user,
+        'patient_waiting',
+        f"{request.user.get_display_name()} is in the waiting room",
+        f"Your patient {request.user.get_display_name()} has arrived and is waiting for appointment at {appointment.start_datetime.strftime('%I:%M %p')}.",
+        link=f"/consultation/join/{appointment.id}/"
+    )
+
+    return JsonResponse({'notified': True})
 
 
 @login_required

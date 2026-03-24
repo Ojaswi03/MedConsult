@@ -28,7 +28,7 @@ def create_checkout_session(appointment, success_url, cancel_url, request=None):
 
     # Get appointment price from slot
     slot = appointment.slot
-    amount = slot.price or Decimal('0.00')
+    amount = slot.get_price() or Decimal('0.00')
 
     if amount <= 0:
         raise ValueError("Cannot create checkout for free appointments")

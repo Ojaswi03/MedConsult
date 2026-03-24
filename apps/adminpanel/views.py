@@ -617,3 +617,126 @@ def admin_cancel_appointment(request, appointment_id):
         return render(request, 'adminpanel/partials/_patient_appointments.html', result)
 
     return redirect('adminpanel:patient_manage', patient_id=patient_id)
+
+
+# ============ BULK DOCTOR OPERATIONS ============
+
+@admin_required
+@require_POST
+def bulk_verify_doctors_view(request):
+    """Bulk verify multiple doctors."""
+    doctor_ids = request.POST.getlist('doctor_ids')
+    if not doctor_ids:
+        messages.error(request, 'No doctors selected.')
+        return redirect('adminpanel:verification_queue')
+
+    try:
+        count = services.bulk_verify_doctors(
+            doctor_ids=[int(d) for d in doctor_ids],
+            admin=request.user,
+            ip_address=services.get_client_ip(request)
+        )
+        messages.success(request, f'{count} doctors verified successfully.')
+    except Exception as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:verification_queue')
+
+
+@admin_required
+@require_POST
+def bulk_reject_doctors_view(request):
+    """Bulk reject multiple doctors."""
+    doctor_ids = request.POST.getlist('doctor_ids')
+    reason = request.POST.get('reason', '')
+
+    if not doctor_ids:
+        messages.error(request, 'No doctors selected.')
+        return redirect('adminpanel:verification_queue')
+
+    try:
+        count = services.bulk_reject_doctors(
+            doctor_ids=[int(d) for d in doctor_ids],
+            reason=reason,
+            admin=request.user,
+            ip_address=services.get_client_ip(request)
+        )
+        messages.success(request, f'{count} doctors rejected.')
+    except Exception as e:
+        messages.error(request, str(e))
+
+    return redirect('adminpanel:verification_queue')
+
+
+# ============ WAITLIST OVERVIEW ============
+
+@admin_required
+def waitlist_overview(request):
+    """Admin view: Waitlist overview per doctor."""
+    waitlist_data = selectors.get_waitlist_overview()
+    return render(request, 'adminpanel/waitlist_overview.html', {
+        'waitlist_data': waitlist_data,
+    })
+
+
+# ============ REFERRAL TRACKING ============
+
+@admin_required
+def referral_tracking(request):
+    """Admin view: Referral conversion tracking."""
+    stats = selectors.get_referral_tracking()
+    return render(request, 'adminpanel/referral_tracking.html', {
+        'stats': stats,
+    })
+
+
+# ============ HEALTH RECORD LOGS ============
+
+@admin_required
+def health_record_logs(request):
+    """Admin view: HIPAA health record access audit logs."""
+    page = int(request.GET.get('page', 1))
+    offset = (page - 1) * 50
+    data = selectors.get_health_record_access_logs(limit=50, offset=offset)
+    return render(request, 'adminpanel/health_record_logs.html', {
+        'logs': data['logs'],
+        'total': data['total'],
+        'page': page,
+        'has_more': data['has_more'],
+    })
+
+
+# ============ INSURANCE BREAKDOWN ============
+
+@admin_required
+def insurance_breakdown(request):
+    """Admin view: Insurance provider breakdown."""
+    from apps.scheduling.selectors import get_insurance_breakdown_for_admin
+    breakdown = get_insurance_breakdown_for_admin()
+    return render(request, 'adminpanel/insurance_breakdown.html', {
+        'breakdown': breakdown,
+    })
+
+
+# ============ ADMIN REFUND ============
+
+@admin_required
+@require_POST
+def admin_refund_appointment(request, appointment_id):
+    """Admin processes refund for an appointment."""
+    reason_text = request.POST.get('reason_text', '')
+    try:
+        refund = services.admin_process_refund(
+            appointment_id=appointment_id,
+            admin=request.user,
+            reason='appointment_cancelled',
+            reason_text=reason_text,
+            ip_address=services.get_client_ip(request)
+        )
+        messages.success(request, f'Refund of ${refund.amount} processed successfully.')
+    except ValueError as e:
+        messages.error(request, str(e))
+    except Exception as e:
+        messages.error(request, f'Refund failed: {str(e)}')
+
+    return redirect('adminpanel:patient_manage', patient_id=request.POST.get('patient_id', 0))
