@@ -1,0 +1,402 @@
+{% extends "layouts/admin.html" %}
+
+{% block title %}Knowledge Graph — MedConsult{% endblock %}
+
+{% block content %}
+<div class="flex flex-col h-full" style="height: calc(100vh - 64px);">
+
+  {# ── Header ──────────────────────────────────────────────────── #}
+  <div class="flex items-center justify-between px-6 py-4 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
+    <div>
+      <h1 class="text-xl font-bold text-gray-900 dark:text-white">Knowledge Graph</h1>
+      <p class="text-sm text-gray-500 dark:text-gray-400" id="meta-line">Loading…</p>
+    </div>
+    <div class="flex items-center gap-3">
+      <span id="refresh-badge" class="text-xs text-gray-400 dark:text-gray-500">Auto-refresh: 60s</span>
+      <button onclick="exportJSON()" class="px-3 py-1.5 text-sm bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition">Export JSON</button>
+      <button onclick="resetLayout()" class="px-3 py-1.5 text-sm bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 rounded-lg transition">Reset Layout</button>
+    </div>
+  </div>
+
+  <div class="flex flex-1 overflow-hidden">
+
+    {# ── Left filter panel ───────────────────────────────────────── #}
+    <div class="w-56 flex-shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 overflow-y-auto p-4">
+      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-3">Filter by Type</p>
+      <div id="filter-list" class="space-y-1"></div>
+
+      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-5 mb-2">Search</p>
+      <input id="search-input" type="text" placeholder="Label or ID…"
+             class="w-full px-2 py-1.5 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+             oninput="handleSearch(this.value)">
+
+      <p class="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mt-5 mb-2">Summary</p>
+      <div id="summary-panel" class="space-y-1 text-xs text-gray-600 dark:text-gray-400"></div>
+    </div>
+
+    {# ── Graph canvas ────────────────────────────────────────────── #}
+    <div id="cy" class="flex-1 bg-gray-50 dark:bg-gray-950"></div>
+
+    {# ── Right detail panel ──────────────────────────────────────── #}
+    <div id="detail-panel" class="w-64 flex-shrink-0 bg-white dark:bg-gray-900 border-l border-gray-200 dark:border-gray-700 overflow-y-auto p-4 hidden">
+      <div class="flex items-center justify-between mb-3">
+        <p class="text-sm font-semibold text-gray-900 dark:text-white">Node Detail</p>
+        <button onclick="closeDetail()" class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+          </svg>
+        </button>
+      </div>
+      <div id="detail-content" class="space-y-2 text-sm"></div>
+    </div>
+
+  </div>
+</div>
+
+{# ── Cytoscape.js CDN ─────────────────────────────────────────────── #}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.29.2/cytoscape.min.js"></script>
+
+<script>
+// ── Constants ───────────────────────────────────────────────────────────────
+const API_URL = '/api/v1/knowledge-graph/';
+const REFRESH_MS = 60000;
+
+const TYPE_COLORS = {
+  project:       { bg: '#7c3aed', border: '#5b21b6', text: '#fff' },  // purple
+  app:           { bg: '#2563eb', border: '#1d4ed8', text: '#fff' },  // blue
+  user:          { bg: '#16a34a', border: '#15803d', text: '#fff' },  // green (default)
+  appointment:   { bg: '#ea580c', border: '#c2410c', text: '#fff' },  // orange
+  slot:          { bg: '#ca8a04', border: '#a16207', text: '#fff' },  // yellow
+  payment:       { bg: '#059669', border: '#047857', text: '#fff' },  // emerald
+  conversation:  { bg: '#4f46e5', border: '#4338ca', text: '#fff' },  // indigo
+  git_commit:    { bg: '#6b7280', border: '#4b5563', text: '#fff' },  // gray
+  system_health: { bg: '#dc2626', border: '#b91c1c', text: '#fff' },  // red
+};
+
+// user sub-colors by role
+const ROLE_COLORS = {
+  patient: { bg: '#16a34a', border: '#15803d' },
+  doctor:  { bg: '#0891b2', border: '#0e7490' },
+  admin:   { bg: '#9333ea', border: '#7e22ce' },
+};
+
+function nodeColor(node) {
+  const t = node.data('type');
+  if (t === 'user') {
+    const role = node.data('role') || node.data('label');
+    return ROLE_COLORS[role] || TYPE_COLORS.user;
+  }
+  return TYPE_COLORS[t] || { bg: '#6b7280', border: '#4b5563', text: '#fff' };
+}
+
+// ── State ────────────────────────────────────────────────────────────────────
+let cy = null;
+let graphData = null;
+let activeFilters = new Set();
+let refreshTimer = null;
+let countdown = REFRESH_MS / 1000;
+
+// ── Cytoscape init ───────────────────────────────────────────────────────────
+function initCy(elements) {
+  if (cy) cy.destroy();
+
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements,
+    style: [
+      {
+        selector: 'node',
+        style: {
+          'background-color': ele => nodeColor(ele).bg,
+          'border-color': ele => nodeColor(ele).border,
+          'border-width': 2,
+          'label': 'data(label)',
+          'color': '#fff',
+          'text-valign': 'center',
+          'text-halign': 'center',
+          'font-size': '9px',
+          'font-weight': 600,
+          'text-wrap': 'ellipsis',
+          'text-max-width': '70px',
+          'width': ele => sizeForType(ele.data('type')),
+          'height': ele => sizeForType(ele.data('type')),
+          'text-outline-width': 1,
+          'text-outline-color': ele => nodeColor(ele).border,
+        },
+      },
+      {
+        selector: 'node:selected',
+        style: {
+          'border-width': 4,
+          'border-color': '#f59e0b',
+        },
+      },
+      {
+        selector: 'node.faded',
+        style: { opacity: 0.15 },
+      },
+      {
+        selector: 'edge',
+        style: {
+          'width': 1.5,
+          'line-color': '#94a3b8',
+          'target-arrow-color': '#94a3b8',
+          'target-arrow-shape': 'triangle',
+          'curve-style': 'bezier',
+          'label': 'data(label)',
+          'font-size': '7px',
+          'color': '#94a3b8',
+          'text-rotation': 'autorotate',
+          'text-margin-y': -6,
+        },
+      },
+      {
+        selector: 'edge.faded',
+        style: { opacity: 0.05 },
+      },
+    ],
+    layout: {
+      name: 'cose',
+      animate: true,
+      animationDuration: 600,
+      nodeRepulsion: 8000,
+      idealEdgeLength: 100,
+      edgeElasticity: 0.45,
+      gravity: 0.25,
+      fit: true,
+      padding: 40,
+    },
+    wheelSensitivity: 0.3,
+  });
+
+  cy.on('tap', 'node', evt => showDetail(evt.target));
+  cy.on('tap', evt => { if (evt.target === cy) closeDetail(); });
+}
+
+function sizeForType(type) {
+  const sizes = { project: 60, app: 45, system_health: 45, git_commit: 28 };
+  return sizes[type] || 34;
+}
+
+// ── Data load ────────────────────────────────────────────────────────────────
+async function loadGraph() {
+  try {
+    const resp = await fetch(API_URL, {
+      headers: { 'X-CSRFToken': getCookie('csrftoken') },
+      credentials: 'same-origin',
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+    graphData = await resp.json();
+    renderGraph(graphData);
+    updateMeta(graphData);
+    updateSummary(graphData);
+    buildFilters(graphData);
+    scheduleRefresh();
+  } catch (e) {
+    document.getElementById('meta-line').textContent = 'Error loading graph: ' + e.message;
+  }
+}
+
+function renderGraph(data) {
+  const elements = [];
+
+  (data.nodes || []).forEach(n => {
+    elements.push({
+      group: 'nodes',
+      data: {
+        id: n.id,
+        label: n.label || n.type,
+        type: n.type,
+        ...n.data,
+      },
+    });
+  });
+
+  (data.edges || []).forEach(e => {
+    elements.push({
+      group: 'edges',
+      data: {
+        id: e.id,
+        source: e.source,
+        target: e.target,
+        label: e.label || '',
+      },
+    });
+  });
+
+  // Remove edges whose source/target nodes don't exist
+  const nodeIds = new Set((data.nodes || []).map(n => n.id));
+  const validElements = elements.filter(el => {
+    if (el.group === 'edges') {
+      return nodeIds.has(el.data.source) && nodeIds.has(el.data.target);
+    }
+    return true;
+  });
+
+  initCy(validElements);
+  applyFilters();
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+function buildFilters(data) {
+  const counts = {};
+  (data.nodes || []).forEach(n => {
+    counts[n.type] = (counts[n.type] || 0) + 1;
+  });
+
+  // Default: all active
+  Object.keys(counts).forEach(t => activeFilters.add(t));
+
+  const container = document.getElementById('filter-list');
+  container.innerHTML = '';
+  Object.entries(counts).sort((a, b) => b[1] - a[1]).forEach(([type, count]) => {
+    const color = (TYPE_COLORS[type] || { bg: '#6b7280' }).bg;
+    const div = document.createElement('div');
+    div.className = 'flex items-center gap-2 cursor-pointer select-none py-0.5';
+    div.innerHTML = `
+      <span class="w-3 h-3 rounded-full flex-shrink-0" style="background:${color}"></span>
+      <span class="text-xs text-gray-700 dark:text-gray-300 flex-1">${type}</span>
+      <span class="text-xs font-mono text-gray-400">${count}</span>
+      <input type="checkbox" class="filter-cb" data-type="${type}" checked>
+    `;
+    div.querySelector('.filter-cb').addEventListener('change', e => {
+      if (e.target.checked) activeFilters.add(type);
+      else activeFilters.delete(type);
+      applyFilters();
+    });
+    container.appendChild(div);
+  });
+}
+
+function applyFilters() {
+  if (!cy) return;
+  cy.nodes().forEach(node => {
+    const visible = activeFilters.has(node.data('type'));
+    node.style('display', visible ? 'element' : 'none');
+  });
+  // Hide edges where either endpoint is hidden
+  cy.edges().forEach(edge => {
+    const srcVisible = activeFilters.has(edge.source().data('type'));
+    const tgtVisible = activeFilters.has(edge.target().data('type'));
+    edge.style('display', srcVisible && tgtVisible ? 'element' : 'none');
+  });
+}
+
+// ── Search ───────────────────────────────────────────────────────────────────
+function handleSearch(query) {
+  if (!cy) return;
+  if (!query.trim()) {
+    cy.nodes().removeClass('faded');
+    cy.edges().removeClass('faded');
+    return;
+  }
+  const q = query.toLowerCase();
+  cy.nodes().forEach(node => {
+    const match = node.id().toLowerCase().includes(q) || node.data('label').toLowerCase().includes(q);
+    if (match) node.removeClass('faded');
+    else node.addClass('faded');
+  });
+  cy.edges().addClass('faded');
+}
+
+// ── Detail panel ─────────────────────────────────────────────────────────────
+function showDetail(node) {
+  const panel = document.getElementById('detail-panel');
+  const content = document.getElementById('detail-content');
+  panel.classList.remove('hidden');
+
+  const color = nodeColor(node).bg;
+  const data = node.data();
+  let html = `
+    <div class="flex items-center gap-2 mb-3">
+      <span class="w-4 h-4 rounded-full" style="background:${color}"></span>
+      <span class="font-semibold text-gray-900 dark:text-white capitalize">${data.type}</span>
+    </div>
+  `;
+
+  const skip = new Set(['id', 'type', 'label']);
+  Object.entries(data).forEach(([k, v]) => {
+    if (skip.has(k) || v === null || v === undefined) return;
+    let display = v;
+    if (Array.isArray(v)) display = v.join(', ') || '—';
+    else if (typeof v === 'object') display = JSON.stringify(v);
+    html += `
+      <div class="border-b border-gray-100 dark:border-gray-800 pb-1">
+        <p class="text-xs text-gray-400 uppercase tracking-wide">${k.replace(/_/g, ' ')}</p>
+        <p class="text-xs text-gray-800 dark:text-gray-200 break-all">${display}</p>
+      </div>
+    `;
+  });
+
+  content.innerHTML = html;
+}
+
+function closeDetail() {
+  document.getElementById('detail-panel').classList.add('hidden');
+  if (cy) cy.nodes().unselect();
+}
+
+// ── Meta + summary ────────────────────────────────────────────────────────────
+function updateMeta(data) {
+  const m = data.metadata || {};
+  document.getElementById('meta-line').textContent =
+    `Branch: ${m.git_head ? m.git_head.slice(0,7) : '—'} · Django ${m.django_version || '?'} · Generated: ${m.generated_at ? new Date(m.generated_at).toLocaleTimeString() : '?'}`;
+}
+
+function updateSummary(data) {
+  const s = data.summary || {};
+  const panel = document.getElementById('summary-panel');
+  panel.innerHTML = Object.entries(s).map(([k, v]) =>
+    `<div class="flex justify-between"><span class="text-gray-500 capitalize">${k.replace(/_/g, ' ')}</span><span class="font-mono text-gray-800 dark:text-gray-200">${v}</span></div>`
+  ).join('');
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────────
+function scheduleRefresh() {
+  clearInterval(refreshTimer);
+  countdown = REFRESH_MS / 1000;
+  refreshTimer = setInterval(() => {
+    countdown--;
+    document.getElementById('refresh-badge').textContent = `Auto-refresh: ${countdown}s`;
+    if (countdown <= 0) {
+      loadGraph();
+    }
+  }, 1000);
+}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function resetLayout() {
+  if (!cy) return;
+  cy.layout({
+    name: 'cose',
+    animate: true,
+    animationDuration: 600,
+    nodeRepulsion: 8000,
+    idealEdgeLength: 100,
+    edgeElasticity: 0.45,
+    gravity: 0.25,
+    fit: true,
+    padding: 40,
+  }).run();
+}
+
+function exportJSON() {
+  if (!graphData) return;
+  const blob = new Blob([JSON.stringify(graphData, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'knowledge_graph.json';
+  a.click();
+}
+
+function getCookie(name) {
+  const val = `; ${document.cookie}`;
+  const parts = val.split(`; ${name}=`);
+  if (parts.length === 2) return parts.pop().split(';').shift();
+  return '';
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────────
+loadGraph();
+</script>
+{% endblock %}

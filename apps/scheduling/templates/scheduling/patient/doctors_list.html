@@ -145,6 +145,15 @@
                         </label>
                     </div>
 
+                    <!-- Group Sessions -->
+                    <div class="mb-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="checkbox" name="group_sessions_only" {% if current_filters.group_sessions_only %}checked{% endif %}
+                                class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 dark:focus:ring-blue-600 dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600">
+                            <span class="ml-2 text-sm text-gray-700 dark:text-gray-300">Group Sessions Available</span>
+                        </label>
+                    </div>
+
                     <!-- Clear Filters -->
                     <a href="{% url 'patient:patient_doctors_list' %}"
                         class="block w-full text-center py-2 text-sm text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">

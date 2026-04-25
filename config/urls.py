@@ -5,10 +5,14 @@ from django.contrib import admin
 from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
+from two_factor.urls import urlpatterns as tf_urlpatterns
 
 urlpatterns = [
     # Django admin
     path('admin/', admin.site.urls),
+
+    # Two-factor authentication (library uses 'account/' prefix internally)
+    path('', include(tf_urlpatterns)),
 
     # Authentication
     path('auth/', include('apps.accounts.urls')),
@@ -34,6 +38,9 @@ urlpatterns = [
 
     # Video Consultations
     path('consultation/', include('apps.consultations.urls')),
+
+    # Knowledge Graph UI
+    path('internal/knowledge-graph/', include('apps.knowledge_graph.urls')),
 
     # REST API v1
     path('api/v1/', include('apps.api.urls')),

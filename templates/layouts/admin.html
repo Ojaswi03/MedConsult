@@ -80,6 +80,15 @@
                 Audit Logs
             </a>
 
+            <a href="{% url 'knowledge_graph:graph' %}"
+               class="flex items-center px-4 py-3 rounded-lg mb-1 transition-colors
+                      {% if 'knowledge-graph' in request.path %}bg-gray-800 text-white{% else %}text-gray-300 hover:bg-gray-800 hover:text-white{% endif %}">
+                <svg class="w-5 h-5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                </svg>
+                Knowledge Graph
+            </a>
+
             <div class="border-t border-gray-800 my-4"></div>
 
             <a href="{% url 'dashboard:home' %}"
@@ -152,6 +161,7 @@
             <a href="{% url 'adminpanel:appointments_list' %}" class="flex items-center px-4 py-3 rounded-lg mb-1 text-gray-300 hover:bg-gray-800 hover:text-white">Appointments</a>
             <a href="{% url 'adminpanel:financial_overview' %}" class="flex items-center px-4 py-3 rounded-lg mb-1 text-gray-300 hover:bg-gray-800 hover:text-white">Financial</a>
             <a href="{% url 'adminpanel:audit_logs' %}" class="flex items-center px-4 py-3 rounded-lg mb-1 text-gray-300 hover:bg-gray-800 hover:text-white">Audit Logs</a>
+            <a href="{% url 'knowledge_graph:graph' %}" class="flex items-center px-4 py-3 rounded-lg mb-1 text-gray-300 hover:bg-gray-800 hover:text-white">Knowledge Graph</a>
         </nav>
     </aside>
 </div>

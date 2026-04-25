@@ -5,6 +5,7 @@ from django.contrib import messages
 from django.http import HttpResponseForbidden, HttpResponse
 from django.views.decorators.http import require_POST, require_GET
 from django.utils import timezone
+from django_ratelimit.decorators import ratelimit
 
 from apps.accounts.models import DoctorProfile
 from apps.accounts.selectors import get_filtered_doctors, get_all_specializations, get_all_languages
@@ -80,6 +81,7 @@ def patient_doctors_list(request):
     language = request.GET.get('language', '').strip()
     available_today = request.GET.get('available_today') == 'on'
     second_opinion = request.GET.get('second_opinion') == 'on'
+    group_sessions_only = request.GET.get('group_sessions_only') == 'on'
 
     # Convert numeric filters
     try:
@@ -109,6 +111,7 @@ def patient_doctors_list(request):
         language=language if language else None,
         available_today=available_today,
         offers_second_opinions=True if second_opinion else None,
+        group_sessions_only=group_sessions_only,
     )
 
     # Get all specializations and languages for filter dropdowns
@@ -131,6 +134,7 @@ def patient_doctors_list(request):
             'language': language,
             'available_today': available_today,
             'second_opinion': second_opinion,
+            'group_sessions_only': group_sessions_only,
         }
     }
 
@@ -159,6 +163,7 @@ def patient_doctor_detail(request, doctor_id):
 
 
 @login_required
+@ratelimit(key='user', rate='10/h', method='POST', block=True)
 def patient_book_appointment(request, slot_id):
     """Patient view: Book an appointment."""
     if request.user.role != 'patient':
@@ -1045,6 +1050,18 @@ def patient_share_health_record(request, record_id):
     doctor = get_object_or_404(DoctorProfile, id=doctor_id, verification_status='verified')
 
     share_health_record_with_doctor(record, doctor)
+
+    from apps.adminpanel.models import HealthRecordAccessLog
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    HealthRecordAccessLog.objects.create(
+        record=record,
+        accessed_by=request.user,
+        access_type='shared',
+        ip_address=ip,
+    )
+
     messages.success(request, f'Record shared with Dr. {doctor.user.get_display_name()}.')
     return redirect('patient:patient_health_records')
 
@@ -1056,9 +1073,21 @@ def doctor_view_shared_records(request, patient_id):
         return HttpResponseForbidden("Access denied. Doctors only.")
 
     from apps.accounts.models import User as UserModel
+    from apps.adminpanel.models import HealthRecordAccessLog
     patient = get_object_or_404(UserModel, id=patient_id, role='patient')
     doctor_profile = request.user.doctor_profile
     records = get_shared_records_for_doctor(doctor_profile, patient)
+
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    for record in records:
+        HealthRecordAccessLog.objects.create(
+            record=record,
+            accessed_by=request.user,
+            access_type='viewed',
+            ip_address=ip,
+        )
 
     return render(request, 'scheduling/doctor/patient_records.html', {
         'patient': patient,
@@ -1290,3 +1319,98 @@ def doctor_respond_to_review(request, review_id):
 
     # Redirect back to analytics (where reviews are shown)
     return redirect('doctor:doctor_analytics')
+
+
+# ============ PATIENT DATA EXPORT ============
+
+@login_required
+def patient_data_export(request):
+    """Patient view: Export all personal data as JSON (GDPR/HIPAA compliance)."""
+    import json
+    from django.http import HttpResponse
+
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    user = request.user
+    profile = getattr(user, 'patient_profile', None)
+
+    appointments_qs = Appointment.objects.filter(patient=user).select_related(
+        'slot__doctor__user'
+    ).order_by('-created_at')
+
+    health_records_qs = HealthRecord.objects.filter(patient=user).order_by('-created_at')
+
+    prescriptions_qs = []
+    for appt in appointments_qs:
+        if hasattr(appt, 'prescription'):
+            prescriptions_qs.append(appt.prescription)
+
+    from apps.adminpanel.models import HealthRecordAccessLog
+    ip = request.META.get('HTTP_X_FORWARDED_FOR', request.META.get('REMOTE_ADDR'))
+    if ip and ',' in ip:
+        ip = ip.split(',')[0].strip()
+    for record in health_records_qs:
+        HealthRecordAccessLog.objects.create(
+            record=record,
+            accessed_by=user,
+            access_type='downloaded',
+            ip_address=ip,
+        )
+
+    data = {
+        'export_date': timezone.now().isoformat(),
+        'profile': {
+            'id': user.id,
+            'username': user.username,
+            'email': user.email,
+            'first_name': user.first_name,
+            'last_name': user.last_name,
+            'date_joined': user.date_joined.isoformat(),
+            'date_of_birth': str(profile.date_of_birth) if profile and profile.date_of_birth else None,
+            'gender': profile.gender if profile else None,
+            'phone_number': profile.phone_number if profile else None,
+            'address': profile.address if profile else None,
+        },
+        'appointments': [
+            {
+                'id': a.id,
+                'doctor': a.slot.doctor.user.get_display_name() if a.slot and a.slot.doctor else None,
+                'appointment_type': a.appointment_type,
+                'status': a.status,
+                'start': a.slot.start_datetime.isoformat() if a.slot else None,
+                'reason': a.reason,
+                'created_at': a.created_at.isoformat(),
+            }
+            for a in appointments_qs
+        ],
+        'health_records': [
+            {
+                'id': r.id,
+                'title': r.title,
+                'record_type': r.record_type,
+                'description': r.description,
+                'date_of_record': str(r.date_of_record) if r.date_of_record else None,
+                'created_at': r.created_at.isoformat(),
+            }
+            for r in health_records_qs
+        ],
+        'prescriptions': [
+            {
+                'id': p.id,
+                'appointment_id': p.appointment_id,
+                'diagnosis': p.diagnosis,
+                'medications': p.medications,
+                'instructions': p.instructions,
+                'created_at': p.created_at.isoformat(),
+            }
+            for p in prescriptions_qs
+        ],
+    }
+
+    response = HttpResponse(
+        json.dumps(data, indent=2, default=str),
+        content_type='application/json',
+    )
+    response['Content-Disposition'] = f'attachment; filename="medconsult_export_{user.id}.json"'
+    return response

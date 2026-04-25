@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 from apps.accounts.models import User, DoctorProfile
+from django_cryptography.fields import encrypt
 
 
 # Appointment type choices used across models
@@ -509,10 +510,10 @@ class Prescription(models.Model):
         on_delete=models.CASCADE,
         related_name='prescriptions'
     )
-    diagnosis = models.CharField(max_length=500, blank=True)
-    medications = models.TextField(help_text='Medications, dosage, and frequency')
-    instructions = models.TextField(blank=True)
-    notes = models.TextField(blank=True)
+    diagnosis = encrypt(models.CharField(max_length=500, blank=True, null=True))
+    medications = encrypt(models.TextField(blank=True, null=True, help_text='Medications, dosage, and frequency'))
+    instructions = encrypt(models.TextField(blank=True, null=True))
+    notes = encrypt(models.TextField(blank=True, null=True))
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

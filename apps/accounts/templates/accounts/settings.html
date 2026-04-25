@@ -6,90 +6,229 @@
 <div class="max-w-4xl mx-auto">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Settings</h1>
 
+    {% if messages %}
+    <div class="mb-6 space-y-2">
+        {% for message in messages %}
+        <div class="px-4 py-3 rounded-lg text-sm font-medium
+            {% if message.tags == 'success' %}bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300
+            {% elif message.tags == 'error' %}bg-red-100 dark:bg-red-900/40 text-red-800 dark:text-red-300
+            {% else %}bg-blue-100 dark:bg-blue-900/40 text-blue-800 dark:text-blue-300{% endif %}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
     <div class="space-y-6">
-        <!-- Appearance Settings -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Appearance</h2>
-            <div class="space-y-4">
-                <div>
-                    <p class="font-medium text-gray-900 dark:text-white mb-1">Theme</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Choose how MedConsult looks to you</p>
-                    {% include "accounts/partials/_theme_toggle.html" with current_theme=user.theme_preference %}
-                </div>
+
+        <!-- Appearance -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Appearance</h2>
+            <div>
+                <p class="font-medium text-gray-900 dark:text-white mb-1">Theme</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mb-4">Choose how MedConsult looks to you</p>
+                {% include "accounts/partials/_theme_toggle.html" with current_theme=user.theme_preference %}
             </div>
         </div>
 
-        <!-- Account Settings -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Account Settings</h2>
-            <div class="space-y-4">
-                <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+        <!-- Account -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Account</h2>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+
+                <!-- Email -->
+                <div class="flex items-center justify-between py-4">
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">Email</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">{{ user.email }}</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</p>
                         {% if user.is_email_verified %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/50 text-green-800 dark:text-green-300 mt-1">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
-                                </svg>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 mt-1">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
                                 Verified
                             </span>
                         {% else %}
-                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/50 text-yellow-800 dark:text-yellow-300 mt-1">
-                                <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                                </svg>
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300 mt-1">
+                                <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/></svg>
                                 Not Verified
                             </span>
                         {% endif %}
                     </div>
                     {% if not user.is_email_verified %}
-                        <form method="post" action="{% url 'resend_verification' %}">
-                            {% csrf_token %}
-                            <button type="submit" class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 text-sm">Resend Verification</button>
-                        </form>
+                    <form method="post" action="{% url 'resend_verification' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Resend Verification</button>
+                    </form>
                     {% endif %}
                 </div>
-                <div class="flex justify-between items-center py-3 border-b border-gray-200 dark:border-gray-700">
+
+                <!-- Password -->
+                <div class="flex items-center justify-between py-4">
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">Password</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">••••••••</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Last changed: unknown</p>
                     </div>
-                    <button class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Change</button>
+                    <a href="{% url 'forgot_password' %}" class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">Change Password</a>
                 </div>
+
             </div>
         </div>
 
-        <!-- Notification Settings -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Notifications</h2>
+        <!-- Two-Factor Authentication -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <div class="flex items-start justify-between mb-2">
+                <div>
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Two-Factor Authentication (2FA)</h2>
+                    <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Add an extra layer of security to your account using an authenticator app</p>
+                </div>
+                {% if two_fa_enabled %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300">
+                        <span class="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                        Enabled
+                    </span>
+                {% else %}
+                    <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">
+                        <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+                        Disabled
+                    </span>
+                {% endif %}
+            </div>
+
+            <div class="mt-4 divide-y divide-gray-100 dark:divide-gray-700">
+
+                {% if not two_fa_enabled %}
+                <!-- Enable 2FA -->
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Authenticator App</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Use Google Authenticator, Authy, or any TOTP app</p>
+                    </div>
+                    <a href="{{ two_fa_setup_url }}"
+                       class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+                        </svg>
+                        Set Up 2FA
+                    </a>
+                </div>
+
+                {% else %}
+                <!-- Authenticator status -->
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Authenticator App</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Your account is protected with an authenticator app</p>
+                    </div>
+                    <a href="{{ two_fa_setup_url }}"
+                       class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                        Re-configure
+                    </a>
+                </div>
+
+                <!-- Backup codes -->
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Backup Codes</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            {% if backup_codes_remaining > 0 %}
+                                <span class="text-green-600 dark:text-green-400 font-medium">{{ backup_codes_remaining }}</span> codes remaining — use these if you lose your phone
+                            {% else %}
+                                <span class="text-red-500 font-medium">No codes left</span> — regenerate now to avoid lockout
+                            {% endif %}
+                        </p>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <a href="{{ two_fa_backup_url }}"
+                           class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                            View Codes
+                        </a>
+                        <form method="post" action="{% url 'regenerate_backup_codes' %}"
+                              onsubmit="return confirm('This will invalidate all existing backup codes and generate 10 new ones. Continue?')">
+                            {% csrf_token %}
+                            <button type="submit"
+                                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+                                </svg>
+                                Regenerate
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Disable 2FA -->
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Disable Two-Factor Authentication</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">
+                            {% if user.role in 'doctor admin' %}
+                                <span class="text-amber-600 dark:text-amber-400">Required for your role</span> — disabling reduces account security
+                            {% else %}
+                                Remove 2FA protection from your account
+                            {% endif %}
+                        </p>
+                    </div>
+                    <a href="{{ two_fa_disable_url }}"
+                       class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 dark:border-red-700 text-sm font-medium text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 11V7a4 4 0 018 0m-4 8v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2z"/>
+                        </svg>
+                        Disable 2FA
+                    </a>
+                </div>
+                {% endif %}
+
+            </div>
+        </div>
+
+        <!-- Notifications -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Notifications</h2>
             <div class="space-y-4">
-                <div class="flex justify-between items-center">
+                <div class="flex items-center justify-between">
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">Email Notifications</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">Receive email updates about your appointments</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Appointment updates and reminders via email</p>
                     </div>
-                    <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.email_notifications %}checked{% endif %}>
+                    <input type="checkbox" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.email_notifications %}checked{% endif %}>
                 </div>
-                <div class="flex justify-between items-center">
+                <div class="flex items-center justify-between">
                     <div>
                         <p class="font-medium text-gray-900 dark:text-white">SMS Notifications</p>
-                        <p class="text-sm text-gray-600 dark:text-gray-400">Receive SMS reminders</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Appointment reminders via text message</p>
                     </div>
-                    <input type="checkbox" class="rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.phone_notifications %}checked{% endif %}>
+                    <input type="checkbox" class="w-4 h-4 rounded text-blue-600 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600" {% if user.phone_notifications %}checked{% endif %}>
                 </div>
             </div>
         </div>
 
-        <!-- Privacy Settings -->
-        <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Privacy</h2>
-            <div class="space-y-4">
-                <button class="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">Download My Data</button>
-                <br>
-                <button class="text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300">Delete Account</button>
+        <!-- Privacy -->
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Privacy & Data</h2>
+            <div class="divide-y divide-gray-100 dark:divide-gray-700">
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Export My Data</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Download a copy of your profile, appointments, and health records</p>
+                    </div>
+                    {% if user.role == 'patient' %}
+                    <a href="{% url 'patient:patient_data_export' %}"
+                       class="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                        Download
+                    </a>
+                    {% else %}
+                    <span class="text-sm text-gray-400">Patients only</span>
+                    {% endif %}
+                </div>
+                <div class="py-4 flex items-center justify-between">
+                    <div>
+                        <p class="font-medium text-gray-900 dark:text-white">Delete Account</p>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">Permanently remove your account and all data</p>
+                    </div>
+                    <button class="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 font-medium">Delete</button>
+                </div>
             </div>
         </div>
+
     </div>
 </div>
 {% endblock %}

@@ -2,9 +2,16 @@
 Production settings for MedConsult.
 """
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *
 
 DEBUG = False
+
+_secret = os.environ.get('SECRET_KEY', '')
+if not _secret or _secret.startswith('django-insecure-'):
+    raise ImproperlyConfigured("SECRET_KEY env var is not set or is insecure. Set a strong SECRET_KEY in production.")
+SECRET_KEY = _secret
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 

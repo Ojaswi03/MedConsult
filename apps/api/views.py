@@ -4,7 +4,7 @@ DRF API views for MedConsult.
 from rest_framework import generics, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.accounts.selectors import get_filtered_doctors
@@ -27,7 +27,7 @@ from .permissions import IsPatient, IsDoctor
 class DoctorListAPIView(generics.ListAPIView):
     """GET /api/v1/doctors/ — List verified doctors with optional filters."""
     serializer_class = DoctorProfileSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         params = self.request.query_params
@@ -41,13 +41,14 @@ class DoctorListAPIView(generics.ListAPIView):
             language=params.get('language'),
             offers_second_opinions=True if params.get('second_opinion') == 'true' else None,
             available_today=params.get('available_today') == 'true',
+            group_sessions_only=params.get('group_sessions_only') == 'true',
         )
 
 
 class DoctorSlotsAPIView(generics.ListAPIView):
     """GET /api/v1/doctors/<id>/slots/ — List available slots for a doctor."""
     serializer_class = SlotSerializer
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def get_queryset(self):
         from apps.accounts.models import DoctorProfile

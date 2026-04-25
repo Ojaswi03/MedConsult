@@ -70,6 +70,10 @@ def verify_email_token(token_str):
     user.email_verified_at = timezone.now()
     user.save(update_fields=['is_email_verified', 'email_verified_at'])
 
+    # Send welcome email now that verification is confirmed
+    from .tasks import send_welcome_email_task
+    send_welcome_email_task.delay(user.id)
+
     return True, "Email verified successfully!", user
 
 

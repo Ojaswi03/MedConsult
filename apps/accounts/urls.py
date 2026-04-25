@@ -34,6 +34,7 @@ urlpatterns = [
     path('profile/remove-image/', views.remove_profile_image, name='remove_profile_image'),
     path('settings/', views.settings_view, name='settings'),
     path('settings/theme/', views.update_theme, name='update_theme'),
+    path('settings/regenerate-backup-codes/', views.regenerate_backup_codes, name='regenerate_backup_codes'),
 
     # Notifications
     path('notifications/', views.notifications_list, name='notifications'),

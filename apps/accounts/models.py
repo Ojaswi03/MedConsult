@@ -4,6 +4,7 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from datetime import timedelta
+from django_cryptography.fields import encrypt
 
 
 class UserManager(BaseUserManager):
@@ -176,7 +177,7 @@ class DoctorProfile(models.Model):
     gender_other = models.CharField(max_length=50, blank=True, help_text='Specify if gender is Other')
 
     # Professional credentials
-    medical_license_number = models.CharField(max_length=100)
+    medical_license_number = encrypt(models.CharField(max_length=100, blank=True, null=True))
     medical_license_document = models.FileField(
         upload_to='documents/licenses/',
         blank=True,
@@ -200,8 +201,8 @@ class DoctorProfile(models.Model):
     # Bank information
     bank_name = models.CharField(max_length=200, blank=True)
     account_holder_name = models.CharField(max_length=200, blank=True)
-    account_number = models.CharField(max_length=50, blank=True)
-    routing_number = models.CharField(max_length=50, blank=True)
+    account_number = encrypt(models.CharField(max_length=50, blank=True, null=True))
+    routing_number = encrypt(models.CharField(max_length=50, blank=True, null=True))
 
     # Verification status
     verification_status = models.CharField(

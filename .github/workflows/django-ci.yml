@@ -6,6 +6,19 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+env:
+  DB_HOST: localhost
+  DB_PORT: 5432
+  DB_NAME: medconsult_test
+  DB_USER: medconsult_user
+  DB_PASSWORD: medconsult_pass
+  REDIS_HOST: localhost
+  REDIS_URL: redis://localhost:6379/1
+  CELERY_BROKER_URL: redis://localhost:6379/1
+  CELERY_RESULT_BACKEND: redis://localhost:6379/1
+  SECRET_KEY: ci-secret-key-not-for-production-use-only-in-tests
+  DJANGO_SETTINGS_MODULE: config.settings.dev
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -38,10 +51,10 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Python
+    - name: Set up Python 3.12
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'
+        python-version: '3.12'
         cache: 'pip'
 
     - name: Install dependencies
@@ -49,38 +62,23 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
-    - name: Run migrations
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: medconsult_test
-        DB_USER: medconsult_user
-        DB_PASSWORD: medconsult_pass
-        REDIS_URL: redis://localhost:6379/1
-        SECRET_KEY: test-secret-key-for-ci
-      run: |
-        python manage.py migrate --settings=config.settings.dev
-
-    - name: Run tests
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: medconsult_test
-        DB_USER: medconsult_user
-        DB_PASSWORD: medconsult_pass
-        REDIS_URL: redis://localhost:6379/1
-        SECRET_KEY: test-secret-key-for-ci
-      run: |
-        python manage.py test --settings=config.settings.dev
+    - name: System check
+      run: python manage.py check --settings=config.settings.dev
 
     - name: Check for missing migrations
-      env:
-        DB_HOST: localhost
-        DB_PORT: 5432
-        DB_NAME: medconsult_test
-        DB_USER: medconsult_user
-        DB_PASSWORD: medconsult_pass
-        REDIS_URL: redis://localhost:6379/1
-        SECRET_KEY: test-secret-key-for-ci
+      run: python manage.py makemigrations --check --dry-run --settings=config.settings.dev
+
+    - name: Run migrations
+      run: python manage.py migrate --settings=config.settings.dev
+
+    - name: Run tests with coverage
       run: |
-        python manage.py makemigrations --check --dry-run --settings=config.settings.dev
+        pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=40
+
+    - name: Upload coverage report
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: coverage-report
+        path: coverage.xml
+        retention-days: 7

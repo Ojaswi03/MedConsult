@@ -40,6 +40,7 @@ def get_filtered_doctors(
     language=None,
     available_today=False,
     offers_second_opinions=None,
+    group_sessions_only=False,
 ):
     """
     Get filtered and sorted list of verified doctors.
@@ -121,6 +122,18 @@ def get_filtered_doctors(
     # Second opinions filter
     if offers_second_opinions is not None:
         queryset = queryset.filter(offers_second_opinions=offers_second_opinions)
+
+    # Group sessions filter — only doctors with at least one available group slot
+    if group_sessions_only:
+        from apps.scheduling.models import Slot
+        now = timezone.now()
+        doctors_with_group_slots = Slot.objects.filter(
+            start_datetime__gte=now,
+            is_booked=False,
+            is_blocked=False,
+            max_capacity__gt=1,
+        ).values_list('doctor_id', flat=True).distinct()
+        queryset = queryset.filter(id__in=doctors_with_group_slots)
 
     # Available today filter
     if available_today:

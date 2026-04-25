@@ -80,6 +80,9 @@ urlpatterns = [
     # Billing download
     path('appointments/<int:appointment_id>/billing/', views.patient_billing_download, name='billing_download'),
 
+    # Patient data export (GDPR/HIPAA)
+    path('export/', views.patient_data_export, name='patient_data_export'),
+
     # Availability exceptions
     path('availability/exceptions/create/', views.doctor_exception_create, name='create_exception'),
     path('availability/exceptions/<int:exception_id>/delete/', views.doctor_exception_delete, name='delete_exception'),

@@ -4,6 +4,7 @@ URL patterns for MedConsult REST API v1.
 from django.urls import path
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from . import views
+from apps.knowledge_graph.views import KnowledgeGraphAPIView
 
 urlpatterns = [
     # Authentication
@@ -23,4 +24,7 @@ urlpatterns = [
     # Notifications
     path('notifications/', views.NotificationListAPIView.as_view(), name='api_notifications'),
     path('notifications/<int:notif_id>/read/', views.mark_notification_read_api, name='api_notif_read'),
+
+    # Knowledge Graph
+    path('knowledge-graph/', KnowledgeGraphAPIView.as_view(), name='api_knowledge_graph'),
 ]

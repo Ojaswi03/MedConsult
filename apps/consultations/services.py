@@ -1,13 +1,17 @@
 """
 Video consultation services for Daily.co integration.
 """
+import logging
 import requests
 import uuid
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.utils import timezone
 from datetime import timedelta
 
 from .models import VideoRoom
+
+logger = logging.getLogger(__name__)
 
 
 def get_daily_api_headers():
@@ -35,7 +39,17 @@ def create_video_room(appointment):
     exp_time = appointment.end_datetime + timedelta(hours=1)
 
     # Create room via Daily.co API
-    if settings.DAILY_API_KEY:
+    if not settings.DAILY_API_KEY:
+        if not settings.DEBUG:
+            raise ImproperlyConfigured(
+                'DAILY_API_KEY is required for video consultations in production.'
+            )
+        logger.warning(
+            'DAILY_API_KEY not set — video consultation room will not connect. '
+            'Set DAILY_API_KEY in your .env to enable real video calls.'
+        )
+        room_url = f'https://medconsult.daily.co/{room_name}'
+    else:
         try:
             response = requests.post(
                 'https://api.daily.co/v1/rooms',
@@ -59,13 +73,14 @@ def create_video_room(appointment):
                 room_data = response.json()
                 room_url = room_data.get('url', f'https://medconsult.daily.co/{room_name}')
             else:
-                # Fallback to demo URL if API fails
+                logger.error(
+                    'Daily.co room creation failed: status=%s body=%s',
+                    response.status_code, response.text[:200],
+                )
                 room_url = f'https://medconsult.daily.co/{room_name}'
-        except requests.RequestException:
+        except requests.RequestException as exc:
+            logger.error('Daily.co room creation request failed: %s', exc)
             room_url = f'https://medconsult.daily.co/{room_name}'
-    else:
-        # Demo mode - no API key configured
-        room_url = f'https://medconsult.daily.co/{room_name}'
 
     # Create VideoRoom record
     video_room = VideoRoom.objects.create(

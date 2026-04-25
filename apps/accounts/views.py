@@ -271,12 +271,17 @@ def login_view(request):
             user = authenticate(request, username=identifier, password=password)
 
             if user is not None:
-                login(request, user)
-                messages.success(request, f'Welcome back, {user.get_display_name()}!')
-
-                # Redirect based on next parameter or default
-                next_url = request.GET.get('next', 'dashboard:home')
-                return redirect(next_url)
+                if not user.is_email_verified:
+                    messages.error(
+                        request,
+                        'Please verify your email before logging in. '
+                        '<a href="/auth/resend-verification/" class="underline">Resend verification email</a>.'
+                    )
+                else:
+                    login(request, user)
+                    messages.success(request, f'Welcome back, {user.get_display_name()}!')
+                    next_url = request.GET.get('next', 'dashboard:home')
+                    return redirect(next_url)
             else:
                 messages.error(request, 'Invalid username/email or password.')
     else:
@@ -335,8 +340,41 @@ def profile_view(request):
 
 @login_required
 def settings_view(request):
-    """User settings page."""
-    return render(request, 'accounts/settings.html')
+    from django_otp import devices_for_user
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+    from django_otp.plugins.otp_static.models import StaticDevice
+
+    totp_devices = TOTPDevice.objects.filter(user=request.user, confirmed=True)
+    two_fa_enabled = totp_devices.exists()
+
+    static_device = StaticDevice.objects.filter(user=request.user).first()
+    backup_codes_remaining = static_device.token_set.count() if static_device else 0
+
+    return render(request, 'accounts/settings.html', {
+        'two_fa_enabled': two_fa_enabled,
+        'backup_codes_remaining': backup_codes_remaining,
+        'two_fa_setup_url': '/account/two_factor/setup/',
+        'two_fa_disable_url': '/account/two_factor/disable/',
+        'two_fa_backup_url': '/account/two_factor/backup/tokens/',
+    })
+
+
+@login_required
+@require_POST
+def regenerate_backup_codes(request):
+    from django_otp.plugins.otp_static.models import StaticDevice, StaticToken
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    if not TOTPDevice.objects.filter(user=request.user, confirmed=True).exists():
+        messages.error(request, 'Enable 2FA first before generating backup codes.')
+        return redirect('settings')
+
+    StaticDevice.objects.filter(user=request.user).delete()
+    device = StaticDevice.objects.create(user=request.user, name='Backup Codes', confirmed=True)
+    tokens = [StaticToken(device=device, token=StaticToken.random_token()) for _ in range(10)]
+    StaticToken.objects.bulk_create(tokens)
+    messages.success(request, '10 new backup codes generated. Save them somewhere safe.')
+    return redirect('settings')
 
 
 @login_required

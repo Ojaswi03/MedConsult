@@ -32,6 +32,12 @@ INSTALLED_APPS = [
     'channels',
     'django_celery_beat',
 
+    # 2FA
+    'django_otp',
+    'django_otp.plugins.otp_static',
+    'django_otp.plugins.otp_totp',
+    'two_factor',
+
     # Local apps
     'apps.accounts',
     'apps.scheduling',
@@ -41,6 +47,7 @@ INSTALLED_APPS = [
     'apps.payments',
     'apps.messaging',
     'apps.consultations',
+    'apps.knowledge_graph',
 
     # REST API
     'rest_framework',
@@ -55,6 +62,8 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django_otp.middleware.OTPMiddleware',
+    'apps.accounts.middleware.EnforceTwoFactorMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -177,6 +186,14 @@ REST_FRAMEWORK = {
     ],
     'DEFAULT_PAGINATION_CLASS': 'rest_framework.pagination.PageNumberPagination',
     'PAGE_SIZE': 20,
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle',
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '30/minute',
+        'user': '120/minute',
+    },
 }
 
 # Internationalization languages supported
@@ -211,6 +228,53 @@ TWILIO_PHONE_NUMBER = os.environ.get('TWILIO_PHONE_NUMBER', '')
 
 from celery.schedules import crontab
 
+# Structured logging
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            '()': 'django.utils.log.ServerFormatter',
+            'format': '[%(asctime)s] %(levelname)s %(name)s %(message)s',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': os.environ.get('DJANGO_LOG_LEVEL', 'INFO'),
+            'propagate': False,
+        },
+        'apps': {
+            'handlers': ['console'],
+            'level': 'DEBUG',
+            'propagate': False,
+        },
+    },
+}
+
+# Sentry — only active when SENTRY_DSN env var is set
+_sentry_dsn = os.environ.get('SENTRY_DSN', '')
+if _sentry_dsn:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+    from sentry_sdk.integrations.celery import CeleryIntegration
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        integrations=[DjangoIntegration(), CeleryIntegration()],
+        traces_sample_rate=float(os.environ.get('SENTRY_TRACES_RATE', '0.1')),
+        send_default_pii=False,
+    )
+
 CELERY_BEAT_SCHEDULE = {
     'schedule-appointment-reminders': {
         'task': 'apps.scheduling.tasks.schedule_appointment_reminders',
@@ -227,5 +291,9 @@ CELERY_BEAT_SCHEDULE = {
     'mark-no-show-appointments': {
         'task': 'apps.scheduling.tasks.mark_no_show_appointments',
         'schedule': crontab(minute='*/10'),
+    },
+    'rebuild-knowledge-graph': {
+        'task': 'apps.knowledge_graph.tasks.rebuild_knowledge_graph',
+        'schedule': crontab(minute='*/5'),
     },
 }

@@ -6,6 +6,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods, require_POST
 from django.http import JsonResponse
+from django_ratelimit.decorators import ratelimit
 
 from apps.scheduling.models import Appointment
 from apps.accounts.models import DoctorProfile, User
@@ -55,10 +56,23 @@ def conversation_detail(request, conversation_id):
     # Get the other participant
     other_user = conversation.get_other_participant(request.user)
 
+    # Look up active video room for this conversation's appointment (P1-14)
+    video_room = None
+    if conversation.appointment_id:
+        try:
+            from apps.consultations.models import VideoRoom
+            video_room = VideoRoom.objects.filter(
+                appointment_id=conversation.appointment_id,
+                status__in=['pending', 'active'],
+            ).first()
+        except Exception:
+            pass
+
     return render(request, 'messaging/chat.html', {
         'conversation': conversation,
         'chat_messages': chat_messages,
         'other_user': other_user,
+        'video_room': video_room,
     })
 
 
@@ -82,26 +96,56 @@ def start_conversation(request, appointment_id):
 
 @login_required
 @require_POST
+@ratelimit(key='user', rate='60/m', method='POST', block=True)
 def send_message_view(request, conversation_id):
     """
-    Send a message in a conversation (fallback for non-WebSocket).
+    Send a message (text or file) in a conversation — HTTP fallback for non-WebSocket.
+    File uploads must use this endpoint; text can also use it as fallback.
     """
     conversation = get_conversation_for_user(conversation_id, request.user)
-
     if not conversation:
         return JsonResponse({'error': 'Conversation not found'}, status=404)
 
+    uploaded_file = request.FILES.get('file')
     content = request.POST.get('content', '').strip()
-    if not content:
-        return JsonResponse({'error': 'Message content is required'}, status=400)
 
-    message = send_message(conversation, request.user, content)
+    if uploaded_file:
+        # Validate size (10 MB max)
+        if uploaded_file.size > 10 * 1024 * 1024:
+            return JsonResponse({'error': 'File too large. Maximum size is 10 MB.'}, status=400)
+
+        # Validate MIME type by extension (basic check; magic-byte validation is P2-25)
+        allowed_extensions = {
+            'pdf', 'doc', 'docx', 'txt',
+            'jpg', 'jpeg', 'png', 'gif', 'webp',
+            'mp4', 'mov',
+            'xls', 'xlsx', 'csv',
+        }
+        ext = uploaded_file.name.rsplit('.', 1)[-1].lower() if '.' in uploaded_file.name else ''
+        if ext not in allowed_extensions:
+            return JsonResponse({'error': 'File type not allowed.'}, status=400)
+
+        message = send_message(
+            conversation,
+            request.user,
+            content=content or uploaded_file.name,
+            message_type='file',
+            attachment=uploaded_file,
+            attachment_name=uploaded_file.name,
+        )
+    elif content:
+        message = send_message(conversation, request.user, content)
+    else:
+        return JsonResponse({'error': 'Message content or file is required.'}, status=400)
 
     return JsonResponse({
         'success': True,
         'message': {
             'id': message.id,
             'content': message.content,
+            'message_type': message.message_type,
+            'attachment_url': message.attachment.url if message.attachment else None,
+            'attachment_name': message.attachment_name,
             'created_at': message.created_at.isoformat(),
         }
     })

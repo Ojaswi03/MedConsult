@@ -8,7 +8,20 @@
 <div class="flex {% if is_own %}justify-end{% else %}justify-start{% endif %}">
     <div class="max-w-xs lg:max-w-md">
         <div class="{% if is_own %}bg-blue-600 text-white{% else %}bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow{% endif %} px-4 py-2 rounded-lg">
+            {% if message.message_type == 'file' and message.attachment %}
+            <a href="{{ message.attachment.url }}" target="_blank" rel="noopener noreferrer"
+               class="flex items-center gap-2 {% if is_own %}text-blue-100 hover:text-white{% else %}text-blue-600 dark:text-blue-400 hover:underline{% endif %}">
+                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
+                </svg>
+                <span class="text-sm truncate max-w-[200px]">{{ message.attachment_name|default:"Attachment" }}</span>
+            </a>
+            {% if message.content %}
+            <p class="mt-1 text-sm">{{ message.content }}</p>
+            {% endif %}
+            {% else %}
             <p>{{ message.content }}</p>
+            {% endif %}
         </div>
         <p class="text-xs text-gray-500 dark:text-gray-400 mt-1 {% if is_own %}text-right{% else %}text-left{% endif %}">
             {{ message.created_at|date:"g:i A" }}

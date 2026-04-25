@@ -8,11 +8,13 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 
 ### Authentication & Accounts
 - Username **or** email login via a custom authentication backend
+- Email verification enforced at login — unverified users are blocked with a resend link
 - Multi-step signup wizards — 5 steps for patients, 6 steps for doctors
 - Camera/microphone readiness test during signup
 - Profile image uploads (PNG, JPG, JPEG, max 5 MB)
 - Email verification and password reset via secure tokens
 - Light / Dark / System theme preference per user
+- **Two-factor authentication (2FA)** for doctors and admins via TOTP (django-two-factor-auth); manage from Settings — enable, disable, view backup code count, regenerate backup codes
 
 ### Scheduling
 - Doctor self-service availability management with a visual weekly calendar
@@ -26,12 +28,13 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 - Real-time calendar updates via WebSocket (Django Channels) with HTMX polling fallback
 
 ### Patient Booking
-- Browse and filter verified doctors (search, specialization, rating, price, availability)
+- Browse and filter verified doctors (search, specialization, rating, price, availability, group sessions)
 - Live slot availability updates — no page refresh needed
 - Structured symptom/injury selector (20 body parts, 95 conditions, 10 symptom categories, 54 symptoms) powered by Alpine.js
 - Price display before booking
 - View, cancel, and reschedule appointments
 - Join/leave waitlist when a doctor has no available slots — auto-notified when a slot opens
+- **Patient data export** — download a full JSON copy of your data (profile, appointments, health records, prescriptions) at `/patient/export/`
 
 ### Reviews
 - Patients rate doctors (1–5 stars) after completed appointments
@@ -41,11 +44,13 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 ### Prescriptions
 - Doctors write digital prescriptions for completed appointments
 - Patients download prescriptions as PDF (ReportLab)
+- Prescription content (diagnosis, medications, instructions) stored **encrypted at rest**
 
 ### Health Records
 - Patients upload health documents (lab results, imaging, discharge summaries, etc.)
 - Share specific records with individual doctors
 - Doctors view shared records on patient history page
+- All record views and shares logged to `HealthRecordAccessLog` for HIPAA audit trail
 
 ### Referrals
 - Doctors refer patients to other specialists on the platform
@@ -71,24 +76,51 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 - User management — search, filter, activate/deactivate, export to CSV
 - Appointments list with filtering and CSV export
 - Financial overview (revenue by doctor, appointment type usage)
-- Full audit log — all admin actions and slot changes with IP addresses
+- Full audit log — all admin actions, slot changes, and health record access with IP addresses
 
 ### Messaging & Consultations
 - In-app chat (WebSocket-powered) linked to appointments or started directly without one
 - Direct messaging between any patient and verified doctor — no appointment required
 - Amber disclaimer banner on direct chats (dismissible); conversations only appear in list once a real message is sent
 - Per-user soft delete — each side can delete a conversation from their view; admin retains all records
-- Video consultations via Daily.co
+- File attachments in chat — upload documents, images, PDFs (10 MB max); rendered as inline download links
+- **"Join Call" button** appears in chat header when an active video room exists for the appointment
+- Video consultations via Daily.co (raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` missing)
 
 ### Payments
 - Stripe integration (PaymentIntent + Checkout Session)
 - Refund tracking
+
+### Knowledge Graph (`/internal/knowledge-graph/`)
+- Living network graph of the entire project state — auto-updates on every model change, git commit, and Celery heartbeat
+- **Visualization**: Cytoscape.js force-directed interactive graph; nodes color-coded by type (users, appointments, slots, payments, code modules, system health); click any node for details; filter panel by node type; export JSON
+- **Auto-update triggers**: Django signals (`post_save`/`post_delete`) on User, Appointment, Slot, Conversation, Payment → debounced Celery rebuild (max once per 10s); Celery Beat every 5 min; git `post-commit` hook
+- **AI agent / CLI access**: `GET /api/v1/knowledge-graph/` returns structured JSON (metadata, stats summary, app structure, recent git commits, full nodes + edges); 60s Redis cache; `IsAdmin` auth
+- **CLI**: `python manage.py export_knowledge_graph` writes `knowledge_graph.json` at project root; `--quick` flag for git hook (updates only git + stats nodes)
 
 ### Notifications & Reminders
 - Email reminders at 24h and 1h before appointments (Celery Beat, every 15 min)
 - SMS reminders via Twilio for patients with `phone_notifications=True`
 - Appointment confirmation email + SMS on booking
 - Doctor rejection email with reason
+- Welcome email sent on successful email verification
+
+---
+
+## Security & Compliance
+
+| Control | Status |
+|---------|--------|
+| Email verification enforced at login | ✅ |
+| PHI encrypted at rest (prescriptions, license #, bank details) | ✅ django-cryptography |
+| 2FA for doctors and admins (TOTP) | ✅ django-two-factor-auth |
+| `SECRET_KEY` validated at startup in production | ✅ raises `ImproperlyConfigured` |
+| `HealthRecordAccessLog` wired on all PHI reads/shares | ✅ |
+| Patient data export (HIPAA Right of Access) | ✅ `/patient/export/` |
+| Rate limiting — login (10/min), booking (10/h), messaging (60/min), API (30–120/min) | ✅ django-ratelimit + DRF throttle |
+| Structured logging + optional Sentry integration | ✅ set `SENTRY_DSN` env var |
+| Baseline test suite (pytest-django, 40% coverage gate) | ✅ |
+| HSTS, `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE` in production | ✅ |
 
 ---
 
@@ -102,10 +134,16 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 | WebSocket | Django Channels 4 + Daphne |
 | Async Tasks | Celery + django-celery-beat |
 | Frontend | Tailwind CSS (CDN) + HTMX + Alpine.js |
+| PHI Encryption | django-cryptography |
+| 2FA | django-two-factor-auth + django-otp |
+| Rate Limiting | django-ratelimit + DRF throttle |
+| Error Tracking | Sentry SDK (optional, via `SENTRY_DSN`) |
 | PDF Generation | ReportLab |
 | Payments | Stripe |
 | Video | Daily.co |
 | SMS | Twilio |
+| Testing | pytest-django + pytest-cov |
+| Graph Visualization | Cytoscape.js |
 | Container | Docker + Docker Compose |
 
 ---
@@ -115,20 +153,22 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 ```
 MedConsult/
 ├── apps/
-│   ├── accounts/        # User auth, profiles, tokens, notifications
+│   ├── accounts/        # User auth, profiles, tokens, notifications, 2FA middleware
 │   ├── scheduling/      # Availability, slots, appointments, reviews, symptoms,
 │   │                    # prescriptions, health records, referrals, waitlist, time-off
 │   ├── dashboard/       # Role-based home pages
-│   ├── adminpanel/      # Admin dashboard and management
+│   ├── adminpanel/      # Admin dashboard, management, HealthRecordAccessLog
 │   ├── payments/        # Stripe payments and refunds
 │   ├── messaging/       # In-app chat (WebSocket)
 │   ├── consultations/   # Video rooms (Daily.co)
-│   └── support/         # Help, FAQ, contact
+│   ├── api/             # REST API (JWT auth, DRF — requires authentication)
+│   ├── support/         # Help, FAQ, contact
+│   └── knowledge_graph/ # Living knowledge graph — signals, Celery task, Cytoscape UI, AI agent API
 ├── config/
 │   ├── settings/
-│   │   ├── base.py      # Shared settings (includes CELERY_BEAT_SCHEDULE)
+│   │   ├── base.py      # Shared settings (logging, Sentry, throttle, Beat schedule)
 │   │   ├── dev.py       # Development
-│   │   └── prod.py      # Production
+│   │   └── prod.py      # Production (SECRET_KEY guard, HSTS, SSL)
 │   ├── urls.py
 │   └── asgi.py          # ASGI + Django Channels routing
 ├── templates/
@@ -142,9 +182,10 @@ MedConsult/
 │       ├── signup_wizard.js
 │       ├── dropdown.js
 │       └── theme_switcher.js
+├── .github/workflows/django-ci.yml   # CI: check → migrations → pytest --cov
+├── pytest.ini
 ├── docker-compose.yml
-├── init.sh              # Automated setup script
-├── info.txt             # Full project context and future work (for Claude sessions)
+├── dev_gui.py           # Desktop launcher (Control / SQL / Terminal / Accounts tabs)
 └── requirements.txt
 ```
 
@@ -158,6 +199,7 @@ apps/<name>/
 ├── views.py       # Thin HTTP handlers
 ├── urls.py        # URL routing
 ├── forms.py
+├── tests.py
 └── templates/
 ```
 
@@ -208,6 +250,30 @@ python manage.py runserver --settings=config.settings.dev
 
 Visit: **http://127.0.0.1:8000**
 
+### Local GUI Control Panel
+
+Run the unified desktop launcher:
+
+```bash
+python dev_gui.py
+```
+
+Tabs:
+- **Control** — start/stop Docker, server, Celery worker, Beat; live logs
+- **SQL** — write raw SQL against the dev database and see results inline
+- **Terminal** — run shell commands with streaming output and command history
+- **Accounts** — view seeded users, reset passwords, toggle active status
+- **Page Health** — one-click check that hits every page as admin, doctor, and patient; color-codes 200 / warnings / 500 errors so broken routes are caught immediately
+
+Startup sequence:
+
+```
+Start Stack       # Docker + server + worker + beat in one click
+```
+
+Or manually:
+1. `Start Docker` → `Run Migrations` → `Start Server` → `Start Worker` → `Start Beat`
+
 ### WebSocket support (Daphne)
 
 ```bash
@@ -234,6 +300,48 @@ celery -A config beat -l info
 | Doctor | doctor@test.com | testpass123 |
 | Patient | patient@test.com | testpass123 |
 
+> **Note:** Doctors and admins are redirected to TOTP 2FA setup on first login after the `EnforceTwoFactorMiddleware` triggers. Use an authenticator app (Google Authenticator, Authy, etc.) to scan the QR code at `/account/two_factor/setup/`.
+
+---
+
+## Environment Variables
+
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Yes (prod) | Django secret key — startup raises `ImproperlyConfigured` if missing or insecure in production |
+| `DB_*` | Yes | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` |
+| `REDIS_HOST` / `REDIS_URL` | Yes | Redis connection |
+| `SENTRY_DSN` | Optional | Sentry error tracking — Sentry is disabled if not set |
+| `SENTRY_TRACES_RATE` | Optional | Sample rate for performance tracing (default `0.1`) |
+| `DJANGO_LOG_LEVEL` | Optional | Django log level (default `INFO`) |
+| `STRIPE_PUBLISHABLE_KEY` | Optional | Stripe public key |
+| `STRIPE_SECRET_KEY` | Optional | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Optional | Stripe webhook signing secret |
+| `DAILY_API_KEY` | Optional | Daily.co video rooms — raises `ImproperlyConfigured` in prod if missing |
+| `TWILIO_ACCOUNT_SID` | Optional | Twilio SMS |
+| `TWILIO_AUTH_TOKEN` | Optional | Twilio SMS |
+| `TWILIO_PHONE_NUMBER` | Optional | Twilio SMS sender |
+| `EMAIL_HOST` / `EMAIL_PORT` | Optional | SMTP config for prod email |
+| `DEFAULT_FROM_EMAIL` | Optional | Sender address |
+
+---
+
+## Running Tests
+
+```bash
+# Run full test suite with coverage
+pytest
+
+# Run specific app
+pytest apps/accounts/
+pytest apps/scheduling/
+
+# Coverage only (no fail threshold)
+pytest --cov=apps --cov-report=term-missing --no-cov-on-fail
+```
+
+CI enforces **40% coverage minimum**. Coverage XML report is uploaded as a build artifact on every run.
+
 ---
 
 ## URL Reference
@@ -245,6 +353,8 @@ Public
 /auth/signup/                             Role selection
 /auth/signup/patient/<step>/              Patient signup wizard (5 steps)
 /auth/signup/doctor/<step>/               Doctor signup wizard (6 steps)
+/account/two_factor/setup/               2FA TOTP setup (doctors + admins)
+/account/two_factor/                     2FA profile / backup tokens
 /support/help/                            Help center
 /support/faq/                             FAQ
 /support/contact/                         Contact
@@ -271,6 +381,7 @@ Patient — /patient/
   health-records/                         Upload and manage health records
   health-records/<id>/delete/             Delete health record
   health-records/<id>/share/              Share record with a doctor
+  export/                                 Download full personal data export (JSON)
   symptoms/body-parts/                    Symptom selector — body parts (HTMX)
   symptoms/body-parts/<id>/conditions/    Conditions for a body part (HTMX)
   symptoms/list/                          Symptom list (HTMX)
@@ -319,7 +430,7 @@ Admin — /internal/
   appointments/<id>/cancel/               Cancel appointment
   appointments/export/                    Export appointments CSV
   financial/                              Revenue and pricing overview
-  audit/                                  Audit logs
+  audit/                                  Audit logs + health record access log
 
 Other
 /payments/checkout/<slot_id>/             Payment checkout
@@ -331,6 +442,9 @@ Other
 /messages/direct/doctor/<id>/            Patient starts direct chat with doctor
 /messages/direct/patient/<id>/           Doctor starts direct chat with patient
 /consultation/<id>/                       Video room
+/api/v1/                                  REST API (JWT)
+/api/v1/knowledge-graph/                 Full project knowledge graph (JSON, IsAdmin)
+/internal/knowledge-graph/               Interactive Cytoscape.js graph UI
 /admin/                                   Django admin
 ```
 
@@ -346,14 +460,14 @@ python manage.py migrate --settings=config.settings.dev
 python manage.py makemigrations --check --dry-run --settings=config.settings.dev
 
 # Run tests
-python manage.py test --settings=config.settings.dev
-python manage.py test apps.scheduling --settings=config.settings.dev
-
-# Django shell
-python manage.py shell --settings=config.settings.dev
+pytest
+pytest apps/scheduling/
 
 # System check
 python manage.py check --settings=config.settings.dev
+
+# Django shell
+python manage.py shell --settings=config.settings.dev
 ```
 
 ### Docker
@@ -365,6 +479,8 @@ docker-compose logs postgres
 docker-compose exec postgres psql -U medconsult_user -d medconsult
 docker-compose exec redis redis-cli
 ```
+
+> **WSL2 note:** If you see `client version 1.43 is too old`, add `export DOCKER_API_VERSION=1.44` to your `~/.bashrc` and reload (`source ~/.bashrc`). `dev_gui.py` sets this automatically.
 
 ---
 
@@ -398,15 +514,91 @@ base.html                   Tailwind CDN, meta, scripts
 | Task | Schedule |
 |------|----------|
 | `schedule_appointment_reminders` | Every 15 minutes |
-| `extend_slots_for_all_doctors` | Daily at 02:00 |
+| `mark_completed_appointments` | Every 5 minutes |
+| `mark_no_show_appointments` | Every 10 minutes |
+| `extend_slots_for_all_doctors` | Daily at 02:00 UTC |
 
 ### Migration State
 
 | App | Latest Migration |
 |-----|-----------------|
-| accounts | 0008_doctorprofile_languages |
-| scheduling | 0014_availabilityexception |
-| adminpanel | 0002_healthrecordaccesslog_extend_actiontypes |
+| accounts | 0014_clear_plaintext_encrypted_fields |
+| scheduling | 0017_clear_plaintext_prescription_fields |
+| adminpanel | 0003_rename_healthrecordaccesslog_indexes |
 | payments | (initial) |
 | messaging | 0004_conversation_delete_flags |
 | consultations | (initial) |
+| support | 0002_seed_faqs |
+| knowledge_graph | 0001_initial |
+
+---
+
+## Known Limitations
+
+- **Stripe payments** — end-to-end flow configured; no test run documented. Refund button not yet wired in patient/admin UI.
+- **Daily.co video** — API integration present; no test run documented. Raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
+- **Twilio SMS** — configured in `.env`; not verified with real credentials.
+- **Email sending** — uses Django console backend in dev (no real emails sent).
+- **Doctor location/geographic search** — `DoctorProfile` has no city/state/country fields; no location filter on doctor search.
+- **i18n** — `LocaleMiddleware` and `LANGUAGES` configured; zero translated `.po` files exist. UI is English-only.
+
+---
+
+## Backlog
+
+> Items are ordered by impact. P0 = security/HIPAA compliance; P1 = functional gaps; P2 = quality/ops; P3 = future features.
+
+### P0 — Security & HIPAA Compliance
+
+| # | Status | Item |
+|---|--------|------|
+| 1 | ✅ Done | **PHI encrypted at rest** — `medical_license_number`, `account_number`, `routing_number`, prescription fields encrypted with `django-cryptography` |
+| 2 | ✅ Done | **2FA/MFA for doctors + admins** — TOTP via `django-two-factor-auth`; `EnforceTwoFactorMiddleware` redirects on first login |
+| 3 | ✅ Done | **Email verification enforced at login** — unverified users blocked, resend link shown |
+| 4 | ✅ Done | **`SECRET_KEY` insecure fallback removed** — `prod.py` raises `ImproperlyConfigured` if key is missing or starts with `django-insecure-` |
+| 5 | ✅ Done | **`HealthRecordAccessLog` wired** — logged on all doctor views and patient share actions |
+| 6 | ✅ Done | **Patient data export** — `/patient/export/` returns JSON with profile, appointments, health records, prescriptions |
+| 7 | ✅ Done | **Baseline test suite** — `pytest-django`, 40% coverage gate enforced in CI and locally |
+| 8 | ✅ Done | **Rate limiting expanded** — booking `10/h/user`, messaging `60/m/user`, API `30/m anon` + `120/m user` via DRF throttle |
+| 9 | ✅ Done | **Structured logging + Sentry** — `LOGGING` dict in `base.py`; Sentry auto-initialised when `SENTRY_DSN` is set |
+
+### P1 — Functional Gaps
+
+| # | Status | Item |
+|---|--------|------|
+| 10 | ✅ Done | **Real contact form + FAQ model** — persists to DB, emails admin via Celery; 8 default FAQs seeded |
+| 11 | 🔲 Open | **Stripe end-to-end + refund button** — refund service exists; UI button not wired in admin/patient views |
+| 12 | ✅ Done | **Daily.co: fix silent demo fallback** — raises `ImproperlyConfigured` in prod; logs warning in dev |
+| 13 | ✅ Done | **Message file attachments UI** — file input in chat, 10 MB max, extension allowlist, download links rendered |
+| 14 | ✅ Done | **"Join video call" from chat** — green "Join Call" button in chat header when active VideoRoom exists |
+| 15 | ✅ Done | **Group consultation browse filter** — "Group Sessions Available" checkbox in doctor search sidebar |
+| 16 | ✅ Done | **`send_welcome_email_task`** — now called from `verify_email_token` after email confirmation |
+| 17 | ✅ Done | **Doctor catalog API auth** — `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
+| 18 | 🔲 Open | **Doctor location/geographic search** — add `city`, `state`, `country` to `DoctorProfile` |
+| 19 | ✅ Done | **Living Knowledge Graph** — `apps/knowledge_graph/` app; Cytoscape.js UI at `/internal/knowledge-graph/`; AI agent JSON at `/api/v1/knowledge-graph/`; auto-updates via Django signals + Celery + git hook |
+
+### P2 — Quality & Operational
+
+| # | Item |
+|---|------|
+| 20 | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
+| 21 | Switch to Argon2 password hasher (`argon2-cffi`); HIPAA-ready, memory-hard |
+| 22 | Strengthen password policy (12-char min), add `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, reduce `SESSION_COOKIE_AGE` |
+| 23 | Complete `.env.example` — missing `STRIPE_*`, `DAILY_API_KEY`, `TWILIO_*`, `SENTRY_DSN`, `EMAIL_*`, `CELERY_BROKER_URL` |
+| 24 | Add seed management commands — `seed_symptoms.py`, `seed_test_users.py` |
+| 25 | File upload magic-byte validation — replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
+| 26 | Bandit security scan in CI |
+| 27 | Document backup/DR — `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
+| 28 | Accessibility pass — `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
+
+### P3 — Future Features
+
+| Item | Notes |
+|------|-------|
+| **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages |
+| **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
+| **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
+| **Video session recording** | Hardcoded off (`consultations/services.py:50`); requires patient consent flow + encrypted storage |
+| **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts) |
+| **EHR / EMR sync** | FHIR R4 endpoints for Epic/Cerner — long-term |
+| **Push notifications** | Web Push / FCM for mobile readiness; add after mobile app decision |
