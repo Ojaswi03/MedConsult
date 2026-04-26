@@ -1,6 +1,6 @@
 # MedConsult — Telehealth Platform
 
-A Django 5.2 telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
+A Django 4.2 LTS telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
 
 ---
 
@@ -124,11 +124,110 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 
 ---
 
+## Frontend Design System
+
+All pages are being progressively redesigned to share a cohesive look. When updating any page, match the palette, animation style, and layout patterns documented here.
+
+### Color Palette
+
+| Role | Light mode | Dark mode | Tailwind class |
+|------|-----------|-----------|----------------|
+| Page background | `#eff6ff → #eef2ff → #faf5ff` (animated gradient) | `#0f172a → #1e1b4b → #0f172a` | `hero-gradient` CSS class |
+| Auth split — left panel | `#1e3a8a → #312e81 → #1e1b4b` (deep blue/indigo) | same | `hero-panel` CSS class |
+| Public navbar | `bg-blue-50/90` + `backdrop-blur-sm` | `bg-gray-950/90` | `border-blue-100/60` separator |
+| Authenticated navbar / sidebar | `bg-white dark:bg-gray-800` | same | unchanged |
+| Primary action | `bg-blue-600 hover:bg-blue-700` | same | |
+| Secondary / doctor accent | `bg-emerald-500` / `text-emerald-600` | `dark:text-emerald-400` | |
+| Destructive | `bg-red-600` | `dark:bg-red-700` | |
+| Card surface | `bg-white dark:bg-gray-800` | | |
+| Subtle surface | `bg-gray-50 dark:bg-gray-900` | | |
+| Glass card (on dark hero) | `bg-white/10 backdrop-blur-sm border border-white/20` | same | used for floating cards |
+
+Exact gradient CSS:
+```css
+/* Landing hero — light */
+.hero-gradient {
+  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 50%, #faf5ff 100%);
+  background-size: 200% 200%;
+  animation: gradShift 8s ease infinite;
+}
+/* Landing hero — dark */
+.dark .hero-gradient {
+  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}
+/* Auth split panel (always dark blue regardless of theme) */
+.hero-panel {
+  background: linear-gradient(145deg, #1e3a8a 0%, #312e81 45%, #1e1b4b 100%);
+  background-size: 200% 200%;
+  animation: gradShift 10s ease infinite;
+}
+```
+
+### Animation Keyframes
+
+Every redesigned page uses the same keyframe set defined in an inline `<style>` block within the template. **Do not put these in `custom.css` or `base.html` — keep them per-template so each page is self-contained.**
+
+```css
+@keyframes fadeUp    { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+@keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
+@keyframes floatY    { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+@keyframes floatSlow { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
+@keyframes gradShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+@keyframes blobPulse { 0%,100% { transform:scale(1) translate(0,0); } 33% { transform:scale(1.05) translate(8px,-8px); } 66% { transform:scale(.96) translate(-6px,6px); } }
+```
+
+Utility classes (also defined inline per template):
+```css
+.animate-fade-up    { animation: fadeUp .65s cubic-bezier(.16,1,.3,1) both; }
+.animate-float      { animation: floatY 3.8s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 5.5s ease-in-out infinite; }
+.delay-50  { animation-delay: .05s; }  /* through .delay-600 in steps of 50ms */
+```
+
+Entry animations are staggered: first element `.delay-50`, next `.delay-100`, next `.delay-150`, etc. — creating a cascade effect on page load.
+
+### Layout Patterns
+
+**Auth pages (login, signup role-select, and future: forgot password, reset password)**
+- Extend `base.html` directly and override `{% block body %}` for full-screen control
+- `min-h-screen flex` outer wrapper — no public header/footer
+- Left 48–52% (`hidden lg:flex`): `hero-panel` dark blue gradient + floating glass cards + logo + tagline
+- Right flex-1: `bg-white dark:bg-gray-900`, form with staggered `.animate-fade-up` entries
+- Floating cards on the left use `animate-float` / `animate-float-slow` with staggered `animation-delay`
+- Background decorative blobs: `border-radius: 60% 40% 30% 70% / ...` + `filter: blur(52px)` + `blobPulse` animation
+
+**Landing page**
+- Extends `layouts/public.html` (gets the blue-50 navbar)
+- Full-width sections: hero gradient → blue stats bar → feature cards grid → "how it works" → CTA
+- Feature cards use `.feature-card { transition: transform .25s; }` + `:hover { transform: translateY(-4px); }`
+
+**Authenticated app pages** — defer to existing `layouts/app.html` styling (no redesign needed unless requested).
+
+**Admin pages** — defer to existing `layouts/admin.html` (dark sidebar, `bg-gray-900`).
+
+### Dark Mode
+
+All redesigned templates use Tailwind `dark:` variant classes directly (e.g. `dark:bg-gray-900`, `dark:text-white`). The `.dark` class is toggled on `<html>` by `static/js/theme_switcher.js`. **Do not use CSS custom properties (`var(--color)`) or global overrides in `custom.css`** — they break button styles. Only `dark:` Tailwind classes.
+
+### Pages Redesigned So Far
+
+| Page | Template | Status |
+|------|----------|--------|
+| Landing / home | `apps/accounts/templates/accounts/landing.html` | ✅ Done |
+| Login | `apps/accounts/templates/accounts/login.html` | ✅ Done |
+| Sign up — role select | `apps/accounts/templates/accounts/signup_role_select.html` | ✅ Done |
+| Public navbar | `templates/layouts/public.html` | ✅ Done (blue-50 glass) |
+| Admin layout dark mode | `templates/layouts/admin.html` | ✅ Done |
+
+All remaining pages will be redesigned one by one. Each must follow the palette, animation keyframes, and layout patterns above.
+
+---
+
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Django 5.2 |
+| Backend | Django 4.2.27 (LTS) |
 | Database | PostgreSQL 16 |
 | Cache / Channel Layer | Redis 7 |
 | WebSocket | Django Channels 4 + Daphne |

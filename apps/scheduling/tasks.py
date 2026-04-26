@@ -81,8 +81,8 @@ def schedule_appointment_reminders():
 
     appointments_24h = Appointment.objects.filter(
         status='scheduled',
-        start_datetime__gte=start_24h,
-        start_datetime__lte=end_24h,
+        slot__start_datetime__gte=start_24h,
+        slot__start_datetime__lte=end_24h,
     ).values_list('id', flat=True)
 
     for appointment_id in appointments_24h:
@@ -94,8 +94,8 @@ def schedule_appointment_reminders():
 
     appointments_1h = Appointment.objects.filter(
         status='scheduled',
-        start_datetime__gte=start_1h,
-        start_datetime__lte=end_1h,
+        slot__start_datetime__gte=start_1h,
+        slot__start_datetime__lte=end_1h,
     ).values_list('id', flat=True)
 
     for appointment_id in appointments_1h:
@@ -104,8 +104,8 @@ def schedule_appointment_reminders():
     # SMS reminders for patients with phone_notifications=True
     phone_notif_24h = Appointment.objects.filter(
         status='scheduled',
-        start_datetime__gte=start_24h,
-        start_datetime__lte=end_24h,
+        slot__start_datetime__gte=start_24h,
+        slot__start_datetime__lte=end_24h,
         patient__phone_notifications=True,
     ).values_list('id', flat=True)
     for appointment_id in phone_notif_24h:
@@ -113,8 +113,8 @@ def schedule_appointment_reminders():
 
     phone_notif_1h = Appointment.objects.filter(
         status='scheduled',
-        start_datetime__gte=start_1h,
-        start_datetime__lte=end_1h,
+        slot__start_datetime__gte=start_1h,
+        slot__start_datetime__lte=end_1h,
         patient__phone_notifications=True,
     ).values_list('id', flat=True)
     for appointment_id in phone_notif_1h:

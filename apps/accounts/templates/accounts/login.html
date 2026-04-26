@@ -1,60 +1,317 @@
-{% extends "layouts/public.html" %}
+{% extends "base.html" %}
 
-{% block title %}Login - MedConsult{% endblock %}
+{% block title %}Sign In — MedConsult{% endblock %}
 
-{% block content %}
-<div class="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-    <div class="max-w-md w-full bg-white p-8 rounded-lg shadow-lg">
-        <div class="text-center mb-8">
-            <h2 class="text-3xl font-bold text-gray-900">Welcome Back</h2>
-            <p class="text-gray-600 mt-2">Sign in to your account</p>
+{% block body %}
+<style>
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+  @keyframes floatY   { 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-14px); } }
+  @keyframes floatSlow{ 0%,100% { transform:translateY(0px); } 50% { transform:translateY(-8px); } }
+  @keyframes gradShift{ 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
+  @keyframes blobPulse{ 0%,100% { transform:scale(1) translate(0,0); } 33% { transform:scale(1.05) translate(8px,-8px); } 66% { transform:scale(.96) translate(-6px,6px); } }
+  @keyframes slideRight { from { opacity:0; transform:translateX(-20px); } to { opacity:1; transform:translateX(0); } }
+  @keyframes ripple   { 0% { transform:scale(1); opacity:.6; } 100% { transform:scale(2.4); opacity:0; } }
+
+  .hero-panel {
+    background: linear-gradient(145deg,#1e3a8a 0%,#312e81 45%,#1e1b4b 100%);
+    background-size:200% 200%;
+    animation: gradShift 10s ease infinite;
+  }
+  .blob {
+    border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%;
+    filter: blur(52px);
+    animation: blobPulse 9s ease-in-out infinite;
+  }
+  .animate-fade-up    { animation: fadeUp .65s cubic-bezier(.16,1,.3,1) both; }
+  .animate-fade-in    { animation: fadeIn .5s ease both; }
+  .animate-float      { animation: floatY 3.8s ease-in-out infinite; }
+  .animate-float-slow { animation: floatSlow 5.5s ease-in-out infinite; }
+  .animate-slide-right{ animation: slideRight .6s cubic-bezier(.16,1,.3,1) both; }
+  .delay-50  { animation-delay:.05s; }
+  .delay-100 { animation-delay:.1s; }
+  .delay-150 { animation-delay:.15s; }
+  .delay-200 { animation-delay:.2s; }
+  .delay-300 { animation-delay:.3s; }
+  .delay-400 { animation-delay:.4s; }
+  .delay-500 { animation-delay:.5s; }
+  .delay-600 { animation-delay:.6s; }
+  .float-delay-1 { animation-delay:0s; }
+  .float-delay-2 { animation-delay:1.2s; }
+  .float-delay-3 { animation-delay:2.4s; }
+
+  .input-field {
+    width:100%; padding:.65rem 1rem;
+    border-radius:.5rem;
+    border:1.5px solid #e5e7eb;
+    background:#fff;
+    color:#111827;
+    font-size:.95rem;
+    outline:none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .input-field:focus {
+    border-color:#3b82f6;
+    box-shadow: 0 0 0 3px rgba(59,130,246,.15);
+  }
+  .dark .input-field {
+    background:#1f2937;
+    border-color:#374151;
+    color:#f9fafb;
+  }
+  .dark .input-field:focus {
+    border-color:#60a5fa;
+    box-shadow: 0 0 0 3px rgba(96,165,250,.18);
+  }
+  .ripple-ring {
+    position:absolute; inset:0; border-radius:50%;
+    border:1.5px solid rgba(255,255,255,.25);
+    animation: ripple 3s ease-out infinite;
+  }
+  .ripple-ring-2 { animation-delay:1s; }
+  .ripple-ring-3 { animation-delay:2s; }
+
+  /* password toggle eye */
+  #toggle-pw { cursor:pointer; }
+</style>
+
+<div class="min-h-screen flex">
+
+  <!-- ── Left decorative panel (lg+) ─────────────────────────── -->
+  <div class="hidden lg:flex lg:w-[52%] hero-panel flex-col items-center justify-center relative overflow-hidden p-14 select-none">
+
+    <!-- Background blobs -->
+    <div class="blob absolute -top-28 -left-28 w-96 h-96 bg-blue-600 opacity-25 pointer-events-none"></div>
+    <div class="blob absolute bottom-0 right-0 w-80 h-80 bg-indigo-700 opacity-20 pointer-events-none" style="animation-delay:3s;"></div>
+    <div class="blob absolute top-1/2 left-1/3 w-64 h-64 bg-purple-700 opacity-15 pointer-events-none" style="animation-delay:6s;"></div>
+
+    <!-- Logo -->
+    <div class="animate-fade-up mb-10 text-center z-10">
+      <div class="inline-flex items-center gap-3 mb-4">
+        <div class="relative w-12 h-12 flex items-center justify-center">
+          <div class="ripple-ring"></div>
+          <div class="ripple-ring ripple-ring-2"></div>
+          <div class="ripple-ring ripple-ring-3"></div>
+          <div class="w-12 h-12 bg-white/20 backdrop-blur rounded-xl flex items-center justify-center relative z-10">
+            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+            </svg>
+          </div>
         </div>
-
-        <form method="post" class="space-y-6">
-            {% csrf_token %}
-
-            <div>
-                <label for="{{ form.identifier.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                    Username or Email
-                </label>
-                {{ form.identifier }}
-                {% if form.identifier.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.identifier.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            <div>
-                <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 mb-2">
-                    Password
-                </label>
-                {{ form.password }}
-                {% if form.password.errors %}
-                    <p class="mt-1 text-sm text-red-600">{{ form.password.errors.0 }}</p>
-                {% endif %}
-            </div>
-
-            {% if form.non_field_errors %}
-                <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded">
-                    {{ form.non_field_errors.0 }}
-                </div>
-            {% endif %}
-
-            <div class="flex items-center justify-between">
-                <div></div>
-                <a href="{% url 'forgot_password' %}" class="text-sm text-blue-600 hover:text-blue-700">Forgot password?</a>
-            </div>
-
-            <button type="submit" class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 font-semibold transition-colors">
-                Sign In
-            </button>
-        </form>
-
-        <div class="mt-6 text-center">
-            <p class="text-sm text-gray-600">
-                Don't have an account?
-                <a href="{% url 'signup' %}" class="text-blue-600 hover:text-blue-700 font-semibold">Sign up</a>
-            </p>
-        </div>
+        <span class="text-2xl font-bold text-white tracking-tight">MedConsult</span>
+      </div>
+      <p class="text-blue-200 text-sm font-medium uppercase tracking-widest">Telehealth Platform</p>
     </div>
+
+    <!-- Headline -->
+    <div class="text-center z-10 max-w-sm animate-fade-up delay-100 mb-12">
+      <h2 class="text-3xl font-bold text-white leading-tight mb-3">
+        Healthcare at<br><span class="text-blue-300">your fingertips</span>
+      </h2>
+      <p class="text-blue-200 text-sm leading-relaxed">
+        Connect with verified doctors instantly. Secure consultations, anywhere, anytime.
+      </p>
+    </div>
+
+    <!-- Floating cards -->
+    <div class="relative w-full max-w-xs z-10 h-52">
+
+      <!-- Card 1 — Appointment reminder -->
+      <div class="animate-float float-delay-1 absolute top-0 left-0 w-64 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 shadow-2xl">
+        <div class="flex items-start gap-3">
+          <div class="w-9 h-9 bg-green-400/20 rounded-xl flex items-center justify-center flex-shrink-0">
+            <svg class="w-5 h-5 text-green-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div>
+            <p class="text-xs font-semibold text-white">Upcoming Appointment</p>
+            <p class="text-xs text-blue-200 mt-0.5">Dr. Chen — in 45 minutes</p>
+            <span class="inline-block mt-1.5 text-xs bg-green-500/25 text-green-300 px-2 py-0.5 rounded-full">Video Call</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2 — Doctors online -->
+      <div class="animate-float float-delay-2 absolute bottom-0 right-0 w-56 bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-4 shadow-2xl">
+        <p class="text-xs font-semibold text-white mb-2">Available Now</p>
+        <div class="flex items-center gap-1.5 mb-1">
+          <span class="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></span>
+          <p class="text-xs text-blue-200">5 doctors online</p>
+        </div>
+        <div class="flex -space-x-2 mt-2">
+          {% for c in "ABCDE" %}
+          <div class="w-7 h-7 rounded-full bg-gradient-to-br from-blue-400 to-indigo-600 border-2 border-white/20 flex items-center justify-center text-xs text-white font-bold">{{ c }}</div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- Badge — HIPAA -->
+      <div class="animate-float-slow float-delay-3 absolute -right-4 top-8 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 flex items-center gap-2 shadow-xl">
+        <svg class="w-4 h-4 text-blue-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+        </svg>
+        <span class="text-xs font-semibold text-white">HIPAA Secure</span>
+      </div>
+    </div>
+
+    <!-- Bottom trust row -->
+    <div class="z-10 mt-10 flex items-center gap-6 animate-fade-up delay-500">
+      <div class="text-center">
+        <p class="text-white font-bold text-xl">12k+</p>
+        <p class="text-blue-300 text-xs">Patients</p>
+      </div>
+      <div class="w-px h-8 bg-white/20"></div>
+      <div class="text-center">
+        <p class="text-white font-bold text-xl">500+</p>
+        <p class="text-blue-300 text-xs">Doctors</p>
+      </div>
+      <div class="w-px h-8 bg-white/20"></div>
+      <div class="text-center">
+        <p class="text-white font-bold text-xl">4.9★</p>
+        <p class="text-blue-300 text-xs">Rating</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Right form panel ─────────────────────────────────────── -->
+  <div class="flex-1 flex flex-col items-center justify-center bg-white dark:bg-gray-900 px-6 py-10 sm:px-10">
+
+    <!-- Mobile logo -->
+    <div class="lg:hidden mb-8 text-center animate-fade-up">
+      <a href="{% url 'landing' %}" class="inline-flex items-center gap-2 text-xl font-bold text-blue-600 dark:text-blue-400">
+        <svg class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"/>
+        </svg>
+        MedConsult
+      </a>
+    </div>
+
+    <div class="w-full max-w-md">
+
+      <!-- Heading -->
+      <div class="mb-8 animate-fade-up delay-50">
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Welcome back</h1>
+        <p class="text-gray-500 dark:text-gray-400 mt-1.5 text-sm">Sign in to continue to your dashboard</p>
+      </div>
+
+      <!-- Form errors (non-field) -->
+      {% if form.non_field_errors %}
+      <div class="mb-5 animate-fade-up delay-100 flex items-start gap-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 px-4 py-3 rounded-xl text-sm">
+        <svg class="w-4 h-4 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+        </svg>
+        <span>{{ form.non_field_errors.0 }}</span>
+      </div>
+      {% endif %}
+
+      <form method="post" class="space-y-5">
+        {% csrf_token %}
+
+        <!-- Username / Email -->
+        <div class="animate-fade-up delay-150">
+          <label for="{{ form.identifier.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Username or Email
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+              </svg>
+            </span>
+            <div class="[&_input]:pl-9 [&_input]:input-field">{{ form.identifier }}</div>
+          </div>
+          {% if form.identifier.errors %}
+            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.identifier.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Password -->
+        <div class="animate-fade-up delay-200">
+          <label for="{{ form.password.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+            Password
+          </label>
+          <div class="relative">
+            <span class="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+              <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+              </svg>
+            </span>
+            <div class="[&_input]:pl-9 [&_input]:pr-10 [&_input]:input-field" id="pw-wrapper">{{ form.password }}</div>
+            <button type="button" id="toggle-pw" class="absolute inset-y-0 right-3 flex items-center text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+              <svg id="eye-open" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0zM2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+              <svg id="eye-closed" class="w-4 h-4 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/>
+              </svg>
+            </button>
+          </div>
+          {% if form.password.errors %}
+            <p class="mt-1 text-xs text-red-600 dark:text-red-400">{{ form.password.errors.0 }}</p>
+          {% endif %}
+        </div>
+
+        <!-- Forgot password -->
+        <div class="animate-fade-up delay-300 flex justify-end -mt-1">
+          <a href="{% url 'forgot_password' %}" class="text-xs text-blue-600 dark:text-blue-400 hover:underline">Forgot password?</a>
+        </div>
+
+        <!-- Submit -->
+        <div class="animate-fade-up delay-400 pt-1">
+          <button type="submit"
+                  class="w-full relative overflow-hidden bg-blue-600 hover:bg-blue-700 active:scale-[.98] text-white py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-150 shadow-lg shadow-blue-500/25">
+            <span class="relative z-10 flex items-center justify-center gap-2">
+              Sign In
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/>
+              </svg>
+            </span>
+          </button>
+        </div>
+      </form>
+
+      <!-- Divider -->
+      <div class="animate-fade-up delay-500 flex items-center gap-3 my-6">
+        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+        <span class="text-xs text-gray-400 dark:text-gray-500">or</span>
+        <div class="flex-1 h-px bg-gray-200 dark:bg-gray-700"></div>
+      </div>
+
+      <!-- Sign up -->
+      <div class="animate-fade-up delay-600 text-center">
+        <p class="text-sm text-gray-500 dark:text-gray-400">
+          New to MedConsult?
+          <a href="{% url 'signup' %}" class="text-blue-600 dark:text-blue-400 font-semibold hover:underline ml-1">Create an account</a>
+        </p>
+      </div>
+
+      <!-- Back link -->
+      <div class="animate-fade-up delay-600 text-center mt-4">
+        <a href="{% url 'landing' %}" class="inline-flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          Back to home
+        </a>
+      </div>
+    </div>
+  </div>
+
 </div>
+
+<script>
+  // Password show/hide toggle
+  const toggleBtn = document.getElementById('toggle-pw');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      const input = document.querySelector('#pw-wrapper input');
+      if (!input) return;
+      const isText = input.type === 'text';
+      input.type = isText ? 'password' : 'text';
+      document.getElementById('eye-open').classList.toggle('hidden', !isText);
+      document.getElementById('eye-closed').classList.toggle('hidden', isText);
+    });
+  }
+</script>
 {% endblock %}

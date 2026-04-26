@@ -290,6 +290,15 @@ def login_view(request):
     return render(request, 'accounts/login.html', {'form': form})
 
 
+# ============ SKIP 2FA VIEW ============
+
+@login_required
+def skip_2fa(request):
+    """Mark 2FA setup as skipped for this session."""
+    request.session['2fa_skipped'] = True
+    return redirect('dashboard:home')
+
+
 # ============ LOGOUT VIEW ============
 
 def logout_view(request):

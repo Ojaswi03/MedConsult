@@ -2,9 +2,6 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Landing page
-    path('', views.landing_page, name='landing'),
-
     # Authentication
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
@@ -35,6 +32,9 @@ urlpatterns = [
     path('settings/', views.settings_view, name='settings'),
     path('settings/theme/', views.update_theme, name='update_theme'),
     path('settings/regenerate-backup-codes/', views.regenerate_backup_codes, name='regenerate_backup_codes'),
+
+    # 2FA skip
+    path('skip-2fa/', views.skip_2fa, name='skip_2fa'),
 
     # Notifications
     path('notifications/', views.notifications_list, name='notifications'),

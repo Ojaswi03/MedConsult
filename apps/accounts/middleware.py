@@ -4,6 +4,7 @@ from django.urls import reverse
 _EXEMPT_PREFIXES = (
     '/account/',   # django-two-factor-auth routes
     '/auth/',
+    '/skip-2fa/',  # 2FA skip endpoint
     '/admin/',
     '/static/',
     '/media/',
@@ -12,7 +13,10 @@ _EXEMPT_PREFIXES = (
 
 
 class EnforceTwoFactorMiddleware:
-    """Redirect doctors and admins to 2FA setup if not OTP-verified."""
+    """
+    Prompt all authenticated users to set up 2FA if they haven't already.
+    Optional — users can skip via /auth/skip-2fa/ which sets a session flag.
+    """
 
     def __init__(self, get_response):
         self.get_response = get_response
@@ -21,7 +25,7 @@ class EnforceTwoFactorMiddleware:
         user = request.user
         if (
             user.is_authenticated
-            and getattr(user, 'role', None) in ('doctor', 'admin')
+            and not request.session.get('2fa_skipped')
             and not any(request.path.startswith(p) for p in _EXEMPT_PREFIXES)
         ):
             is_otp_verified = getattr(user, 'is_verified', lambda: False)

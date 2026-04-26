@@ -1,0 +1,67 @@
+{% extends "two_factor/_base_focus.html" %}
+{% load i18n %}
+{% load two_factor_tags %}
+
+{% block extra_media %}{{ form.media }}{% endblock %}
+
+{% block content %}
+<div class="text-center mb-6">
+  <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-3">
+    <svg class="w-7 h-7 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+    </svg>
+  </div>
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white">
+    {% if wizard.steps.current == 'auth' %}{% trans "Login" %}
+    {% elif wizard.steps.current == 'token' %}{% trans "Verify Your Identity" %}
+    {% elif wizard.steps.current == 'backup' %}{% trans "Use Backup Token" %}
+    {% endif %}
+  </h1>
+</div>
+
+{% if wizard.steps.current == 'auth' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% trans "Enter your credentials." %}</p>
+{% elif wizard.steps.current == 'token' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{{ device|as_verbose_action }}</p>
+{% elif wizard.steps.current == 'backup' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">
+    {% blocktrans trimmed %}Enter one of your backup tokens to log in.{% endblocktrans %}
+  </p>
+{% endif %}
+
+<form action="" method="post">
+  {% block main_form_content %}
+  {% csrf_token %}
+  {% include "two_factor/_wizard_forms.html" %}
+  <input type="submit" value="" hidden />
+
+  {% if other_devices %}
+    <p class="text-sm text-gray-600 dark:text-gray-400 mt-4 mb-2">{% trans "Or use another authentication method:" %}</p>
+    <div class="space-y-2">
+      {% for other in other_devices %}
+        <button name="challenge_device" value="{{ other.persistent_id }}" type="submit"
+                class="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+          {{ other|as_action }}
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% include "two_factor/_wizard_actions.html" %}
+  {% endblock %}
+</form>
+
+{% block 'backup_tokens' %}
+  {% if backup_tokens %}
+    <hr class="my-4 border-gray-200 dark:border-gray-700">
+    <form action="" method="post">
+      {% csrf_token %}
+      <p class="text-sm text-gray-600 dark:text-gray-400 mb-2">{% trans "As a last resort, use a backup token:" %}</p>
+      <button name="wizard_goto_step" type="submit" value="backup"
+              class="w-full px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 dark:hover:bg-gray-600 transition-colors">
+        {% trans "Use Backup Token" %}
+      </button>
+    </form>
+  {% endif %}
+{% endblock %}
+{% endblock %}

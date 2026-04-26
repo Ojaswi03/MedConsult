@@ -1,0 +1,23 @@
+{% load i18n %}
+{{ wizard.management_form }}
+<div class="space-y-4">
+  {% for field in wizard.form.visible_fields %}
+  <div>
+    <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+      {{ field.label }}{% if field.field.required %} <span class="text-red-500">*</span>{% endif %}
+    </label>
+    {% if field.errors %}
+      {% for error in field.errors %}
+        <p class="text-red-500 text-xs mb-1">{{ error }}</p>
+      {% endfor %}
+    {% endif %}
+    <div class="[&_input]:w-full [&_input]:px-3 [&_input]:py-2 [&_input]:rounded-lg [&_input]:border [&_input]:border-gray-300 [&_input]:dark:border-gray-600 [&_input]:bg-white [&_input]:dark:bg-gray-700 [&_input]:text-gray-900 [&_input]:dark:text-white [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-blue-500 [&_select]:w-full [&_select]:px-3 [&_select]:py-2 [&_select]:rounded-lg [&_select]:border [&_select]:border-gray-300 [&_select]:dark:border-gray-600 [&_select]:bg-white [&_select]:dark:bg-gray-700 [&_select]:text-gray-900 [&_select]:dark:text-white">
+      {{ field }}
+    </div>
+    {% if field.help_text %}
+      <p class="text-xs text-gray-500 dark:text-gray-400 mt-1">{{ field.help_text }}</p>
+    {% endif %}
+  </div>
+  {% endfor %}
+  {% for field in wizard.form.hidden_fields %}{{ field }}{% endfor %}
+</div>

@@ -209,3 +209,6 @@ __marimo__/
 # Claude Code
 CLAUDE.md
 info.txt
+
+# Generated files (rebuilt at runtime, not source of truth)
+knowledge_graph.json

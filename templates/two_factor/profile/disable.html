@@ -1,0 +1,39 @@
+{% extends "two_factor/_base_focus.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="text-center mb-6">
+  <div class="inline-flex items-center justify-center w-14 h-14 bg-red-100 dark:bg-red-900/30 rounded-full mb-3">
+    <svg class="w-7 h-7 text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+    </svg>
+  </div>
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% trans "Disable Two-Factor Authentication" %}</h1>
+</div>
+
+<p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">
+  {% blocktrans trimmed %}You are about to disable two-factor authentication. This will weaken your account security. Are you sure?{% endblocktrans %}
+</p>
+
+<form method="post">
+  {% csrf_token %}
+  {% for field in form.visible_fields %}
+    <div class="mb-4">
+      <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+      {% if field.errors %}{% for error in field.errors %}<p class="text-red-500 text-xs mb-1">{{ error }}</p>{% endfor %}{% endif %}
+      <div class="[&_input]:w-full [&_input]:px-3 [&_input]:py-2 [&_input]:rounded-lg [&_input]:border [&_input]:border-gray-300 [&_input]:dark:border-gray-600 [&_input]:bg-white [&_input]:dark:bg-gray-700 [&_input]:text-gray-900 [&_input]:dark:text-white [&_input]:focus:outline-none [&_input]:focus:ring-2 [&_input]:focus:ring-red-500">{{ field }}</div>
+    </div>
+  {% endfor %}
+  {% for field in form.hidden_fields %}{{ field }}{% endfor %}
+  <div class="flex gap-3 mt-6">
+    <a href="{% url 'two_factor:profile' %}"
+       class="flex-1 text-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-700 hover:bg-gray-200 dark:hover:bg-gray-600 rounded-lg transition-colors">
+      {% trans "Cancel" %}
+    </a>
+    <button type="submit"
+            class="flex-1 px-4 py-2.5 text-sm font-medium text-white bg-red-600 hover:bg-red-700 rounded-lg transition-colors">
+      {% trans "Disable 2FA" %}
+    </button>
+  </div>
+</form>
+{% endblock %}

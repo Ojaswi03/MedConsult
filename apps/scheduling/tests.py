@@ -84,6 +84,13 @@ class BookingViewTests(TestCase):
         assert resp.status_code in (200, 302)
 
 
+def skip_2fa(client):
+    """Set the 2FA-skipped session flag so middleware does not redirect."""
+    session = client.session
+    session['2fa_skipped'] = True
+    session.save()
+
+
 class PatientAppointmentsTests(TestCase):
     def setUp(self):
         self.client = Client()
@@ -95,6 +102,7 @@ class PatientAppointmentsTests(TestCase):
 
     def test_appointments_list_loads_for_patient(self):
         self.client.login(username='pat2', password='pass1234!')
+        skip_2fa(self.client)
         resp = self.client.get(reverse('patient:patient_appointments'))
         assert resp.status_code == 200
 
@@ -110,12 +118,14 @@ class PatientDataExportTests(TestCase):
 
     def test_export_returns_json(self):
         self.client.login(username='pat3', password='pass1234!')
+        skip_2fa(self.client)
         resp = self.client.get(reverse('patient:patient_data_export'))
         assert resp.status_code == 200
         assert 'application/json' in resp['Content-Type']
 
     def test_export_contains_profile(self):
         self.client.login(username='pat3', password='pass1234!')
+        skip_2fa(self.client)
         resp = self.client.get(reverse('patient:patient_data_export'))
         import json
         data = json.loads(resp.content)

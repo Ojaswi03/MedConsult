@@ -1233,22 +1233,8 @@ def patient_billing_download(request, appointment_id):
     return response
 
 
+
 # ============ AVAILABILITY EXCEPTIONS ============
-
-@login_required
-def doctor_exception_list(request):
-    """Doctor view: List availability exceptions."""
-    if request.user.role != 'doctor':
-        return HttpResponseForbidden("Access denied. Doctors only.")
-
-    doctor_profile = request.user.doctor_profile
-    exceptions = get_availability_exceptions(doctor_profile)
-
-    return render(request, 'scheduling/doctor/time_off.html', {
-        'time_off_blocks': get_doctor_time_off_blocks(doctor_profile),
-        'exceptions': exceptions,
-    })
-
 
 @login_required
 @require_POST

@@ -1,59 +1,327 @@
 {% extends "layouts/public.html" %}
 
-{% block title %}Welcome to MedConsult{% endblock %}
+{% block title %}MedConsult — Telehealth Made Simple{% endblock %}
+
+{% block extra_css %}
+<style>
+  @keyframes fadeUp   { from { opacity:0; transform:translateY(28px); } to { opacity:1; transform:translateY(0); } }
+  @keyframes fadeIn   { from { opacity:0; } to { opacity:1; } }
+  @keyframes floatY   { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
+  @keyframes pulse-ring { 0% { box-shadow:0 0 0 0 rgba(59,130,246,.4); } 70% { box-shadow:0 0 0 16px rgba(59,130,246,0); } 100% { box-shadow:0 0 0 0 rgba(59,130,246,0); } }
+  @keyframes gradShift { 0%,100%{background-position:0% 50%;} 50%{background-position:100% 50%;} }
+
+  .hero-gradient {
+    background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 50%, #faf5ff 100%);
+    background-size: 200% 200%;
+    animation: gradShift 8s ease infinite;
+  }
+  .dark .hero-gradient {
+    background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+  }
+  .animate-fade-up   { animation: fadeUp .7s cubic-bezier(.16,1,.3,1) both; }
+  .animate-fade-in   { animation: fadeIn .6s ease both; }
+  .animate-float     { animation: floatY 4s ease-in-out infinite; }
+  .animate-float-slow{ animation: floatY 6s ease-in-out infinite; }
+  .animate-pulse-ring{ animation: pulse-ring 2s ease-out infinite; }
+  .delay-100 { animation-delay:.1s; }
+  .delay-200 { animation-delay:.2s; }
+  .delay-300 { animation-delay:.3s; }
+  .delay-400 { animation-delay:.4s; }
+  .delay-500 { animation-delay:.5s; }
+  .delay-600 { animation-delay:.6s; }
+
+  .feature-card {
+    transition: transform .25s ease, box-shadow .25s ease;
+  }
+  .feature-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 20px 40px -8px rgba(59,130,246,.18);
+  }
+  .dark .feature-card:hover {
+    box-shadow: 0 20px 40px -8px rgba(99,102,241,.25);
+  }
+  .stat-num {
+    font-variant-numeric: tabular-nums;
+  }
+</style>
+{% endblock %}
 
 {% block content %}
-<div class="bg-gradient-to-br from-blue-50 to-indigo-100 py-20">
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="text-center">
-            <h1 class="text-5xl font-bold text-gray-900 mb-6">
-                Welcome to MedConsult
-            </h1>
-            <p class="text-xl text-gray-700 mb-8 max-w-3xl mx-auto">
-                Connect with qualified doctors for convenient telehealth consultations. Book appointments, manage your health records, and get the care you need from anywhere.
-            </p>
-            <div class="flex justify-center space-x-4">
-                <a href="{% url 'signup' %}" class="bg-blue-600 text-white px-8 py-4 rounded-lg text-lg font-semibold hover:bg-blue-700 shadow-lg">
-                    Get Started
-                </a>
-                <a href="{% url 'login' %}" class="bg-white text-blue-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-gray-50 shadow-lg">
-                    Sign In
-                </a>
-            </div>
+
+<!-- ── Hero ─────────────────────────────────────────── -->
+<section class="hero-gradient relative overflow-hidden">
+  <!-- Decorative blobs -->
+  <div class="absolute top-0 right-0 w-96 h-96 rounded-full opacity-30 blur-3xl pointer-events-none"
+       style="background:radial-gradient(circle,#3b82f6,transparent 70%); transform:translate(30%,-30%);"></div>
+  <div class="absolute bottom-0 left-0 w-80 h-80 rounded-full opacity-20 blur-3xl pointer-events-none"
+       style="background:radial-gradient(circle,#8b5cf6,transparent 70%); transform:translate(-30%,30%);"></div>
+
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 lg:py-32">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+
+      <!-- Left: copy -->
+      <div>
+        <!-- Badge -->
+        <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-semibold mb-6 animate-fade-up
+                    bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300">
+          <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse-ring"></span>
+          HIPAA-Compliant Telehealth Platform
         </div>
 
-        <!-- Features -->
-        <div class="mt-20 grid grid-cols-1 md:grid-cols-3 gap-8">
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="text-blue-600 mb-4">
-                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">Easy Scheduling</h3>
-                <p class="text-gray-600">Book appointments with verified doctors in just a few clicks.</p>
-            </div>
+        <h1 class="text-5xl lg:text-6xl font-extrabold text-gray-900 dark:text-white leading-tight animate-fade-up delay-100">
+          Healthcare<br>
+          <span class="text-blue-600 dark:text-blue-400">anywhere,</span><br>
+          anytime.
+        </h1>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="text-blue-600 mb-4">
-                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">Verified Doctors</h3>
-                <p class="text-gray-600">All doctors are verified professionals with valid licenses.</p>
-            </div>
+        <p class="mt-6 text-lg text-gray-600 dark:text-gray-300 max-w-lg animate-fade-up delay-200">
+          Connect with verified doctors for video, chat, or phone consultations. Book in minutes, get care on your schedule.
+        </p>
 
-            <div class="bg-white p-6 rounded-lg shadow-md">
-                <div class="text-blue-600 mb-4">
-                    <svg class="w-12 h-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                    </svg>
-                </div>
-                <h3 class="text-xl font-semibold mb-2">24/7 Access</h3>
-                <p class="text-gray-600">Manage your appointments and health information anytime, anywhere.</p>
-            </div>
+        <div class="mt-10 flex flex-wrap gap-4 animate-fade-up delay-300">
+          <a href="{% url 'signup' %}"
+             class="inline-flex items-center gap-2 px-7 py-3.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl shadow-lg shadow-blue-500/30 transition-all hover:scale-105 active:scale-95">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+            </svg>
+            Get Started Free
+          </a>
+          <a href="{% url 'login' %}"
+             class="inline-flex items-center gap-2 px-7 py-3.5 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-200 font-semibold rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-all hover:scale-105 active:scale-95">
+            Sign In
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </a>
         </div>
+
+        <!-- Trust row -->
+        <div class="mt-10 flex items-center gap-6 animate-fade-up delay-400">
+          <div class="flex -space-x-2">
+            <div class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-blue-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+            <div class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-emerald-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+            <div class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-violet-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+            <div class="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 bg-amber-500 flex items-center justify-center text-white text-xs font-bold">D</div>
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            <span class="font-semibold text-gray-900 dark:text-white">500+</span> verified doctors ready
+          </p>
+        </div>
+      </div>
+
+      <!-- Right: floating cards -->
+      <div class="relative hidden lg:flex items-center justify-center h-96">
+        <!-- Main card -->
+        <div class="absolute bg-white dark:bg-gray-800 rounded-2xl shadow-2xl p-5 w-72 border border-gray-100 dark:border-gray-700 animate-float"
+             style="top:0; left:50%; transform:translateX(-50%);">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/50 flex items-center justify-center">
+              <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-gray-900 dark:text-white">Appointment Booked</p>
+              <p class="text-xs text-gray-500 dark:text-gray-400">Dr. Sarah Johnson · Video</p>
+            </div>
+          </div>
+          <div class="flex justify-between text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-700/50 rounded-lg px-3 py-2">
+            <span>Today, 3:00 PM</span>
+            <span class="text-green-600 dark:text-green-400 font-medium">Confirmed ✓</span>
+          </div>
+        </div>
+
+        <!-- Stats card -->
+        <div class="absolute bg-white dark:bg-gray-800 rounded-2xl shadow-xl p-4 w-52 border border-gray-100 dark:border-gray-700 animate-float-slow"
+             style="bottom:20px; right:0;">
+          <p class="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Platform Stats</p>
+          <div class="space-y-1.5">
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-300">Doctors</span>
+              <span class="font-bold text-gray-900 dark:text-white stat-num">500+</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-300">Patients</span>
+              <span class="font-bold text-gray-900 dark:text-white stat-num">12K+</span>
+            </div>
+            <div class="flex justify-between text-sm">
+              <span class="text-gray-600 dark:text-gray-300">Rating</span>
+              <span class="font-bold text-amber-500">4.9 ★</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- HIPAA badge -->
+        <div class="absolute bg-green-50 dark:bg-green-900/30 border border-green-200 dark:border-green-800 rounded-xl p-3 w-44 animate-float"
+             style="bottom:0; left:0; animation-delay:2s;">
+          <div class="flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600 dark:text-green-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+            </svg>
+            <div>
+              <p class="text-xs font-bold text-green-800 dark:text-green-300">HIPAA Secure</p>
+              <p class="text-xs text-green-600 dark:text-green-400">End-to-end encrypted</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
-</div>
+  </div>
+</section>
+
+<!-- ── Stats ────────────────────────────────────────── -->
+<section class="bg-blue-600 dark:bg-blue-900 py-12">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-2 md:grid-cols-4 gap-8 text-center text-white">
+      <div class="animate-fade-up">
+        <p class="text-4xl font-extrabold stat-num">500+</p>
+        <p class="mt-1 text-sm text-blue-200">Verified Doctors</p>
+      </div>
+      <div class="animate-fade-up delay-100">
+        <p class="text-4xl font-extrabold stat-num">12K+</p>
+        <p class="mt-1 text-sm text-blue-200">Patients Served</p>
+      </div>
+      <div class="animate-fade-up delay-200">
+        <p class="text-4xl font-extrabold stat-num">98%</p>
+        <p class="mt-1 text-sm text-blue-200">Satisfaction Rate</p>
+      </div>
+      <div class="animate-fade-up delay-300">
+        <p class="text-4xl font-extrabold stat-num">24/7</p>
+        <p class="mt-1 text-sm text-blue-200">Available</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Features ─────────────────────────────────────── -->
+<section class="py-24 bg-white dark:bg-gray-900">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16 animate-fade-up">
+      <h2 class="text-4xl font-extrabold text-gray-900 dark:text-white">Everything you need</h2>
+      <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">A complete telehealth platform built for patients and providers alike.</p>
+    </div>
+
+    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+      <!-- Feature 1 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-100">
+        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Easy Scheduling</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Book appointments with verified doctors in minutes. Real-time slot availability.</p>
+      </div>
+
+      <!-- Feature 2 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-200">
+        <div class="w-12 h-12 bg-green-100 dark:bg-green-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-green-600 dark:text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.069A1 1 0 0121 8.869v6.262a1 1 0 01-1.447.894L15 14M3 8a2 2 0 012-2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Video Consultations</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">HD video calls with screen sharing. Connect from any device, anywhere.</p>
+      </div>
+
+      <!-- Feature 3 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-300">
+        <div class="w-12 h-12 bg-violet-100 dark:bg-violet-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-violet-600 dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Verified Doctors</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Every doctor is license-verified and background-checked before joining.</p>
+      </div>
+
+      <!-- Feature 4 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-400">
+        <div class="w-12 h-12 bg-amber-100 dark:bg-amber-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Digital Prescriptions</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Receive and manage prescriptions digitally. No more lost paperwork.</p>
+      </div>
+
+      <!-- Feature 5 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-500">
+        <div class="w-12 h-12 bg-rose-100 dark:bg-rose-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-rose-600 dark:text-rose-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Secure Messaging</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">End-to-end encrypted chat between patients and their care team.</p>
+      </div>
+
+      <!-- Feature 6 -->
+      <div class="feature-card bg-gray-50 dark:bg-gray-800 rounded-2xl p-6 border border-gray-100 dark:border-gray-700 animate-fade-up delay-600">
+        <div class="w-12 h-12 bg-cyan-100 dark:bg-cyan-900/50 rounded-xl flex items-center justify-center mb-4">
+          <svg class="w-6 h-6 text-cyan-600 dark:text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/>
+          </svg>
+        </div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Health Records</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Your complete medical history in one secure, accessible place.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── How it works ──────────────────────────────────── -->
+<section class="py-24 bg-gray-50 dark:bg-gray-800">
+  <div class="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+    <div class="text-center mb-16 animate-fade-up">
+      <h2 class="text-4xl font-extrabold text-gray-900 dark:text-white">How it works</h2>
+      <p class="mt-4 text-gray-600 dark:text-gray-400">Get care in three simple steps.</p>
+    </div>
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-10 relative">
+      <!-- connecting line (desktop) -->
+      <div class="hidden md:block absolute top-8 left-1/6 right-1/6 h-0.5 bg-blue-200 dark:bg-blue-800" style="left:16.7%;right:16.7%;"></div>
+
+      <div class="text-center animate-fade-up delay-100">
+        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl font-extrabold mx-auto mb-4 shadow-lg shadow-blue-500/30">1</div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Create Account</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Sign up as a patient in under 2 minutes. No credit card required to browse.</p>
+      </div>
+      <div class="text-center animate-fade-up delay-200">
+        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl font-extrabold mx-auto mb-4 shadow-lg shadow-blue-500/30">2</div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Find a Doctor</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Browse specialists, read reviews, and pick an available slot that fits your schedule.</p>
+      </div>
+      <div class="text-center animate-fade-up delay-300">
+        <div class="w-16 h-16 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-2xl font-extrabold mx-auto mb-4 shadow-lg shadow-blue-500/30">3</div>
+        <h3 class="text-lg font-bold text-gray-900 dark:text-white mb-2">Get Care</h3>
+        <p class="text-gray-600 dark:text-gray-400 text-sm">Connect by video, phone, or chat. Receive prescriptions and follow-up notes digitally.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ───────────────────────────────────────────── -->
+<section class="py-20 bg-blue-600 dark:bg-blue-900 relative overflow-hidden">
+  <div class="absolute inset-0 opacity-10">
+    <div class="absolute top-0 right-0 w-64 h-64 rounded-full bg-white" style="transform:translate(30%,-40%);"></div>
+    <div class="absolute bottom-0 left-0 w-48 h-48 rounded-full bg-white" style="transform:translate(-30%,40%);"></div>
+  </div>
+  <div class="relative max-w-3xl mx-auto px-4 text-center">
+    <h2 class="text-4xl font-extrabold text-white animate-fade-up">Ready to get started?</h2>
+    <p class="mt-4 text-lg text-blue-100 animate-fade-up delay-100">Join thousands of patients already getting better care with MedConsult.</p>
+    <div class="mt-8 flex flex-wrap justify-center gap-4 animate-fade-up delay-200">
+      <a href="{% url 'signup' %}"
+         class="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-blue-700 font-bold rounded-xl shadow-lg hover:bg-blue-50 transition-all hover:scale-105 active:scale-95">
+        Create Free Account
+      </a>
+      <a href="{% url 'login' %}"
+         class="inline-flex items-center gap-2 px-8 py-3.5 bg-transparent text-white font-bold rounded-xl border-2 border-white/40 hover:border-white hover:bg-white/10 transition-all hover:scale-105 active:scale-95">
+        Sign In
+      </a>
+    </div>
+  </div>
+</section>
+
 {% endblock %}

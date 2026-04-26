@@ -1,0 +1,58 @@
+{% extends "two_factor/_base_focus.html" %}
+{% load i18n %}
+
+{% block extra_media %}{{ form.media }}{% endblock %}
+
+{% block content %}
+<div class="text-center mb-6">
+  <div class="inline-flex items-center justify-center w-14 h-14 bg-blue-100 dark:bg-blue-900/30 rounded-full mb-3">
+    <svg class="w-7 h-7 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/>
+    </svg>
+  </div>
+  <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{% trans "Two-Factor Authentication" %}</h1>
+</div>
+
+{% if wizard.steps.current == 'welcome' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">
+    {% blocktrans trimmed %}Add an extra layer of security to your account. Follow the steps to enable two-factor authentication.{% endblocktrans %}
+  </p>
+{% elif wizard.steps.current == 'method' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">
+    {% blocktrans trimmed %}Select the authentication method you'd like to use.{% endblocktrans %}
+  </p>
+{% elif wizard.steps.current == 'generator' %}
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-4">
+    {% blocktrans trimmed %}Scan the QR code with your authenticator app (e.g. Google Authenticator or Authy).{% endblocktrans %}
+  </p>
+  {% if QR_URL %}
+    <div class="flex justify-center mb-4">
+      <img src="{{ QR_URL }}" alt="QR Code" class="bg-white p-2 rounded-lg border border-gray-200"/>
+    </div>
+  {% endif %}
+  <p class="text-xs text-gray-500 dark:text-gray-400 text-center mb-4">
+    {% trans "TOTP Secret:" %} <code class="font-mono bg-gray-100 dark:bg-gray-700 px-1 rounded">{{ secret_key }}</code>
+  </p>
+  <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-4">
+    {% blocktrans %}Enter the token shown in your app below.{% endblocktrans %}
+  </p>
+{% elif wizard.steps.current == 'validation' %}
+  {% if challenge_succeeded %}
+    {% if device.method == 'call' %}
+      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We are calling your phone now — enter the digits you hear.{% endblocktrans %}</p>
+    {% elif device.method == 'sms' %}
+      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We sent you a text message — enter the token we sent.{% endblocktrans %}</p>
+    {% endif %}
+  {% else %}
+    <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-6">
+      <p class="text-amber-700 dark:text-amber-400 text-sm">{% blocktrans trimmed %}There was an issue with that method. Go back and verify your information or try a different method.{% endblocktrans %}</p>
+    </div>
+  {% endif %}
+{% endif %}
+
+<form action="" method="post">{% csrf_token %}
+  {% include "two_factor/_wizard_forms.html" %}
+  <input type="submit" value="" hidden />
+  {% include "two_factor/_wizard_actions.html" %}
+</form>
+{% endblock %}

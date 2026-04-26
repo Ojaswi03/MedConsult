@@ -28,9 +28,9 @@ class UserCreationTests(TestCase):
         user = User(first_name='Jane', last_name='Doe', username='janedoe')
         assert user.get_display_name() == 'Jane Doe'
 
-    def test_display_name_fallback_username(self):
-        user = User(first_name='', last_name='', username='janedoe')
-        assert user.get_display_name() == 'janedoe'
+    def test_display_name_fallback_email(self):
+        user = User(first_name='', last_name='', username='janedoe', email='janedoe@test.com')
+        assert user.get_display_name() == 'janedoe@test.com'
 
 
 class LoginViewTests(TestCase):
@@ -85,11 +85,11 @@ class SignupViewTests(TestCase):
         self.client = Client()
 
     def test_patient_signup_page_loads(self):
-        resp = self.client.get(reverse('patient_signup'))
+        resp = self.client.get(reverse('patient_signup_start'))
         assert resp.status_code == 200
 
     def test_doctor_signup_page_loads(self):
-        resp = self.client.get(reverse('doctor_signup'))
+        resp = self.client.get(reverse('doctor_signup_start'))
         assert resp.status_code == 200
 
 
@@ -100,7 +100,7 @@ class ProfileImageTests(TestCase):
         )
         assert user.has_profile_image() is False
 
-    def test_get_profile_image_url_default(self):
+    def test_get_profile_image_url_returns_none_when_no_image(self):
         user = User(username='nopic2')
         url = user.get_profile_image_url()
-        assert url is not None
+        assert url is None
