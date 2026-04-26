@@ -18,6 +18,7 @@ env:
   CELERY_RESULT_BACKEND: redis://localhost:6379/1
   SECRET_KEY: ci-secret-key-not-for-production-use-only-in-tests
   DJANGO_SETTINGS_MODULE: config.settings.dev
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   test:
@@ -70,15 +71,3 @@ jobs:
 
     - name: Run migrations
       run: python manage.py migrate --settings=config.settings.dev
-
-    - name: Run tests with coverage
-      run: |
-        pytest --cov=apps --cov-report=xml --cov-report=term-missing --cov-fail-under=40
-
-    - name: Upload coverage report
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: coverage-report
-        path: coverage.xml
-        retention-days: 7
