@@ -55,3 +55,11 @@ def contact_page(request):
 def faq_page(request):
     faqs = FAQ.objects.filter(is_active=True)
     return render(request, 'support/faq.html', {'faqs': faqs})
+
+
+def privacy_policy(request):
+    return render(request, 'support/privacy_policy.html')
+
+
+def terms_of_service(request):
+    return render(request, 'support/terms_of_service.html')

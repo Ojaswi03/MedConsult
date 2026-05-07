@@ -1,46 +1,129 @@
 {% extends "layouts/app.html" %}
 
-{% block title %}Help - MedConsult{% endblock %}
+{% block title %}Help Center — MedConsult{% endblock %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto">
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Help Center</h1>
 
-    <div class="space-y-6">
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Getting Started</h2>
-            <div class="space-y-3 text-gray-700">
-                <p><strong>For Patients:</strong></p>
-                <ul class="list-disc ml-6 space-y-2">
-                    <li>Create an account and complete your profile</li>
-                    <li>Browse verified doctors by specialization</li>
-                    <li>Select an available time slot and book your appointment</li>
-                    <li>Manage your appointments from your dashboard</li>
-                </ul>
+  <!-- Header -->
+  <div class="mb-8">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white tracking-tight">Help Center</h1>
+    <p class="text-gray-500 dark:text-gray-400 mt-1">Everything you need to get started and get the most out of MedConsult.</p>
+  </div>
 
-                <p class="mt-4"><strong>For Doctors:</strong></p>
-                <ul class="list-disc ml-6 space-y-2">
-                    <li>Sign up as a doctor and complete your profile with credentials</li>
-                    <li>Wait for admin verification (usually within 24-48 hours)</li>
-                    <li>Set your availability windows through the admin panel</li>
-                    <li>Generate time slots and start accepting patients</li>
-                </ul>
-            </div>
+  <div class="space-y-5">
+
+    <!-- For Patients -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+          </svg>
         </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Common Questions</h2>
-            <p class="text-gray-700 mb-4">
-                For frequently asked questions, visit our <a href="{% url 'support:faq' %}" class="text-blue-600 hover:underline">FAQ page</a>.
-            </p>
-        </div>
-
-        <div class="bg-white rounded-lg shadow-md p-6">
-            <h2 class="text-xl font-semibold mb-4">Contact Support</h2>
-            <p class="text-gray-700 mb-4">
-                Need more help? <a href="{% url 'support:contact' %}" class="text-blue-600 hover:underline">Contact our support team</a>.
-            </p>
-        </div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">For Patients</h2>
+      </div>
+      <ul class="space-y-2.5">
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Create an account and complete your profile
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Browse verified doctors by specialization
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Select an available time slot and book your appointment
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Manage your appointments from your dashboard
+        </li>
+      </ul>
     </div>
+
+    <!-- For Doctors -->
+    <div class="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-6">
+      <div class="flex items-center gap-3 mb-4">
+        <div class="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01"/>
+          </svg>
+        </div>
+        <h2 class="text-lg font-semibold text-gray-900 dark:text-white">For Doctors</h2>
+      </div>
+      <ul class="space-y-2.5">
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Sign up as a doctor and complete your profile with credentials
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Wait for admin verification (usually within 24–48 hours)
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Set your availability windows through the doctor panel
+        </li>
+        <li class="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
+          <svg class="w-4 h-4 text-emerald-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+          </svg>
+          Generate time slots and start accepting patients
+        </li>
+      </ul>
+    </div>
+
+    <!-- Quick links -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      <a href="{% url 'support:faq' %}"
+         class="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 rounded-lg bg-indigo-50 dark:bg-indigo-900/30 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-indigo-600 dark:text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Frequently Asked Questions</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Find answers to common questions</p>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 ml-auto group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+
+      <a href="{% url 'support:contact' %}"
+         class="flex items-center gap-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-5 hover:border-blue-300 dark:hover:border-blue-600 hover:shadow-md transition-all group">
+        <div class="w-10 h-10 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+          <svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div>
+          <p class="font-semibold text-gray-900 dark:text-white text-sm group-hover:text-blue-600 dark:group-hover:text-blue-400 transition-colors">Contact Support</p>
+          <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Get help from our team</p>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 ml-auto group-hover:text-blue-500 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+        </svg>
+      </a>
+    </div>
+
+  </div>
 </div>
 {% endblock %}

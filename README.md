@@ -1,6 +1,6 @@
 # MedConsult — Telehealth Platform
 
-A Django 4.2 LTS telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
+A Django 5.2 telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
 
 ---
 
@@ -86,6 +86,13 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - File attachments in chat — upload documents, images, PDFs (10 MB max); rendered as inline download links
 - **"Join Call" button** appears in chat header when an active video room exists for the appointment
 - Video consultations via Daily.co (raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` missing)
+
+### Support & Legal
+- Help center with dark mode support and quick-link cards to FAQ and Contact
+- FAQ page with animated accordion interaction
+- Contact form persists to DB and emails admin via Celery
+- **Privacy Policy** at `/support/privacy/` — 8-section HIPAA-aware policy (data collection, HIPAA compliance, data sharing, retention, rights, cookies)
+- **Terms of Service** at `/support/terms/` — 13-section telehealth ToS with emergency disclaimer, cancellation/refund policy, and governing law
 
 ### Payments
 - Stripe integration (PaymentIntent + Checkout Session)
@@ -216,8 +223,13 @@ All redesigned templates use Tailwind `dark:` variant classes directly (e.g. `da
 | Landing / home | `apps/accounts/templates/accounts/landing.html` | ✅ Done |
 | Login | `apps/accounts/templates/accounts/login.html` | ✅ Done |
 | Sign up — role select | `apps/accounts/templates/accounts/signup_role_select.html` | ✅ Done |
+| Sign up wizard (patient 5-step / doctor 6-step) | `apps/accounts/templates/accounts/signup_wizard.html` + partials | ✅ Done (animated gradient, frosted glass card, dark mode throughout) |
 | Public navbar | `templates/layouts/public.html` | ✅ Done (blue-50 glass) |
 | Admin layout dark mode | `templates/layouts/admin.html` | ✅ Done |
+| Help center | `apps/support/templates/support/help.html` | ✅ Done (full dark mode, icon badges, hover cards) |
+| FAQ | `apps/support/templates/support/faq.html` | ✅ Done (accordion interaction, dark mode) |
+| Privacy Policy | `apps/support/templates/support/privacy_policy.html` | ✅ Done |
+| Terms of Service | `apps/support/templates/support/terms_of_service.html` | ✅ Done |
 
 All remaining pages will be redesigned one by one. Each must follow the palette, animation keyframes, and layout patterns above.
 
@@ -227,7 +239,7 @@ All remaining pages will be redesigned one by one. Each must follow the palette,
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Django 4.2.27 (LTS) |
+| Backend | Django 5.2 |
 | Database | PostgreSQL 16 |
 | Cache / Channel Layer | Redis 7 |
 | WebSocket | Django Channels 4 + Daphne |
@@ -457,6 +469,8 @@ Public
 /support/help/                            Help center
 /support/faq/                             FAQ
 /support/contact/                         Contact
+/support/privacy/                         Privacy Policy
+/support/terms/                           Terms of Service
 
 Authenticated (all roles)
 /app/                                     Role-based dashboard redirect

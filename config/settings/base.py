@@ -232,6 +232,12 @@ from celery.schedules import crontab
 LOGGING = {
     'version': 1,
     'disable_existing_loggers': False,
+    'filters': {
+        'ignore_browser_probes': {
+            '()': 'django.utils.log.CallbackFilter',
+            'callback': lambda r: '/.well-known/' not in r.getMessage(),
+        },
+    },
     'formatters': {
         'json': {
             '()': 'django.utils.log.ServerFormatter',
@@ -242,6 +248,7 @@ LOGGING = {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'json',
+            'filters': ['ignore_browser_probes'],
         },
     },
     'root': {

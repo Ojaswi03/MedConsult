@@ -1,27 +1,33 @@
 {# Step Progress Indicator Component #}
 <div class="mb-8">
-    <div class="flex items-center justify-between">
-        {% for step_num, step_title in steps %}
-        <div class="flex items-center {% if not forloop.last %}flex-1{% endif %}">
-            <div class="flex flex-col items-center">
-                <div class="step-indicator w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm
-                    {% if step_num < current_step %}bg-green-500 text-white
-                    {% elif step_num == current_step %}bg-blue-600 text-white
-                    {% else %}bg-gray-200 text-gray-500{% endif %}">
-                    {% if step_num < current_step %}
-                        <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
-                            <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
-                        </svg>
-                    {% else %}
-                        {{ step_num }}
-                    {% endif %}
-                </div>
-                <span class="text-xs mt-1 text-gray-500 hidden sm:block text-center max-w-16">{{ step_title }}</span>
-            </div>
-            {% if not forloop.last %}
-            <div class="flex-1 h-1 mx-2 {% if step_num < current_step %}bg-green-500{% else %}bg-gray-200{% endif %}"></div>
-            {% endif %}
+  <div class="flex items-center justify-between">
+    {% for step_num, step_label in steps %}
+    <div class="flex items-center {% if not forloop.last %}flex-1{% endif %}">
+      <div class="flex flex-col items-center">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm transition-all duration-300
+          {% if step_num < current_step %}bg-emerald-500 text-white shadow-md shadow-emerald-200 dark:shadow-emerald-900
+          {% elif step_num == current_step %}bg-blue-600 text-white shadow-lg shadow-blue-200 dark:shadow-blue-900 ring-4 ring-blue-100 dark:ring-blue-900/40
+          {% else %}bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-600{% endif %}">
+          {% if step_num < current_step %}
+            <svg class="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"/>
+            </svg>
+          {% else %}
+            {{ step_num }}
+          {% endif %}
         </div>
-        {% endfor %}
+        <span class="text-xs mt-1.5 font-medium hidden sm:block text-center max-w-[4.5rem] leading-tight
+          {% if step_num == current_step %}text-blue-600 dark:text-blue-400
+          {% elif step_num < current_step %}text-emerald-600 dark:text-emerald-400
+          {% else %}text-gray-400 dark:text-gray-500{% endif %}">
+          {{ step_label }}
+        </span>
+      </div>
+      {% if not forloop.last %}
+      <div class="flex-1 h-0.5 mx-2 rounded-full transition-all duration-500
+        {% if step_num < current_step %}bg-emerald-400 dark:bg-emerald-600{% else %}bg-gray-200 dark:bg-gray-600{% endif %}"></div>
+      {% endif %}
     </div>
+    {% endfor %}
+  </div>
 </div>

@@ -9,9 +9,9 @@ from .models import User, PatientProfile, DoctorProfile
 
 
 # Common input classes for styling
-INPUT_CLASS = 'w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500'
-CHECKBOX_CLASS = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded'
-FILE_INPUT_CLASS = 'block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100'
+INPUT_CLASS = 'w-full px-4 py-2 border border-gray-300 rounded-lg bg-white dark:bg-gray-700/50 dark:border-gray-600 dark:text-white dark:placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 dark:focus:ring-blue-400 transition-colors'
+CHECKBOX_CLASS = 'h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 dark:border-gray-600 rounded'
+FILE_INPUT_CLASS = 'block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 dark:file:bg-blue-900/30 file:text-blue-700 dark:file:text-blue-300 hover:file:bg-blue-100 dark:hover:file:bg-blue-900/50'
 
 
 # ============ LOGIN FORM ============
