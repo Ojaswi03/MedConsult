@@ -1355,14 +1355,14 @@ def patient_data_export(request):
             'date_joined': user.date_joined.isoformat(),
             'date_of_birth': str(profile.date_of_birth) if profile and profile.date_of_birth else None,
             'gender': profile.gender if profile else None,
-            'phone_number': profile.phone_number if profile else None,
+            'phone': user.phone,
             'address': profile.address if profile else None,
         },
         'appointments': [
             {
                 'id': a.id,
                 'doctor': a.slot.doctor.user.get_display_name() if a.slot and a.slot.doctor else None,
-                'appointment_type': a.appointment_type,
+                'appointment_type': a.slot.appointment_type if a.slot else None,
                 'status': a.status,
                 'start': a.slot.start_datetime.isoformat() if a.slot else None,
                 'reason': a.reason,

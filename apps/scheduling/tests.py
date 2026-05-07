@@ -133,3 +133,17 @@ class PatientDataExportTests(TestCase):
         assert data['profile']['username'] == 'pat3'
         assert 'appointments' in data
         assert 'health_records' in data
+
+    def test_export_field_paths_valid(self):
+        self.client.login(username='pat3', password='pass1234!')
+        skip_2fa(self.client)
+        resp = self.client.get(reverse('patient:patient_data_export'))
+        import json
+        data = json.loads(resp.content)
+        profile = data['profile']
+        assert 'phone' in profile, "profile.phone missing — was phone_number (wrong field)"
+        assert 'address' in profile
+        assert 'phone_number' not in profile, "stale phone_number key present"
+        for appt in data['appointments']:
+            assert 'appointment_type' in appt
+            assert 'start' in appt
