@@ -24,7 +24,7 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Manual / urgent slot creation
 - Block / unblock individual slots
 - Doctor time-off blocks - block date ranges, auto-block existing unbooked slots
-- Group consultations - slots with `max_capacity > 1`, shows spots remaining to patients *(see Known Bugs - DB layer fix pending)*
+- Group consultations - slots with `max_capacity > 1`, shows spots remaining to patients (capacity enforced via ForeignKey + select_for_update)
 - Real-time calendar updates via WebSocket (Django Channels) with HTMX polling fallback
 
 ### Patient Booking
@@ -84,7 +84,7 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Amber disclaimer banner on direct chats (dismissible); conversations only appear in list once a real message is sent
 - Per-user soft delete - each side can delete a conversation from their view; admin retains all records
 - File attachments in chat - upload documents, images, PDFs (10 MB max); rendered as inline download links
-- **"Join Call" button** appears in chat header when an active video room exists for the appointment *(see Known Bugs - URL reference fix pending)*
+- **"Join Call" button** appears in chat header when an active video room exists for the appointment
 - Video consultations via Daily.co (raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` missing)
 
 ### Support & Legal
@@ -657,14 +657,14 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 
 | # | Severity | Bug |
 |---|----------|-----|
-| B1 | 🔴 High | **Group consultations silently broken** - `Appointment.slot` is `OneToOneField`; a second booking on the same group slot hits a DB constraint. `max_capacity > 1` is currently impossible to honor. Fix: change to `ForeignKey` + `select_for_update()` capacity check. |
+| B1 | ✅ Fixed | **Group consultations silently broken** - changed `Appointment.slot` from `OneToOneField` → `ForeignKey`; added same-patient duplicate check and `select_for_update()` capacity enforcement. |
 | B2 | 🔴 High | **No booking/payment state machine** - if a user abandons the Stripe redirect, the appointment is left in an indeterminate state with no timeout or cleanup. Needs `booking_status` (held/confirmed/expired/cancelled), `payment_status`, slot hold timeout (10–15 min), and webhook-first confirmation. |
-| B3 | 🟡 Medium | **Patient data export has field mismatches** - the export service references model paths that don't match the actual schema (phone field relation, appointment type path). HIPAA Right of Access must be reliable. Needs a tested export selector + assertion test. |
-| B4 | 🟡 Medium | **"Join Call" URL is wrong** - chat template references a consultation URL namespace/name that doesn't exist in `apps/consultations/urls.py`. Results in `NoReverseMatch` at runtime. |
-| B5 | 🟡 Medium | **Admin decorator redirects to wrong namespace** - `accounts:login` may not resolve, causing `NoReverseMatch` when unauthenticated users hit admin routes. |
-| B6 | 🟡 Medium | **2FA policy inconsistent** - docs say doctors/admins required, patients optional. Middleware allows all users to bypass via session flag. Doctors/admins must not be able to skip. |
-| B7 | 🟡 Medium | **CI never runs the test suite** - GitHub workflow stops after migrations. `pytest` is declared but never executed; the 40% coverage gate is not enforced in CI. |
-| B8 | 🔴 High | **Slot booking has no row lock** - no `select_for_update()` around the availability check. Two concurrent requests can book the same slot. |
+| B3 | ✅ Fixed | **Patient data export has field mismatches** - fixed `profile.phone_number` → `user.phone` and `a.appointment_type` → `a.slot.appointment_type`; added assertion tests. |
+| B4 | ✅ Fixed | **"Join Call" URL is wrong** - corrected namespace from `consultation:video_room` to `consultations:join`. |
+| B5 | ✅ Fixed | **Admin decorator redirects to wrong namespace** - changed `accounts:login` → `login` (no namespace registered). |
+| B6 | 🔲 Deferred | **2FA policy inconsistent** - all roles currently use session-flag skip for development ease. Will enforce strict doctor/admin policy at end of backlog. |
+| B7 | ✅ Fixed | **CI never runs the test suite** - added `pytest --cov=apps --cov-fail-under=40` step to `django-ci.yml`. |
+| B8 | ✅ Fixed | **Slot booking has no row lock** - added `select_for_update()` at start of `book_appointment` transaction. |
 
 ---
 
@@ -690,14 +690,14 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 
 | # | Status | Item |
 |---|--------|------|
-| B1 | 🔲 Open | **Group booking DB fix** - change `Appointment.slot` from `OneToOneField` → `ForeignKey`; add `select_for_update()` capacity check |
+| B1 | ✅ Done | **Group booking DB fix** - `Appointment.slot` changed to `ForeignKey`; same-patient duplicate check + `select_for_update()` capacity enforcement added |
 | B2 | 🔲 Open | **Booking/payment state machine** - `booking_status`, `payment_status`, slot hold timeout, idempotency key, webhook-first confirmation |
-| B3 | 🔲 Open | **Patient data export field audit** - verify all serialized fields match actual model schema; add assertion test |
-| B4 | 🔲 Open | **"Join Call" URL fix** - correct namespace/name in `apps/messaging/templates/messaging/chat.html` |
-| B5 | 🔲 Open | **Admin redirect namespace fix** - verify `accounts:login` resolves or use literal path |
-| B6 | 🔲 Open | **2FA policy enforcement** - doctors/admins cannot bypass via session flag |
-| B7 | 🔲 Open | **CI actually run pytest** - add `pytest --cov=apps --cov-fail-under=40` to `.github/workflows/django-ci.yml` |
-| B8 | 🔲 Open | **Slot booking race condition** - wrap availability check + appointment create in `select_for_update()` transaction |
+| B3 | ✅ Done | **Patient data export field audit** - fixed `phone_number` → `phone` and `appointment_type` path; assertion tests added |
+| B4 | ✅ Done | **"Join Call" URL fix** - corrected to `consultations:join` in `chat.html` |
+| B5 | ✅ Done | **Admin redirect namespace fix** - changed `accounts:login` → `login` |
+| B6 | 🔲 Deferred | **2FA policy enforcement** - doctors/admins cannot bypass via session flag (deferred to end of backlog) |
+| B7 | ✅ Done | **CI actually run pytest** - `pytest --cov=apps --cov-fail-under=40` added to `django-ci.yml` |
+| B8 | ✅ Done | **Slot booking race condition** - `select_for_update()` added to `book_appointment` |
 
 ### P0 - Security & HIPAA Compliance
 
