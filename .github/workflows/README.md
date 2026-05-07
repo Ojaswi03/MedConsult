@@ -1,39 +1,33 @@
 # GitHub Actions Workflows
 
-This directory contains CI/CD workflow definitions for GitHub Actions.
-
 ## Available Workflows
 
 ### `django-ci.yml`
-Continuous Integration workflow that runs on push and pull requests:
-- Sets up PostgreSQL and Redis services
-- Installs Python dependencies
-- Runs database migrations
-- Executes Django tests
-- Checks for missing migrations
 
-## Usage
+Runs on every push and pull request to `main`.
 
-Workflows automatically trigger based on their configuration:
-- **Push to main/develop**: Runs full CI pipeline
-- **Pull requests**: Runs tests and validation
+Steps:
+1. Spin up PostgreSQL 16 + Redis 7 services
+2. Install Python dependencies (`pip install -r requirements.txt`)
+3. Run database migrations (`python manage.py migrate`)
+4. Check for missing migrations (`makemigrations --check --dry-run`)
+5. Run test suite with coverage (`pytest --cov=apps --cov-fail-under=40`)
 
-## Adding New Workflows
+> **Known gap (Bug B7):** Step 5 is declared in `pytest.ini` but the `pytest` call is not yet wired into the workflow. The coverage gate is not enforced in CI. Fix: add the `pytest` step to `django-ci.yml`.
 
-Create `.yml` files in this directory following the GitHub Actions syntax:
+## Adding New Workflow Steps
+
+Follow the existing job structure in `django-ci.yml`. Always pass `--settings=config.settings.ci` (not `dev`) so `DEBUG=False` in CI.
 
 ```yaml
-name: Workflow Name
-on: [push, pull_request]
-jobs:
-  job-name:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      # ... your steps here
+- name: Run tests
+  env:
+    DJANGO_SETTINGS_MODULE: config.settings.ci
+  run: |
+    pytest --cov=apps --cov-report=xml --cov-fail-under=40
 ```
 
 ## Documentation
 
 - [GitHub Actions Documentation](https://docs.github.com/en/actions)
-- [Django CI/CD Best Practices](https://docs.djangoproject.com/en/stable/topics/testing/)
+- [pytest-django](https://pytest-django.readthedocs.io/)

@@ -24,7 +24,7 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Manual / urgent slot creation
 - Block / unblock individual slots
 - Doctor time-off blocks - block date ranges, auto-block existing unbooked slots
-- Group consultations - slots with `max_capacity > 1`, shows spots remaining to patients
+- Group consultations - slots with `max_capacity > 1`, shows spots remaining to patients *(see Known Bugs - DB layer fix pending)*
 - Real-time calendar updates via WebSocket (Django Channels) with HTMX polling fallback
 
 ### Patient Booking
@@ -84,7 +84,7 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Amber disclaimer banner on direct chats (dismissible); conversations only appear in list once a real message is sent
 - Per-user soft delete - each side can delete a conversation from their view; admin retains all records
 - File attachments in chat - upload documents, images, PDFs (10 MB max); rendered as inline download links
-- **"Join Call" button** appears in chat header when an active video room exists for the appointment
+- **"Join Call" button** appears in chat header when an active video room exists for the appointment *(see Known Bugs - URL reference fix pending)*
 - Video consultations via Daily.co (raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` missing)
 
 ### Support & Legal
@@ -651,20 +651,53 @@ base.html                   Tailwind CDN, meta, scripts
 
 ---
 
+## Known Bugs
+
+These are confirmed broken - not gaps or missing features, but code that silently fails or errors at runtime. Fix before adding new features.
+
+| # | Severity | Bug |
+|---|----------|-----|
+| B1 | 🔴 High | **Group consultations silently broken** - `Appointment.slot` is `OneToOneField`; a second booking on the same group slot hits a DB constraint. `max_capacity > 1` is currently impossible to honor. Fix: change to `ForeignKey` + `select_for_update()` capacity check. |
+| B2 | 🔴 High | **No booking/payment state machine** - if a user abandons the Stripe redirect, the appointment is left in an indeterminate state with no timeout or cleanup. Needs `booking_status` (held/confirmed/expired/cancelled), `payment_status`, slot hold timeout (10–15 min), and webhook-first confirmation. |
+| B3 | 🟡 Medium | **Patient data export has field mismatches** - the export service references model paths that don't match the actual schema (phone field relation, appointment type path). HIPAA Right of Access must be reliable. Needs a tested export selector + assertion test. |
+| B4 | 🟡 Medium | **"Join Call" URL is wrong** - chat template references a consultation URL namespace/name that doesn't exist in `apps/consultations/urls.py`. Results in `NoReverseMatch` at runtime. |
+| B5 | 🟡 Medium | **Admin decorator redirects to wrong namespace** - `accounts:login` may not resolve, causing `NoReverseMatch` when unauthenticated users hit admin routes. |
+| B6 | 🟡 Medium | **2FA policy inconsistent** - docs say doctors/admins required, patients optional. Middleware allows all users to bypass via session flag. Doctors/admins must not be able to skip. |
+| B7 | 🟡 Medium | **CI never runs the test suite** - GitHub workflow stops after migrations. `pytest` is declared but never executed; the 40% coverage gate is not enforced in CI. |
+| B8 | 🔴 High | **Slot booking has no row lock** - no `select_for_update()` around the availability check. Two concurrent requests can book the same slot. |
+
+---
+
 ## Known Limitations
 
-- **Stripe payments** - end-to-end flow configured; no test run documented. Admin refund button wired in `/internal/appointments/`; patient-side refund request not yet implemented.
+- **Stripe payments** - admin refund button wired (`/internal/appointments/` → modal); patient-side refund request not yet implemented.
+- **Booking/payment state machine** - see Bug B2 above.
 - **Daily.co video** - API integration present; no test run documented. Raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
 - **Twilio SMS** - configured in `.env`; not verified with real credentials.
 - **Email sending** - uses Django console backend in dev (no real emails sent).
 - **Doctor location/geographic search** - `DoctorProfile` has no city/state/country fields; no location filter on doctor search.
+- **Private media** - uploaded files (health records, IDs, profile images) are served from `/media/` without auth checks or signed URLs. Not suitable for production PHI storage.
+- **Production frontend assets** - Tailwind, HTMX, Alpine, Chart.js, Cytoscape all loaded from CDN. No CSP headers or SRI hashes yet.
 - **i18n** - `LocaleMiddleware` and `LANGUAGES` configured; zero translated `.po` files exist. UI is English-only.
 
 ---
 
 ## Backlog
 
-> Items are ordered by impact. P0 = security/HIPAA compliance; P1 = functional gaps; P2 = quality/ops; P3 = future features.
+> Items are ordered by impact. Bugs = confirmed broken code (fix first); P0 = security/HIPAA compliance; P1 = functional gaps; P2 = quality/ops; P3 = future features.
+
+### Bugs - Fix Before New Features
+
+| # | Status | Item |
+|---|--------|------|
+| B1 | 🔲 Open | **Group booking DB fix** - change `Appointment.slot` from `OneToOneField` → `ForeignKey`; add `select_for_update()` capacity check |
+| B2 | 🔲 Open | **Booking/payment state machine** - `booking_status`, `payment_status`, slot hold timeout, idempotency key, webhook-first confirmation |
+| B3 | 🔲 Open | **Patient data export field audit** - verify all serialized fields match actual model schema; add assertion test |
+| B4 | 🔲 Open | **"Join Call" URL fix** - correct namespace/name in `apps/messaging/templates/messaging/chat.html` |
+| B5 | 🔲 Open | **Admin redirect namespace fix** - verify `accounts:login` resolves or use literal path |
+| B6 | 🔲 Open | **2FA policy enforcement** - doctors/admins cannot bypass via session flag |
+| B7 | 🔲 Open | **CI actually run pytest** - add `pytest --cov=apps --cov-fail-under=40` to `.github/workflows/django-ci.yml` |
+| B8 | 🔲 Open | **Slot booking race condition** - wrap availability check + appointment create in `select_for_update()` transaction |
 
 ### P0 - Security & HIPAA Compliance
 
@@ -692,31 +725,43 @@ base.html                   Tailwind CDN, meta, scripts
 | 15 | ✅ Done | **Group consultation browse filter** - "Group Sessions Available" checkbox in doctor search sidebar |
 | 16 | ✅ Done | **`send_welcome_email_task`** - now called from `verify_email_token` after email confirmation |
 | 17 | ✅ Done | **Doctor catalog API auth** - `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
-| 18 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country` to `DoctorProfile` |
+| 18 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country` to `DoctorProfile`; wire into `get_filtered_doctors` |
 | 19 | ✅ Done | **Living Knowledge Graph** - `apps/knowledge_graph/` app; Cytoscape.js UI at `/internal/knowledge-graph/`; AI agent JSON at `/api/v1/knowledge-graph/`; auto-updates via Django signals + Celery + git hook |
+| 20 | 🔲 Open | **Patient-side refund request** - patient can request refund from appointments list; goes to admin review queue |
+| 21 | 🔲 Open | **Privacy Cockpit** - patient-facing trust center: who accessed my record, consent history, device/session log, revoke doctor access, download audit log, delete request workflow |
+| 22 | 🔲 Open | **Insurance + price transparency** - insurance accepted field on doctor profile; estimated cost before booking; superbill PDF after appointment; cancellation fee preview |
+| 23 | 🔲 Open | **Provider verification depth** - NPI number, license expiry date, malpractice insurance, board certification, sanctions checklist, 30/60/90-day expiry reminders, verification status history |
+| 24 | 🔲 Open | **Care continuity page** - post-appointment summary: notes, prescriptions, shared files, follow-up date, message link; auto-generated when appointment → completed |
+| 25 | 🔲 Open | **Pre-visit telehealth readiness check** - per-visit (not just signup): camera/mic, private space confirmation, emergency contact/location, phone fallback, consent reconfirmation; triggered 5 min before start |
+| 26 | 🔲 Open | **Symptom intake → risk routing** - red-flag detection (e.g. chest pain → ER warning + block booking), urgency level, suggested specialty, "not a diagnosis" disclaimer, doctor-visible intake summary |
+| 27 | 🔲 Open | **Operational analytics** - no-show rate, cancelled slot rate, payment failure rate, avg wait time, refund rate, video connection failure rate; add to `/internal/` dashboard |
 
 ### P2 - Quality & Operational
 
 | # | Status | Item |
 |---|--------|------|
-| 20 | 🔲 Open | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
-| 21 | ✅ Done | **Argon2 password hasher** - `argon2-cffi==23.1.0` in requirements; `Argon2PasswordHasher` first in `PASSWORD_HASHERS`; PBKDF2 kept as fallback |
-| 22 | ✅ Done | **Session hardening** - `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`; `SESSION_COOKIE_AGE` reduced 86400 → 1800 (30 min) |
-| 23 | ✅ Done | **`.env.example` completed** - added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL` (all other vars were already present) |
-| 24 | 🔲 Open | Add seed management commands - `seed_symptoms.py`, `seed_test_users.py` |
-| 25 | 🔲 Open | File upload magic-byte validation - replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
-| 26 | 🔲 Open | Bandit security scan in CI |
-| 27 | 🔲 Open | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
-| 28 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
+| P2-1 | 🔲 Open | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
+| P2-2 | ✅ Done | **Argon2 password hasher** - `argon2-cffi==23.1.0` in requirements; `Argon2PasswordHasher` first in `PASSWORD_HASHERS`; PBKDF2 kept as fallback |
+| P2-3 | ✅ Done | **Session hardening** - `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`; `SESSION_COOKIE_AGE` reduced 86400 → 1800 (30 min) |
+| P2-4 | ✅ Done | **`.env.example` completed** - added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL` (all other vars were already present) |
+| P2-5 | 🔲 Open | Seed management commands - `seed_symptoms.py`, `seed_test_users.py` |
+| P2-6 | 🔲 Open | File upload magic-byte validation - replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
+| P2-7 | 🔲 Open | Bandit security scan in CI |
+| P2-8 | 🔲 Open | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
+| P2-9 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
+| P2-10 | 🔲 Open | **Private-media PHI architecture** - signed short-lived URLs, per-object auth check, encrypted storage, malware scan, file hash logging, immutable access logs; replace casual `/media/` serving |
+| P2-11 | 🔲 Open | **CSP / production asset hardening** - `Content-Security-Policy` headers (`django-csp`), SRI hashes for CDN scripts, no third-party tracking on health pages |
 
 ### P3 - Future Features
 
 | Item | Notes |
 |------|-------|
-| **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages |
+| **FHIR R4 export** | Phase 1: export-only JSON for Patient/Practitioner/Appointment/MedicationRequest/Condition/Encounter. Phase 2: import. Phase 3: SMART-on-FHIR. ONC Cures Act pushes this. |
+| **Remote patient monitoring - lite** | Patient-entered vitals (BP, glucose, weight, O2); threshold alerts; trend charts; CSV/FHIR export. Start manual, no wearables yet. |
+| **Asynchronous consults** | Text + photo async review (dermatology, lab review, second opinion). No slot required; different pricing tier. |
+| **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages (Spanish + French recommended) |
 | **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
 | **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
 | **Video session recording** | Hardcoded off (`consultations/services.py:50`); requires patient consent flow + encrypted storage |
-| **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts) |
-| **EHR / EMR sync** | FHIR R4 endpoints for Epic/Cerner - long-term |
+| **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts); requires vendor onboarding |
 | **Push notifications** | Web Push / FCM for mobile readiness; add after mobile app decision |

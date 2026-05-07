@@ -498,6 +498,8 @@ def book_appointment(slot, patient, reason=''):
     Returns the created Appointment object or raises an exception.
     Supports group sessions (max_capacity > 1).
     """
+    slot = Slot.objects.select_for_update().get(pk=slot.pk)
+
     if slot.start_datetime <= timezone.now():
         raise ValueError('Cannot book a slot in the past.')
 
