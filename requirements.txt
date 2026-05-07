@@ -40,6 +40,9 @@ django-cryptography==1.1
 django-two-factor-auth==1.18.1
 django-otp==1.7.0
 
+# Argon2 password hashing (memory-hard, HIPAA-recommended)
+argon2-cffi==23.1.0
+
 # Error tracking
 sentry-sdk==2.58.0
 

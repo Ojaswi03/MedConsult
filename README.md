@@ -1,6 +1,6 @@
 # MedConsult - Telehealth Platform
 
-A Django 5.2 telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
+A Django 4.2 LTS telehealth platform connecting patients with verified doctors through a slot-based appointment system. Built with a clean **Services/Selectors** architecture for maintainability and domain isolation.
 
 ---
 
@@ -128,6 +128,8 @@ A Django 5.2 telehealth platform connecting patients with verified doctors throu
 | Structured logging + optional Sentry integration | ✅ set `SENTRY_DSN` env var |
 | Baseline test suite (pytest-django, 40% coverage gate) | ✅ |
 | HSTS, `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE` in production | ✅ |
+| Argon2 password hashing (memory-hard, HIPAA-recommended) | ✅ argon2-cffi |
+| `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, 30-min session age | ✅ |
 
 ---
 
@@ -230,6 +232,8 @@ All redesigned templates use Tailwind `dark:` variant classes directly (e.g. `da
 | FAQ | `apps/support/templates/support/faq.html` | ✅ Done (accordion interaction, dark mode) |
 | Privacy Policy | `apps/support/templates/support/privacy_policy.html` | ✅ Done |
 | Terms of Service | `apps/support/templates/support/terms_of_service.html` | ✅ Done |
+| Forgot Password | `apps/accounts/templates/accounts/forgot_password.html` | ✅ Done (split layout, animated lock icon, floating security cards) |
+| Reset Password | `apps/accounts/templates/accounts/reset_password.html` | ✅ Done (split layout, password strength meter, show/hide toggles, match indicator) |
 
 All remaining pages will be redesigned one by one. Each must follow the palette, animation keyframes, and layout patterns above.
 
@@ -239,13 +243,14 @@ All remaining pages will be redesigned one by one. Each must follow the palette,
 
 | Component | Technology |
 |-----------|------------|
-| Backend | Django 5.2 |
+| Backend | Django 4.2.27 LTS |
 | Database | PostgreSQL 16 |
 | Cache / Channel Layer | Redis 7 |
 | WebSocket | Django Channels 4 + Daphne |
 | Async Tasks | Celery + django-celery-beat |
 | Frontend | Tailwind CSS (CDN) + HTMX + Alpine.js |
 | PHI Encryption | django-cryptography |
+| Password Hashing | argon2-cffi (Argon2, memory-hard) |
 | 2FA | django-two-factor-auth + django-otp |
 | Rate Limiting | django-ratelimit + DRF throttle |
 | Error Tracking | Sentry SDK (optional, via `SENTRY_DSN`) |
@@ -648,7 +653,7 @@ base.html                   Tailwind CDN, meta, scripts
 
 ## Known Limitations
 
-- **Stripe payments** - end-to-end flow configured; no test run documented. Refund button not yet wired in patient/admin UI.
+- **Stripe payments** - end-to-end flow configured; no test run documented. Admin refund button wired in `/internal/appointments/`; patient-side refund request not yet implemented.
 - **Daily.co video** - API integration present; no test run documented. Raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
 - **Twilio SMS** - configured in `.env`; not verified with real credentials.
 - **Email sending** - uses Django console backend in dev (no real emails sent).
@@ -680,7 +685,7 @@ base.html                   Tailwind CDN, meta, scripts
 | # | Status | Item |
 |---|--------|------|
 | 10 | ✅ Done | **Real contact form + FAQ model** - persists to DB, emails admin via Celery; 8 default FAQs seeded |
-| 11 | 🔲 Open | **Stripe end-to-end + refund button** - refund service exists; UI button not wired in admin/patient views |
+| 11 | 🔶 Partial | **Stripe end-to-end + refund button** - admin refund wired (`/internal/appointments/` → amber modal); patient-side refund request still open |
 | 12 | ✅ Done | **Daily.co: fix silent demo fallback** - raises `ImproperlyConfigured` in prod; logs warning in dev |
 | 13 | ✅ Done | **Message file attachments UI** - file input in chat, 10 MB max, extension allowlist, download links rendered |
 | 14 | ✅ Done | **"Join video call" from chat** - green "Join Call" button in chat header when active VideoRoom exists |
@@ -692,17 +697,17 @@ base.html                   Tailwind CDN, meta, scripts
 
 ### P2 - Quality & Operational
 
-| # | Item |
-|---|------|
-| 20 | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
-| 21 | Switch to Argon2 password hasher (`argon2-cffi`); HIPAA-ready, memory-hard |
-| 22 | Strengthen password policy (12-char min), add `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, reduce `SESSION_COOKIE_AGE` |
-| 23 | Complete `.env.example` - missing `STRIPE_*`, `DAILY_API_KEY`, `TWILIO_*`, `SENTRY_DSN`, `EMAIL_*`, `CELERY_BROKER_URL` |
-| 24 | Add seed management commands - `seed_symptoms.py`, `seed_test_users.py` |
-| 25 | File upload magic-byte validation - replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
-| 26 | Bandit security scan in CI |
-| 27 | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
-| 28 | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
+| # | Status | Item |
+|---|--------|------|
+| 20 | 🔲 Open | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
+| 21 | ✅ Done | **Argon2 password hasher** - `argon2-cffi==23.1.0` in requirements; `Argon2PasswordHasher` first in `PASSWORD_HASHERS`; PBKDF2 kept as fallback |
+| 22 | ✅ Done | **Session hardening** - `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`; `SESSION_COOKIE_AGE` reduced 86400 → 1800 (30 min) |
+| 23 | ✅ Done | **`.env.example` completed** - added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL` (all other vars were already present) |
+| 24 | 🔲 Open | Add seed management commands - `seed_symptoms.py`, `seed_test_users.py` |
+| 25 | 🔲 Open | File upload magic-byte validation - replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
+| 26 | 🔲 Open | Bandit security scan in CI |
+| 27 | 🔲 Open | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
+| 28 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
 
 ### P3 - Future Features
 
