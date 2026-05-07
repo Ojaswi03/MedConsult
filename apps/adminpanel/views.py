@@ -21,7 +21,7 @@ def admin_required(view_func):
     """Decorator to restrict access to admin users only."""
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
-            return redirect('accounts:login')
+            return redirect('login')
         if request.user.role != 'admin':
             return HttpResponseForbidden("Access denied. Admins only.")
         return view_func(request, *args, **kwargs)
