@@ -14,8 +14,9 @@ _EXEMPT_PREFIXES = (
 
 class EnforceTwoFactorMiddleware:
     """
-    Prompt all authenticated users to set up 2FA if they haven't already.
-    Optional — users can skip via /auth/skip-2fa/ which sets a session flag.
+    Enforce 2FA for all authenticated users.
+    Doctors and admins cannot bypass — the session skip flag is ignored for them.
+    Patients can skip via /auth/skip-2fa/ which sets a session flag.
     """
 
     def __init__(self, get_response):
@@ -23,22 +24,22 @@ class EnforceTwoFactorMiddleware:
 
     def __call__(self, request):
         user = request.user
-        if (
-            user.is_authenticated
-            and not request.session.get('2fa_skipped')
-            and not any(request.path.startswith(p) for p in _EXEMPT_PREFIXES)
-        ):
-            is_otp_verified = getattr(user, 'is_verified', lambda: False)
-            if callable(is_otp_verified):
-                otp_ok = is_otp_verified()
-            else:
-                otp_ok = bool(is_otp_verified)
+        if user.is_authenticated and not any(request.path.startswith(p) for p in _EXEMPT_PREFIXES):
+            role = getattr(user, 'role', None)
+            strict = role in ('doctor', 'admin')
 
-            if not otp_ok:
-                from django_otp import devices_for_user
-                has_device = bool(list(devices_for_user(user)))
-                if has_device:
-                    return redirect(reverse('two_factor:login'))
-                return redirect(reverse('two_factor:setup'))
+            if strict or not request.session.get('2fa_skipped'):
+                is_otp_verified = getattr(user, 'is_verified', lambda: False)
+                if callable(is_otp_verified):
+                    otp_ok = is_otp_verified()
+                else:
+                    otp_ok = bool(is_otp_verified)
+
+                if not otp_ok:
+                    from django_otp import devices_for_user
+                    has_device = bool(list(devices_for_user(user)))
+                    if has_device:
+                        return redirect(reverse('two_factor:login'))
+                    return redirect(reverse('two_factor:setup'))
 
         return self.get_response(request)
