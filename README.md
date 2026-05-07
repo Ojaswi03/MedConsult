@@ -658,7 +658,7 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | # | Severity | Bug |
 |---|----------|-----|
 | B1 | ✅ Fixed | **Group consultations silently broken** - changed `Appointment.slot` from `OneToOneField` → `ForeignKey`; added same-patient duplicate check and `select_for_update()` capacity enforcement. |
-| B2 | 🔴 High | **No booking/payment state machine** - if a user abandons the Stripe redirect, the appointment is left in an indeterminate state with no timeout or cleanup. Needs `booking_status` (held/confirmed/expired/cancelled), `payment_status`, slot hold timeout (10–15 min), and webhook-first confirmation. |
+| B2 | ✅ Fixed | **No booking/payment state machine** - added `booking_status` (held/confirmed/expired); Celery task expires held appointments after 15 min and frees the slot; webhook confirms payment; idempotency key on Stripe session; cancel view immediately frees slot. |
 | B3 | ✅ Fixed | **Patient data export has field mismatches** - fixed `profile.phone_number` → `user.phone` and `a.appointment_type` → `a.slot.appointment_type`; added assertion tests. |
 | B4 | ✅ Fixed | **"Join Call" URL is wrong** - corrected namespace from `consultation:video_room` to `consultations:join`. |
 | B5 | ✅ Fixed | **Admin decorator redirects to wrong namespace** - changed `accounts:login` → `login` (no namespace registered). |
@@ -671,7 +671,7 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 ## Known Limitations
 
 - **Stripe payments** - admin refund button wired (`/internal/appointments/` → modal); patient-side refund request not yet implemented.
-- **Booking/payment state machine** - see Bug B2 above.
+- **Booking/payment state machine** - `booking_status` (held/confirmed/expired), 15-min slot hold timeout via Celery, webhook-first confirmation, idempotency key on Stripe session.
 - **Daily.co video** - API integration present; no test run documented. Raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
 - **Twilio SMS** - configured in `.env`; not verified with real credentials.
 - **Email sending** - uses Django console backend in dev (no real emails sent).
@@ -691,7 +691,7 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | # | Status | Item |
 |---|--------|------|
 | B1 | ✅ Done | **Group booking DB fix** - `Appointment.slot` changed to `ForeignKey`; same-patient duplicate check + `select_for_update()` capacity enforcement added |
-| B2 | 🔲 Open | **Booking/payment state machine** - `booking_status`, `payment_status`, slot hold timeout, idempotency key, webhook-first confirmation |
+| B2 | ✅ Done | **Booking/payment state machine** - `booking_status` field, 15-min hold timeout via Celery, webhook confirms, idempotency key, cancel view frees slot immediately |
 | B3 | ✅ Done | **Patient data export field audit** - fixed `phone_number` → `phone` and `appointment_type` path; assertion tests added |
 | B4 | ✅ Done | **"Join Call" URL fix** - corrected to `consultations:join` in `chat.html` |
 | B5 | ✅ Done | **Admin redirect namespace fix** - changed `accounts:login` → `login` |
