@@ -312,4 +312,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.knowledge_graph.tasks.rebuild_knowledge_graph',
         'schedule': crontab(minute='*/5'),
     },
+    'expire-held-appointments': {
+        'task': 'apps.payments.tasks.expire_held_appointments',
+        'schedule': crontab(minute='*/5'),
+    },
 }

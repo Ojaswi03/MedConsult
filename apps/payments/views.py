@@ -102,14 +102,29 @@ def payment_success(request, appointment_id):
 def payment_cancel(request, appointment_id):
     """
     Handle cancelled payment return from Stripe.
+    Expires the held appointment and frees the slot.
     """
+    from django.db import transaction
+    from apps.scheduling.models import Slot
+
     appointment = get_object_or_404(
         Appointment,
         id=appointment_id,
         patient=request.user
     )
 
-    messages.warning(request, 'Payment was cancelled. You can try again when ready.')
+    if appointment.booking_status == 'held':
+        with transaction.atomic():
+            slot = Slot.objects.select_for_update().get(pk=appointment.slot_id)
+            appointment.booking_status = 'expired'
+            appointment.status = 'cancelled'
+            appointment.save(update_fields=['booking_status', 'status'])
+            slot.is_booked = False
+            if slot.current_bookings > 0:
+                slot.current_bookings -= 1
+            slot.save()
+
+    messages.warning(request, 'Payment was cancelled and your slot has been released.')
 
     return redirect('patient:patient_appointments')
 

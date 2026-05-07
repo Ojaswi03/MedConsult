@@ -178,6 +178,12 @@ class Appointment(models.Model):
         ('no_show', 'No Show'),
     ]
 
+    BOOKING_STATUS_CHOICES = [
+        ('held', 'Held'),
+        ('confirmed', 'Confirmed'),
+        ('expired', 'Expired'),
+    ]
+
     slot = models.ForeignKey(Slot, on_delete=models.PROTECT, related_name='appointments')
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='patient_appointments')
     doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='doctor_appointments')
@@ -186,6 +192,7 @@ class Appointment(models.Model):
     cpt_code = models.CharField(max_length=20, blank=True, help_text='CPT billing code for insurance claims')
     is_second_opinion = models.BooleanField(default=False, help_text='Whether this appointment is a second opinion request')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
+    booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='confirmed')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

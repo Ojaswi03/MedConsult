@@ -317,6 +317,7 @@ def mark_completed_appointments():
     now = timezone.now()
     count = Appointment.objects.filter(
         status='scheduled',
+        booking_status='confirmed',
         slot__end_datetime__lt=now
     ).update(status='completed')
     return f"Marked {count} appointments as completed"
@@ -329,7 +330,8 @@ def mark_no_show_appointments():
     from .models import Appointment
     count = Appointment.objects.filter(
         status='scheduled',
+        booking_status='confirmed',
         slot__start_datetime__lt=cutoff,
-        slot__end_datetime__gt=timezone.now() - timedelta(hours=24)  # Safety: only recent ones
+        slot__end_datetime__gt=timezone.now() - timedelta(hours=24)
     ).update(status='no_show')
     return f"Marked {count} appointments as no_show"

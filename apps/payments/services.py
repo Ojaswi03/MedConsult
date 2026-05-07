@@ -50,6 +50,7 @@ def create_checkout_session(appointment, success_url, cancel_url, request=None):
     # Create Stripe Checkout Session
     try:
         checkout_session = stripe_client.checkout.Session.create(
+            idempotency_key=f"checkout-{payment.id}",
             payment_method_types=['card'],
             line_items=[{
                 'price_data': {
@@ -73,6 +74,10 @@ def create_checkout_session(appointment, success_url, cancel_url, request=None):
                 'patient_id': str(appointment.patient.id),
             },
         )
+
+        # Mark appointment as held — awaiting payment confirmation
+        appointment.booking_status = 'held'
+        appointment.save(update_fields=['booking_status'])
 
         # Update payment with session ID
         payment.stripe_checkout_session_id = checkout_session.id
@@ -109,11 +114,10 @@ def handle_checkout_completed(session):
     payment.paid_at = timezone.now()
     payment.save()
 
-    # Update appointment status if needed
+    # Confirm the booking now that payment is verified
     appointment = payment.appointment
-    if hasattr(appointment, 'payment_status'):
-        appointment.payment_status = 'paid'
-        appointment.save(update_fields=['payment_status'])
+    appointment.booking_status = 'confirmed'
+    appointment.save(update_fields=['booking_status'])
 
     return payment
 
