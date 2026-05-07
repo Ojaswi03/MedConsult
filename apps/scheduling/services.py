@@ -508,6 +508,8 @@ def book_appointment(slot, patient, reason=''):
 
     # Handle group vs single slot
     if slot.max_capacity > 1:
+        if slot.appointments.filter(patient=patient, status='scheduled').exists():
+            raise ValueError('You have already booked this group session.')
         if slot.current_bookings >= slot.max_capacity:
             raise ValueError('This slot is fully booked.')
         slot.current_bookings += 1

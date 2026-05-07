@@ -144,7 +144,7 @@ class Slot(models.Model):
             return 'booked'
         if self.is_urgent:
             return 'urgent'
-        if hasattr(self, 'appointment') and self.appointment.status == 'scheduled':
+        if self.appointments.filter(status='scheduled').exists():
             return 'pending'
         return 'available'
 
@@ -178,7 +178,7 @@ class Appointment(models.Model):
         ('no_show', 'No Show'),
     ]
 
-    slot = models.OneToOneField(Slot, on_delete=models.PROTECT, related_name='appointment')
+    slot = models.ForeignKey(Slot, on_delete=models.PROTECT, related_name='appointments')
     patient = models.ForeignKey(User, on_delete=models.CASCADE, related_name='patient_appointments')
     doctor = models.ForeignKey(DoctorProfile, on_delete=models.CASCADE, related_name='doctor_appointments')
     reason = models.TextField(blank=True)
