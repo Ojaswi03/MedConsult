@@ -24,7 +24,7 @@ class UserManager(BaseUserManager):
     def create_superuser(self, email, password=None, username=None, **extra_fields):
         extra_fields.setdefault('is_staff', True)
         extra_fields.setdefault('is_superuser', True)
-        extra_fields.setdefault('role', 'admin')
+        extra_fields.setdefault('role', 'platform_owner')
 
         if extra_fields.get('is_staff') is not True:
             raise ValueError(_('Superuser must have is_staff=True.'))
@@ -38,9 +38,11 @@ class User(AbstractUser):
     """Custom user model with username/email authentication and role-based access."""
 
     ROLE_CHOICES = [
-        ('patient', 'Patient'),
+        ('platform_owner', 'Platform Owner'),
+        ('platform_admin', 'Platform Admin'),
         ('doctor', 'Doctor'),
-        ('admin', 'Admin'),
+        ('patient', 'Patient'),
+        ('org_user', 'Organization User'),
     ]
 
     THEME_CHOICES = [
@@ -61,7 +63,7 @@ class User(AbstractUser):
     )
     email = models.EmailField(_('email address'), unique=True)
     middle_name = models.CharField(_('middle name'), max_length=150, blank=True)
-    role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='patient')
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES, default='patient')
     phone = models.CharField(max_length=20, blank=True)
     is_email_verified = models.BooleanField(default=False)
     email_verified_at = models.DateTimeField(null=True, blank=True)
