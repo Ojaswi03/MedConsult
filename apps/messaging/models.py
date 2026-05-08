@@ -36,8 +36,8 @@ class Conversation(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     last_message_at = models.DateTimeField(null=True, blank=True)
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='conversations',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='conversations',
     )
 
     class Meta:

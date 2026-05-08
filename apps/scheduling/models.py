@@ -48,8 +48,8 @@ class AvailabilityWindow(models.Model):
     )
 
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='availability_windows',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='availability_windows',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -116,8 +116,8 @@ class Slot(models.Model):
     is_blocked = models.BooleanField(default=False, help_text='Blocked for time off')
     notes = models.CharField(max_length=255, blank=True, help_text='Doctor notes for this slot')
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='slots',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='slots',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -201,8 +201,8 @@ class Appointment(models.Model):
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='confirmed')
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='appointments',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='appointments',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -449,8 +449,8 @@ class WaitlistEntry(models.Model):
     is_notified = models.BooleanField(default=False)
     notified_at = models.DateTimeField(null=True, blank=True)
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='waitlist_entries',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='waitlist_entries',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -509,8 +509,8 @@ class Referral(models.Model):
     )
     expires_at = models.DateTimeField()
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='referrals',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='referrals',
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -545,8 +545,8 @@ class Prescription(models.Model):
     instructions = encrypt(models.TextField(blank=True, null=True))
     notes = encrypt(models.TextField(blank=True, null=True))
     organization = models.ForeignKey(
-        'accounts.Organization', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='prescriptions',
+        'accounts.Organization', on_delete=models.PROTECT,
+        related_name='prescriptions',
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
