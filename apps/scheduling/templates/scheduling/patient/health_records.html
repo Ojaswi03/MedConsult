@@ -80,7 +80,7 @@
                 </div>
                 <div class="flex items-center gap-3 flex-shrink-0">
                     {% if record.file %}
-                    <a href="{{ record.file.url }}" target="_blank"
+                    <a href="{% url 'patient:health_record_download' record.id %}"
                        class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Download</a>
                     {% endif %}
                     <form method="post" action="{% url 'patient:share_health_record' record.id %}">

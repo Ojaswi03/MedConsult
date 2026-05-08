@@ -31,6 +31,7 @@ urlpatterns = [
 
     # Health records
     path('health-records/', views.patient_health_records, name='patient_health_records'),
+    path('health-records/<int:record_id>/download/', views.health_record_download, name='health_record_download'),
     path('health-records/<int:record_id>/delete/', views.patient_delete_health_record, name='delete_health_record'),
     path('health-records/<int:record_id>/share/', views.patient_share_health_record, name='share_health_record'),
 

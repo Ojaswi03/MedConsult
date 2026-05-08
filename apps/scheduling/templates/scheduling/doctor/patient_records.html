@@ -37,7 +37,7 @@
                     </div>
                 </div>
                 {% if record.file %}
-                <a href="{{ record.file.url }}" target="_blank"
+                <a href="{% url 'patient:health_record_download' record.id %}"
                    class="text-blue-600 dark:text-blue-400 hover:underline text-sm flex-shrink-0 ml-4">
                     Download File
                 </a>

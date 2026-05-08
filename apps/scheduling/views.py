@@ -1031,6 +1031,47 @@ def patient_health_records(request):
 
 
 @login_required
+def health_record_download(request, record_id):
+    """Protected health record download — verifies ownership or share permission, logs access."""
+    from apps.adminpanel.models import HealthRecordAccessLog
+    import os
+
+    record = get_object_or_404(HealthRecord, id=record_id)
+
+    # Ownership check: patient owns it, or doctor it's been shared with
+    is_owner = (request.user.role == 'patient' and record.patient == request.user)
+    is_shared_doctor = (
+        request.user.role == 'doctor'
+        and hasattr(request.user, 'doctor_profile')
+        and record.shared_with_doctors.filter(user=request.user).exists()
+    )
+    is_admin = request.user.role == 'admin'
+
+    if not (is_owner or is_shared_doctor or is_admin):
+        return HttpResponseForbidden('You do not have permission to access this file.')
+
+    if not record.file:
+        return HttpResponseForbidden('No file attached to this record.')
+
+    HealthRecordAccessLog.objects.create(
+        record=record,
+        accessed_by=request.user,
+        access_type='downloaded',
+        ip_address=request.META.get('REMOTE_ADDR'),
+    )
+
+    file_path = record.file.path
+    if not os.path.exists(file_path):
+        return HttpResponseForbidden('File not found.')
+
+    filename = os.path.basename(file_path)
+    with open(file_path, 'rb') as f:
+        response = HttpResponse(f.read(), content_type='application/octet-stream')
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    return response
+
+
+@login_required
 @require_POST
 def patient_delete_health_record(request, record_id):
     """Patient view: Delete a health record."""

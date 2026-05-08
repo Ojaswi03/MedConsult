@@ -147,3 +147,84 @@ class PatientDataExportTests(TestCase):
         for appt in data['appointments']:
             assert 'appointment_type' in appt
             assert 'start' in appt
+
+
+# ── P0-12: PHI file download requires ownership ────────────────────────────────
+
+class HealthRecordDownloadTests(TestCase):
+    """
+    Verifies that /patient/health-records/<id>/download/ enforces ownership
+    and that the access is logged to HealthRecordAccessLog.
+    """
+
+    def setUp(self):
+        import tempfile, os
+        self.client = Client()
+        self.patient = make_patient(username='hr_pat', email='hr_pat@test.com')
+        doc_user, self.doctor = make_doctor(username='hr_doc', email='hr_doc@test.com')
+        self.stranger = make_patient(username='hr_stranger', email='hr_stranger@test.com')
+
+        # Create a real file inside a temp MEDIA_ROOT so the view can serve it
+        self.media_root = tempfile.mkdtemp()
+        hr_dir = os.path.join(self.media_root, 'health_records')
+        os.makedirs(hr_dir)
+        self.file_path = os.path.join(hr_dir, 'test_phi.txt')
+        with open(self.file_path, 'wb') as f:
+            f.write(b'PHI content')
+
+        from apps.scheduling.models import HealthRecord
+        from django.test.utils import override_settings
+        self.override = override_settings(MEDIA_ROOT=self.media_root)
+        self.override.enable()
+
+        self.record = HealthRecord.objects.create(
+            patient=self.patient,
+            title='Blood Test',
+            record_type='lab_result',
+        )
+        self.record.file.name = 'health_records/test_phi.txt'
+        self.record.save()
+
+    def tearDown(self):
+        self.override.disable()
+        import shutil
+        shutil.rmtree(self.media_root, ignore_errors=True)
+
+    def _login(self, user):
+        self.client.force_login(user)
+        session = self.client.session
+        session['2fa_skipped'] = True
+        session.save()
+
+    def test_owner_can_download(self):
+        self._login(self.patient)
+        resp = self.client.get(
+            reverse('patient:health_record_download', kwargs={'record_id': self.record.id})
+        )
+        self.assertNotEqual(resp.status_code, 403)
+        self.assertEqual(resp.status_code, 200)
+
+    def test_stranger_cannot_download(self):
+        self._login(self.stranger)
+        resp = self.client.get(
+            reverse('patient:health_record_download', kwargs={'record_id': self.record.id})
+        )
+        self.assertEqual(resp.status_code, 403)
+
+    def test_unauthenticated_redirected(self):
+        resp = self.client.get(
+            reverse('patient:health_record_download', kwargs={'record_id': self.record.id})
+        )
+        self.assertIn(resp.status_code, [302, 403])
+
+    def test_download_creates_access_log(self):
+        from apps.adminpanel.models import HealthRecordAccessLog
+        self._login(self.patient)
+        initial_count = HealthRecordAccessLog.objects.filter(record=self.record).count()
+        self.client.get(
+            reverse('patient:health_record_download', kwargs={'record_id': self.record.id})
+        )
+        self.assertEqual(
+            HealthRecordAccessLog.objects.filter(record=self.record).count(),
+            initial_count + 1,
+        )

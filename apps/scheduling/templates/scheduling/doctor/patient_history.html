@@ -110,7 +110,7 @@
                     <p class="text-sm text-gray-500 dark:text-gray-400">{{ record.get_record_type_display }}{% if record.date_of_record %} &mdash; {{ record.date_of_record|date:"M d, Y" }}{% endif %}</p>
                 </div>
                 {% if record.file %}
-                <a href="{{ record.file.url }}" target="_blank" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Download</a>
+                <a href="{% url 'patient:health_record_download' record.id %}" class="text-sm text-blue-600 dark:text-blue-400 hover:underline">Download</a>
                 {% endif %}
             </div>
             {% endfor %}
