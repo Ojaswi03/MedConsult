@@ -1,0 +1,169 @@
+{% extends "layouts/app.html" %}
+{% block title %}{{ member.get_display_name }} — {{ org.name }}{% endblock %}
+{% block content %}
+<div class="max-w-3xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <a href="{% url 'organizations:staff_list' org.slug %}"
+       class="text-blue-600 hover:underline text-sm">← Staff List</a>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-2">
+      {{ member.get_display_name }}
+    </h1>
+    <p class="text-sm text-gray-500">{{ org.name }}</p>
+  </div>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-sm">
+    {{ msg }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <!-- Identity Card -->
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 mb-6">
+    <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Identity</h2>
+    <dl class="grid grid-cols-2 gap-4">
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Hospital User ID</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white font-mono font-medium">
+          {{ membership.hospital_user_id|default:"—" }}
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Role</dt>
+        <dd class="mt-1">
+          <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+            bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            {{ membership.get_role_display }}
+          </span>
+        </dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Email</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ member.email }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Status</dt>
+        <dd class="mt-1">
+          {% if membership.is_active %}
+          <span class="text-emerald-600 dark:text-emerald-400 text-sm font-medium">Active</span>
+          {% else %}
+          <span class="text-red-600 dark:text-red-400 text-sm font-medium">Inactive</span>
+          {% endif %}
+        </dd>
+      </div>
+      {% if membership.display_name %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Display Name</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ membership.display_name }}</dd>
+      </div>
+      {% endif %}
+      {% if membership.accepted_at %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Joined</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ membership.accepted_at|date:"M d, Y" }}</dd>
+      </div>
+      {% endif %}
+      {% if membership.invited_by %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Invited By</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ membership.invited_by.get_display_name }}</dd>
+      </div>
+      {% endif %}
+    </dl>
+  </div>
+
+  <!-- Provider Profile (doctors only) -->
+  {% if provider_profile %}
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Provider Profile</h2>
+      {% if provider_profile.is_verified_for_org %}
+      <span class="inline-flex items-center gap-1 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+          <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/>
+        </svg>
+        Org-Verified
+      </span>
+      {% endif %}
+    </div>
+    <dl class="grid grid-cols-2 gap-4">
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Provider ID</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white font-mono">{{ provider_profile.provider_id|default:"—" }}</dd>
+      </div>
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Accepting Patients</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">
+          {% if provider_profile.is_accepting_patients %}Yes{% else %}No{% endif %}
+        </dd>
+      </div>
+      {% if provider_profile.title %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Title</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ provider_profile.title }}</dd>
+      </div>
+      {% endif %}
+      {% if provider_profile.department %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Department</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ provider_profile.department }}</dd>
+      </div>
+      {% endif %}
+      {% if provider_profile.specialization %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Specialization</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">{{ provider_profile.specialization }}</dd>
+      </div>
+      {% endif %}
+      <div>
+        <dt class="text-xs text-gray-500 uppercase tracking-wide">Org Consultation Fee</dt>
+        <dd class="mt-1 text-gray-900 dark:text-white">${{ provider_profile.consultation_fee }}</dd>
+      </div>
+    </dl>
+
+    <form method="post" action="{% url 'organizations:edit_provider_profile' org.slug membership.id %}"
+          class="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700 space-y-3">
+      {% csrf_token %}
+      <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Edit Provider Details</h3>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Title</label>
+          <input type="text" name="title" value="{{ provider_profile.title }}"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Department</label>
+          <input type="text" name="department" value="{{ provider_profile.department }}"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Specialization</label>
+          <input type="text" name="specialization" value="{{ provider_profile.specialization }}"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        </div>
+        <div>
+          <label class="block text-xs text-gray-500 mb-1">Org Fee ($)</label>
+          <input type="number" step="0.01" name="consultation_fee" value="{{ provider_profile.consultation_fee }}"
+            class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500">
+        </div>
+      </div>
+      <div class="flex items-center gap-2">
+        <input type="checkbox" name="is_accepting_patients" id="accepting"
+          {% if provider_profile.is_accepting_patients %}checked{% endif %}
+          class="rounded border-gray-300 dark:border-gray-600 text-blue-600">
+        <label for="accepting" class="text-sm text-gray-700 dark:text-gray-300">Accepting patients</label>
+      </div>
+      <button type="submit"
+        class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors">
+        Save
+      </button>
+    </form>
+  </div>
+  {% elif membership.role == 'doctor' %}
+  <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 text-sm text-amber-800 dark:text-amber-300">
+    No provider profile yet. Profile is auto-created when the doctor accepts an invite.
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

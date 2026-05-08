@@ -12,4 +12,6 @@ urlpatterns = [
     path('<slug:org_slug>/staff/', views.staff_list, name='staff_list'),
     path('<slug:org_slug>/staff/invite/', views.send_invite, name='send_invite'),
     path('<slug:org_slug>/staff/<int:member_id>/deactivate/', views.deactivate_member, name='deactivate_member'),
+    path('<slug:org_slug>/staff/<int:member_id>/', views.member_detail, name='member_detail'),
+    path('<slug:org_slug>/staff/<int:member_id>/provider-profile/', views.edit_provider_profile, name='edit_provider_profile'),
 ]

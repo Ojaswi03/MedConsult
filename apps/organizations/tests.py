@@ -210,3 +210,54 @@ class OrgSettingsTest(TestCase):
         self.client.force_login(outsider)
         response = self.client.get('/org/settings-clinic/settings/')
         self.assertEqual(response.status_code, 403)
+
+
+from apps.accounts.models import ProviderOrganizationProfile
+from django.test import Client, override_settings
+
+
+def _middleware_without_2fa():
+    from django.conf import settings
+    return [m for m in settings.MIDDLEWARE if 'EnforceTwoFactor' not in m]
+
+
+@override_settings(MIDDLEWARE=_middleware_without_2fa())
+class MemberDetailViewTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.org = Organization.objects.create(
+            name='City General', slug='city-general-mv',
+            org_type='hospital', status='active',
+        )
+        self.owner = User.objects.create_user(
+            username='owner_mv', email='owner_mv@test.com',
+            password='pass', role='org_user',
+        )
+        self.membership = OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org,
+            role='hospital_owner', is_active=True,
+            hospital_user_id='CIT-OWN-0001',
+        )
+        self.client.force_login(self.owner)
+
+    def test_member_detail_loads(self):
+        url = reverse('organizations:member_detail', kwargs={
+            'org_slug': self.org.slug,
+            'member_id': self.membership.id,
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'CIT-OWN-0001')
+
+    def test_outsider_gets_403(self):
+        outsider = User.objects.create_user(
+            username='out_mv', email='out_mv@test.com',
+            password='pass', role='patient',
+        )
+        self.client.force_login(outsider)
+        url = reverse('organizations:member_detail', kwargs={
+            'org_slug': self.org.slug,
+            'member_id': self.membership.id,
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 403)

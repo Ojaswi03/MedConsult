@@ -240,3 +240,84 @@ def deactivate_member(request, org_slug, member_id):
     ).update(is_active=False)
 
     return redirect(reverse('organizations:staff_list', kwargs={'org_slug': org_slug}))
+
+
+@login_required
+def member_detail(request, org_slug, member_id):
+    from apps.accounts.models import Organization, OrganizationMembership, ProviderOrganizationProfile
+    from apps.accounts.permissions import is_platform_staff, get_membership
+    from django.core.exceptions import PermissionDenied
+    from django.http import Http404
+
+    try:
+        org = Organization.objects.get(slug=org_slug)
+    except Organization.DoesNotExist:
+        raise Http404
+
+    if not is_platform_staff(request.user):
+        viewer_membership = get_membership(request.user, org)
+        if not viewer_membership or not viewer_membership.is_active:
+            raise PermissionDenied
+
+    try:
+        membership = OrganizationMembership.objects.select_related(
+            'user', 'organization', 'invited_by',
+        ).get(id=member_id, organization=org)
+    except OrganizationMembership.DoesNotExist:
+        raise Http404
+
+    provider_profile = None
+    if membership.role == 'doctor':
+        provider_profile = ProviderOrganizationProfile.objects.filter(
+            membership=membership,
+        ).first()
+
+    return render(request, 'organizations/member_detail.html', {
+        'org': org,
+        'membership': membership,
+        'member': membership.user,
+        'provider_profile': provider_profile,
+    })
+
+
+@login_required
+@require_POST
+def edit_provider_profile(request, org_slug, member_id):
+    from apps.accounts.models import Organization, OrganizationMembership, ProviderOrganizationProfile
+    from apps.accounts.permissions import is_platform_staff, get_membership
+    from django.core.exceptions import PermissionDenied
+    from django.http import Http404
+    from django.contrib import messages
+
+    try:
+        org = Organization.objects.get(slug=org_slug)
+    except Organization.DoesNotExist:
+        raise Http404
+
+    if not is_platform_staff(request.user):
+        viewer_membership = get_membership(request.user, org)
+        if not viewer_membership or viewer_membership.role not in ('hospital_owner', 'hospital_admin'):
+            raise PermissionDenied
+
+    membership = get_object_or_404(OrganizationMembership, id=member_id, organization=org, role='doctor')
+    profile, _ = ProviderOrganizationProfile.objects.get_or_create(
+        membership=membership,
+        defaults={'doctor': membership.user, 'organization': org, 'provider_id': membership.hospital_user_id},
+    )
+
+    profile.department = request.POST.get('department', '').strip()
+    profile.title = request.POST.get('title', '').strip()
+    profile.specialization = request.POST.get('specialization', '').strip()
+    try:
+        profile.consultation_fee = float(request.POST.get('consultation_fee', 0))
+    except (ValueError, TypeError):
+        profile.consultation_fee = 0
+    profile.is_accepting_patients = 'is_accepting_patients' in request.POST
+    profile.save(update_fields=[
+        'department', 'title', 'specialization', 'consultation_fee', 'is_accepting_patients', 'updated_at',
+    ])
+
+    messages.success(request, "Provider profile updated.")
+    return redirect(reverse('organizations:member_detail', kwargs={
+        'org_slug': org_slug, 'member_id': member_id,
+    }))
