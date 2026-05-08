@@ -4,7 +4,7 @@ Context processors for accounts app - provide user info to all templates.
 
 
 def user_info(request):
-    """Provide user display info to all templates."""
+    """Provide user display info and org context to all templates."""
     if request.user.is_authenticated:
         unread_count = request.user.notifications.filter(is_read=False).count()
         try:
@@ -12,11 +12,25 @@ def user_info(request):
             unread_messages = get_total_unread_count(request.user)
         except Exception:
             unread_messages = 0
+
+        from apps.accounts.permissions import is_platform_staff
+        try:
+            from apps.accounts.org_context import get_selected_organization
+            org_ctx = get_selected_organization(request)
+            user_organization = org_ctx.organization
+            user_membership = org_ctx.membership
+        except Exception:
+            user_organization = None
+            user_membership = None
+
         return {
             'user_display_name': request.user.get_display_name(),
             'user_initials': request.user.get_initials(),
             'user_role': request.user.role,
             'unread_notifications_count': unread_count,
             'unread_message_count': unread_messages,
+            'is_platform_staff': is_platform_staff(request.user),
+            'user_organization': user_organization,
+            'user_membership': user_membership,
         }
     return {}

@@ -171,11 +171,11 @@ class TwoFactorEnforcementTests(TestCase):
             f'Expected 2FA redirect, got: {loc}'
         )
 
-    def test_admin_skip_flag_does_not_bypass_2fa(self):
-        """Admin with 2fa_skipped=True must still be redirected to 2FA setup."""
+    def test_platform_owner_skip_flag_does_not_bypass_2fa(self):
+        """platform_owner with 2fa_skipped=True must still be redirected to 2FA setup."""
         from django.test import Client as TestClient
         c = TestClient()
-        admin = self._make_user('b13_admin', 'admin')
+        admin = self._make_user('b13_admin', 'platform_owner')
         self._login_with_skip(c, admin)
         resp = c.get(reverse('patient:patient_appointments'))
         self.assertEqual(resp.status_code, 302)
@@ -184,6 +184,59 @@ class TwoFactorEnforcementTests(TestCase):
             '/account/' in loc or 'two_factor' in loc,
             f'Expected 2FA redirect, got: {loc}'
         )
+
+
+class TwoFactorMiddlewareTests(TestCase):
+    """
+    Middleware uses has_any_elevated_membership to require 2FA for org staff.
+    Users with only 'clinical_staff' membership must not bypass via skip flag.
+    """
+
+    def _make_user(self, username, role):
+        u = User.objects.create_user(
+            username=username, email=f'{username}@test.com', password='pass1234!', role=role,
+        )
+        u.is_email_verified = True
+        u.save()
+        return u
+
+    def _login_with_skip(self, client, user):
+        client.force_login(user)
+        session = client.session
+        session['2fa_skipped'] = True
+        session.save()
+
+    def test_org_staff_with_elevated_role_cannot_skip_2fa(self):
+        """org_user with hospital_admin membership must be redirected to 2FA despite skip flag."""
+        from apps.accounts.models import Organization, OrganizationMembership
+        org = Organization.objects.create(
+            name='Test Hospital', slug='test-hospital-mw',
+            org_type='hospital', status='active',
+        )
+        staff = self._make_user('mw_staff', 'org_user')
+        OrganizationMembership.objects.create(
+            user=staff, organization=org, role='hospital_admin', is_active=True,
+        )
+        from django.test import Client as TestClient
+        c = TestClient()
+        self._login_with_skip(c, staff)
+        resp = c.get(reverse('patient:patient_appointments'))
+        self.assertEqual(resp.status_code, 302)
+        loc = resp['Location']
+        self.assertTrue(
+            '/account/' in loc or 'two_factor' in loc,
+            f'Expected 2FA redirect for org staff, got: {loc}'
+        )
+
+    def test_patient_with_no_membership_can_skip_2fa(self):
+        """Patient with no org membership can use skip flag to bypass 2FA."""
+        patient = self._make_user('mw_pat', 'patient')
+        from django.test import Client as TestClient
+        c = TestClient()
+        self._login_with_skip(c, patient)
+        resp = c.get(reverse('patient:patient_appointments'))
+        if resp.status_code == 302:
+            self.assertNotIn('/account/', resp['Location'])
 
 
 # ── P1-12: Provider verification depth ───────────────────────────────────────

@@ -15,7 +15,7 @@ _EXEMPT_PREFIXES = (
 class EnforceTwoFactorMiddleware:
     """
     Enforce 2FA for authenticated users.
-    - Doctors and admins: 2FA is mandatory; session skip flag is ignored.
+    - Platform staff and any user with an elevated org membership: 2FA mandatory.
     - Patients: 2FA is optional; skip flag is honoured.
     """
 
@@ -29,10 +29,10 @@ class EnforceTwoFactorMiddleware:
         if any(request.path.startswith(p) for p in _EXEMPT_PREFIXES):
             return self.get_response(request)
 
-        role = getattr(user, 'role', 'patient')
-        role_requires_2fa = role in ('doctor', 'admin')
+        from apps.accounts.permissions import is_platform_staff, has_any_elevated_membership
+        role_requires_2fa = is_platform_staff(user) or has_any_elevated_membership(user)
 
-        # Patients may skip; doctors/admins cannot
+        # Patients (and non-elevated org users) may skip; elevated roles cannot
         if not role_requires_2fa and request.session.get('2fa_skipped'):
             return self.get_response(request)
 
