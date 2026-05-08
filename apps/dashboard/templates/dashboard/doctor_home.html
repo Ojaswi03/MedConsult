@@ -5,7 +5,18 @@
 {% block content %}
 <div>
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome, Dr. {{ user_display_name }}!</h1>
-    <p class="text-gray-600 dark:text-gray-400 mb-8">{{ doctor_profile.specialization }}</p>
+    <p class="text-gray-600 dark:text-gray-400 mb-2">{{ doctor_profile.specialization }}</p>
+    {% if doctor_organization %}
+    <p class="text-sm text-indigo-600 dark:text-indigo-400 mb-8 flex items-center gap-1.5">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5"/>
+      </svg>
+      {{ doctor_organization.name }}{% if doctor_membership %} &middot; {{ doctor_membership.role|title }}{% endif %}
+    </p>
+    {% else %}
+    <div class="mb-8"></div>
+    {% endif %}
 
     <!-- Status Banner -->
     <div class="mb-8 p-4 rounded-lg {% if doctor_profile.verification_status == 'verified' %}bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300{% elif doctor_profile.verification_status == 'pending' %}bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300{% else %}bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300{% endif %}">

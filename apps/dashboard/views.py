@@ -19,8 +19,14 @@ def dashboard_home(request):
         return patient_dashboard(request)
     elif user.role == 'doctor':
         return doctor_dashboard(request)
-    elif user.role == 'admin':
+    elif user.role in ('platform_owner', 'platform_admin'):
         return admin_dashboard(request)
+    elif user.role == 'org_user':
+        from apps.accounts.org_context import get_selected_organization
+        ctx = get_selected_organization(request)
+        if ctx.organization:
+            return redirect('organizations:org_dashboard', slug=ctx.organization.slug)
+        return redirect('landing')
     else:
         return redirect('landing')
 
@@ -50,6 +56,9 @@ def doctor_dashboard(request):
     if request.user.role != 'doctor':
         return redirect('dashboard:home')
 
+    from apps.accounts.org_context import get_selected_organization
+    org_ctx = get_selected_organization(request)
+
     doctor_profile = request.user.doctor_profile
     upcoming_appointments = get_upcoming_doctor_appointments(doctor_profile)[:10]
 
@@ -57,6 +66,8 @@ def doctor_dashboard(request):
         'upcoming_appointments': upcoming_appointments,
         'doctor_profile': doctor_profile,
         'onboarding_score': doctor_profile.onboarding_score,
+        'doctor_organization': org_ctx.organization,
+        'doctor_membership': org_ctx.membership,
     }
     return render(request, 'dashboard/doctor_home.html', context)
 
@@ -64,7 +75,7 @@ def doctor_dashboard(request):
 @login_required
 def admin_dashboard(request):
     """Admin dashboard - shows system overview and pending actions."""
-    if request.user.role != 'admin':
+    if request.user.role not in ('platform_owner', 'platform_admin'):
         return redirect('dashboard:home')
 
     from apps.accounts.selectors import get_pending_doctor_verifications
