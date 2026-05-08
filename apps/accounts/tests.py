@@ -363,3 +363,70 @@ class BackfillOrgTests(TestCase):
         ).first()
         self.assertIsNotNone(membership)
         self.assertEqual(membership.organization, self.demo_clinic)
+
+
+class OrgContextTests(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Organization, OrganizationMembership
+        self.org = Organization.objects.create(
+            name='Test Hosp', slug='test-hosp', org_type='hospital', status='active',
+        )
+        self.user = User.objects.create_user(
+            username='ctxuser', email='ctx@test.com',
+            password='pass1234!', role='org_user',
+        )
+        OrganizationMembership.objects.create(
+            user=self.user, organization=self.org, role='hospital_admin', is_active=True,
+        )
+
+    def test_get_selected_org_from_single_membership(self):
+        from apps.accounts.org_context import get_selected_organization
+        from unittest.mock import MagicMock
+        request = MagicMock()
+        request.user = self.user
+        request.session = {}
+        request.resolver_match = None
+        ctx = get_selected_organization(request)
+        self.assertEqual(ctx.organization, self.org)
+        self.assertEqual(ctx.source, 'single_membership')
+        self.assertFalse(ctx.is_platform_scope)
+
+    def test_no_membership_returns_none_org(self):
+        from apps.accounts.org_context import get_selected_organization
+        from unittest.mock import MagicMock
+        patient = User.objects.create_user(
+            username='ctxpat', email='ctxpat@test.com',
+            password='pass1234!', role='patient',
+        )
+        request = MagicMock()
+        request.user = patient
+        request.session = {}
+        request.resolver_match = None
+        ctx = get_selected_organization(request)
+        self.assertIsNone(ctx.organization)
+        self.assertEqual(ctx.source, 'none')
+
+    def test_platform_staff_gets_platform_scope(self):
+        from apps.accounts.org_context import get_selected_organization
+        from unittest.mock import MagicMock
+        po = User.objects.create_user(
+            username='ctxpo', email='ctxpo@test.com',
+            password='pass1234!', role='platform_owner',
+        )
+        request = MagicMock()
+        request.user = po
+        request.session = {}
+        request.resolver_match = None
+        ctx = get_selected_organization(request)
+        self.assertTrue(ctx.is_platform_scope)
+
+    def test_session_org_resolves(self):
+        from apps.accounts.org_context import get_selected_organization
+        from unittest.mock import MagicMock
+        request = MagicMock()
+        request.user = self.user
+        request.session = {'active_organization_id': self.org.id}
+        request.resolver_match = None
+        ctx = get_selected_organization(request)
+        self.assertEqual(ctx.organization, self.org)
+        self.assertEqual(ctx.source, 'session')
