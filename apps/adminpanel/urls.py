@@ -56,4 +56,13 @@ urlpatterns = [
     path('health-records/logs/', views.health_record_logs, name='health_record_logs'),
     path('financial/insurance/', views.insurance_breakdown, name='insurance_breakdown'),
     path('appointments/<int:appointment_id>/refund/', views.admin_refund_appointment, name='refund_appointment'),
+
+    # Organization review
+    path('organizations/', views.organization_list, name='organization_list'),
+    path('organizations/<int:org_id>/', views.organization_detail, name='organization_detail'),
+    path('organizations/<int:org_id>/approve/', views.organization_approve, name='organization_approve'),
+    path('organizations/<int:org_id>/reject/', views.organization_reject, name='organization_reject'),
+    path('organizations/<int:org_id>/suspend/', views.organization_suspend, name='organization_suspend'),
+    path('organizations/<int:org_id>/reactivate/', views.organization_reactivate, name='organization_reactivate'),
+    path('organizations/<int:org_id>/needs-info/', views.organization_needs_info, name='organization_needs_info'),
 ]

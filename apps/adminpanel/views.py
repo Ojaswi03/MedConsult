@@ -740,3 +740,133 @@ def admin_refund_appointment(request, appointment_id):
         messages.error(request, f'Refund failed: {str(e)}')
 
     return redirect('adminpanel:patient_manage', patient_id=request.POST.get('patient_id', 0))
+
+
+# ============ ORGANIZATION REVIEW (PLATFORM STAFF) ============
+
+from apps.accounts.models import Organization, OrganizationMembership
+from apps.accounts.permissions import is_platform_staff
+
+
+def _require_platform_staff(request):
+    if not is_platform_staff(request.user):
+        raise HttpResponseForbidden("Platform staff only.")
+
+
+def _platform_forbidden(request):
+    from django.core.exceptions import PermissionDenied
+    if not is_platform_staff(request.user):
+        raise PermissionDenied
+
+
+@login_required
+def organization_list(request):
+    _platform_forbidden(request)
+    status_filter = request.GET.get('status', '')
+    orgs = Organization.objects.select_related('created_by').order_by('-created_at')
+    if status_filter:
+        orgs = orgs.filter(status=status_filter)
+    return render(request, 'adminpanel/organizations/list.html', {
+        'orgs': orgs,
+        'status_filter': status_filter,
+        'pending_count': Organization.objects.filter(status='pending').count(),
+        'statuses': Organization.STATUS_CHOICES,
+    })
+
+
+@login_required
+def organization_detail(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    memberships = OrganizationMembership.objects.filter(
+        organization=org, is_active=True,
+    ).select_related('user')
+    return render(request, 'adminpanel/organizations/detail.html', {
+        'org': org,
+        'memberships': memberships,
+    })
+
+
+@login_required
+@require_POST
+def organization_approve(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    org.status = 'active'
+    org.approved_by = request.user
+    org.approved_at = timezone.now()
+    org.save(update_fields=['status', 'approved_by', 'approved_at'])
+    _notify_org_owner_status(org, 'approved')
+    services.log_admin_action(request.user, 'org_approved', description=f"Approved: {org.name}")
+    messages.success(request, f"{org.name} approved.")
+    return redirect('adminpanel:organization_list')
+
+
+@login_required
+@require_POST
+def organization_reject(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    reason = request.POST.get('reason', '').strip()
+    org.status = 'rejected'
+    org.rejected_reason = reason
+    org.save(update_fields=['status', 'rejected_reason'])
+    _notify_org_owner_status(org, 'rejected', reason=reason)
+    services.log_admin_action(request.user, 'org_rejected', description=f"Rejected: {org.name} — {reason}")
+    messages.warning(request, f"{org.name} rejected.")
+    return redirect('adminpanel:organization_list')
+
+
+@login_required
+@require_POST
+def organization_suspend(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    org.status = 'suspended'
+    org.save(update_fields=['status'])
+    services.log_admin_action(request.user, 'org_suspended', description=f"Suspended: {org.name}")
+    messages.warning(request, f"{org.name} suspended.")
+    return redirect('adminpanel:organization_list')
+
+
+@login_required
+@require_POST
+def organization_reactivate(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    org.status = 'active'
+    org.save(update_fields=['status'])
+    services.log_admin_action(request.user, 'org_reactivated', description=f"Reactivated: {org.name}")
+    messages.success(request, f"{org.name} reactivated.")
+    return redirect('adminpanel:organization_list')
+
+
+@login_required
+@require_POST
+def organization_needs_info(request, org_id):
+    _platform_forbidden(request)
+    org = get_object_or_404(Organization, id=org_id)
+    message = request.POST.get('message', '').strip()
+    org.status = 'needs_info'
+    org.save(update_fields=['status'])
+    _notify_org_owner_status(org, 'needs_info', reason=message)
+    services.log_admin_action(request.user, 'org_needs_info', description=f"Requested info from: {org.name}")
+    messages.info(request, f"Requested more info from {org.name}.")
+    return redirect('adminpanel:organization_list')
+
+
+def _notify_org_owner_status(org, action, reason=''):
+    from apps.accounts.services import create_notification
+    messages_map = {
+        'approved': ('Organization Approved', f"Your organization {org.name} has been approved on MedConsult. You can now invite staff."),
+        'rejected': ('Organization Rejected', f"Your organization {org.name} was not approved. Reason: {reason}"),
+        'needs_info': ('More Information Required', f"Your organization {org.name} registration needs more information: {reason}"),
+    }
+    title, body = messages_map.get(action, ('Organization Update', f"Status for {org.name} updated to {action}."))
+    for membership in OrganizationMembership.objects.filter(
+        organization=org, role='hospital_owner', is_active=True,
+    ).select_related('user'):
+        create_notification(
+            membership.user, f'org_{action}', title, body,
+            link=f'/org/{org.slug}/',
+        )
