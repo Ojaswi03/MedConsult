@@ -548,8 +548,10 @@ Organization - /org/
   register/pending/                       Post-submit holding page
   <slug>/                                 Org dashboard (role-determined view)
   <slug>/settings/                        Edit org profile (owner/admin)
-  <slug>/staff/                           Staff list + invite management
+  <slug>/staff/                           Staff list + invite management (hospital_user_id column)
   <slug>/staff/invite/                    Send invite (role grant matrix enforced)
+  <slug>/staff/<id>/                      Member detail (identity + provider profile + edit form)
+  <slug>/staff/<id>/provider-profile/     Edit provider profile (owner/admin only)
   <slug>/staff/<id>/deactivate/           Deactivate staff member
   invite/<token>/                         Accept org invite (email lock + race-safe)
 
@@ -568,6 +570,7 @@ Admin - /internal/
   organizations/<id>/needs-info/          Request more information
   organizations/<id>/suspend/             Suspend active org
   organizations/<id>/reactivate/          Reactivate suspended org
+  organizations/<id>/members/<id>/        Org member detail (identity + provider profile + appointments)
   doctors/                                Doctor list with statistics
   doctors/<id>/manage/                    Doctor slot management
   doctors/<id>/calendar/                  Doctor calendar (HTMX)
@@ -640,16 +643,18 @@ docker-compose exec redis redis-cli
 
 ### Multi-Tenancy
 
-MedConsult is a multi-tenant hospital SaaS. **Status: plans written, implementation ready.**
+MedConsult is a multi-tenant hospital SaaS. **Status: ✅ Fully implemented.**
 
 - Spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`
 - Plan 1 — data + permissions + query scoping: `docs/superpowers/plans/2026-05-07-multi-tenancy-foundation.md`
 - Plan 2 — UI layer (signup, dashboards, invites, switcher): `docs/superpowers/plans/2026-05-08-multi-tenancy-ui.md`
+- Hospital user identity: `docs/superpowers/plans/2026-05-08-hospital-user-identity.md`
 
 **Core models:**
 - `Organization` — each hospital/clinic/platform is an org (`status`: pending → active / needs_info / rejected / suspended)
-- `OrganizationMembership` — links a user to an org with a role; deactivated not deleted
+- `OrganizationMembership` — links a user to an org with a role; deactivated not deleted; carries `hospital_user_id` (e.g. `CGH-DOC-0007`) unique per org
 - `OrganizationInvite` — token-based invite with 7-day expiry; hash stored, raw token emailed
+- `ProviderOrganizationProfile` — org-scoped doctor profile (title, department, specialization, org fee, `is_accepting_patients`, `is_verified_for_org`); auto-created when doctor accepts an invite
 
 **Scoping rules:**
 - Hospital staff → all queries scoped to `organization`
@@ -698,7 +703,7 @@ base.html                   Tailwind CDN, meta, scripts
 
 | App | Latest Migration |
 |-----|-----------------|
-| accounts | 0015_doctorprofile_verification_depth |
+| accounts | 0022_backfill_hospital_user_id |
 | scheduling | 0017_clear_plaintext_prescription_fields |
 | adminpanel | 0003_rename_healthrecordaccesslog_indexes |
 | payments | (initial) |
@@ -720,7 +725,7 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | B3 | ✅ Fixed | **Patient data export has field mismatches** - fixed `profile.phone_number` → `user.phone` and `a.appointment_type` → `a.slot.appointment_type`; added assertion tests. |
 | B4 | ✅ Fixed | **"Join Call" URL is wrong** - corrected namespace from `consultation:video_room` to `consultations:join`. |
 | B5 | ✅ Fixed | **Admin decorator redirects to wrong namespace** - changed `accounts:login` → `login` (no namespace registered). |
-| B6 | 🔲 Deferred | **2FA policy inconsistent** - all roles currently use session-flag skip for development ease. Will enforce strict doctor/admin policy at end of backlog. |
+| B6 | → B13 | **2FA strict enforcement** - superseded by B13, resolved. |
 | B7 | ✅ Fixed | **CI never runs the test suite** - added `pytest --cov=apps --cov-fail-under=40` step to `django-ci.yml`. |
 | B8 | ✅ Fixed | **Slot booking has no row lock** - added `select_for_update()` at start of `book_appointment` transaction. |
 | B9 | ✅ Fixed | **Booking bypasses payment** - `patient_book_appointment()` now redirects to `payments:checkout` when `slot.get_price() > 0`; free slots confirmed immediately. `booking_status` = `held` on creation; API endpoint updated identically. |

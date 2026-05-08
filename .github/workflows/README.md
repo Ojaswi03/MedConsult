@@ -13,7 +13,7 @@ Steps:
 4. Check for missing migrations (`makemigrations --check --dry-run`)
 5. Run test suite with coverage (`pytest --cov=apps --cov-fail-under=40`)
 
-> **Known gap (Bug B7):** Step 5 is declared in `pytest.ini` but the `pytest` call is not yet wired into the workflow. The coverage gate is not enforced in CI. Fix: add the `pytest` step to `django-ci.yml`.
+> **Bug B7 fixed:** `pytest --cov=apps --cov-fail-under=40` is wired into the workflow. The 40% coverage gate is enforced on every push/PR.
 
 ## Adding New Workflow Steps
 

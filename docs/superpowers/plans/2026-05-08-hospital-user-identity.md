@@ -1,6 +1,8 @@
 # Hospital-Specific User Identity Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking.
+
+> **Status: ✅ COMPLETE — all 6 tasks implemented and committed as of 2026-05-08.**
 
 **Goal:** Give every hospital its own internal user roster — each `OrganizationMembership` gets a unique `hospital_user_id` (e.g. `CGH-DOC-0007`), doctors get an org-scoped `ProviderOrganizationProfile`, and both hospital staff and platform admins get drill-down UI: Organization → Members → Member Detail → Provider Profile → Appointments.
 
@@ -39,7 +41,7 @@
 - Create: `apps/accounts/migrations/0021_membership_hospital_user_id.py`
 - Create: `apps/accounts/migrations/0022_provider_organization_profile.py`
 
-- [ ] **Step 1: Add fields to OrganizationMembership**
+- [x] **Step 1: Add fields to OrganizationMembership**
 
 Open `apps/accounts/models.py`. Find the `OrganizationMembership` class (line ~441). After the `updated_at` field and before the `class Meta` block, add two new fields:
 
@@ -87,7 +89,7 @@ Replace it with:
         ]
 ```
 
-- [ ] **Step 2: Add ProviderOrganizationProfile model**
+- [x] **Step 2: Add ProviderOrganizationProfile model**
 
 In `apps/accounts/models.py`, after the `OrganizationInvite` class, add:
 
@@ -139,7 +141,7 @@ class ProviderOrganizationProfile(models.Model):
         return f"Dr. {self.doctor.get_display_name()} @ {self.organization.name}"
 ```
 
-- [ ] **Step 3: Generate migrations**
+- [x] **Step 3: Generate migrations**
 
 ```bash
 python manage.py makemigrations accounts --name membership_hospital_user_id --settings=config.settings.dev
@@ -148,7 +150,7 @@ python manage.py makemigrations accounts --name provider_organization_profile --
 
 Expected: two new migration files created in `apps/accounts/migrations/`.
 
-- [ ] **Step 4: Apply migrations**
+- [x] **Step 4: Apply migrations**
 
 ```bash
 python manage.py migrate --settings=config.settings.dev
@@ -156,7 +158,7 @@ python manage.py migrate --settings=config.settings.dev
 
 Expected: no errors.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add apps/accounts/models.py apps/accounts/migrations/
@@ -171,7 +173,7 @@ git commit -m "feat(identity): add hospital_user_id + ProviderOrganizationProfil
 - Modify: `apps/organizations/services.py` — add `generate_hospital_user_id` and `create_membership`
 - Create: `apps/accounts/migrations/0023_backfill_hospital_user_id.py` (data migration)
 
-- [ ] **Step 1: Write failing test for ID generation**
+- [x] **Step 1: Write failing test for ID generation**
 
 In `apps/accounts/tests.py`, add:
 
@@ -217,7 +219,7 @@ class HospitalUserIdTest(TestCase):
 Run: `python manage.py test apps.accounts.tests.HospitalUserIdTest --settings=config.settings.dev`
 Expected: FAIL — `ImportError: cannot import name 'generate_hospital_user_id'`
 
-- [ ] **Step 2: Implement generate_hospital_user_id and create_membership**
+- [x] **Step 2: Implement generate_hospital_user_id and create_membership**
 
 In `apps/organizations/services.py`, add after the imports and before `register_organization`:
 
@@ -297,7 +299,7 @@ def create_membership(user, organization, role: str, invited_by=None, accepted_a
     return membership
 ```
 
-- [ ] **Step 3: Update register_organization to use create_membership**
+- [x] **Step 3: Update register_organization to use create_membership**
 
 In `apps/organizations/services.py`, replace the `OrganizationMembership.objects.create(...)` call inside `register_organization`:
 
@@ -316,7 +318,7 @@ In `apps/organizations/services.py`, replace the `OrganizationMembership.objects
     create_membership(user=user, organization=org, role='hospital_owner')
 ```
 
-- [ ] **Step 4: Update accept_invite to use create_membership**
+- [x] **Step 4: Update accept_invite to use create_membership**
 
 In `apps/organizations/views.py`, inside the `accept_invite` view, replace the `OrganizationMembership.objects.create` + `except IntegrityError` block:
 
@@ -351,7 +353,7 @@ In `apps/organizations/views.py`, inside the `accept_invite` view, replace the `
         )
 ```
 
-- [ ] **Step 5: Run the ID generation tests**
+- [x] **Step 5: Run the ID generation tests**
 
 ```bash
 python manage.py test apps.accounts.tests.HospitalUserIdTest --settings=config.settings.dev
@@ -359,7 +361,7 @@ python manage.py test apps.accounts.tests.HospitalUserIdTest --settings=config.s
 
 Expected: PASS (3 tests).
 
-- [ ] **Step 6: Write the data migration to backfill existing memberships**
+- [x] **Step 6: Write the data migration to backfill existing memberships**
 
 Create `apps/accounts/migrations/0023_backfill_hospital_user_id.py` manually (the migration number may differ — use the next number after whatever `makemigrations` created in Task 1):
 
@@ -410,7 +412,7 @@ class Migration(migrations.Migration):
 
 > **Note:** Check the actual migration filenames created in Task 1 (`ls apps/accounts/migrations/` sorted) and make the dependency point to the correct last migration.
 
-- [ ] **Step 7: Apply the data migration**
+- [x] **Step 7: Apply the data migration**
 
 ```bash
 python manage.py migrate --settings=config.settings.dev
@@ -428,7 +430,7 @@ for m in OrganizationMembership.objects.all():
 
 Expected: every membership prints a non-empty `hospital_user_id`.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add apps/organizations/services.py apps/organizations/views.py \
@@ -446,7 +448,7 @@ git commit -m "feat(identity): generate hospital_user_id on membership creation,
 - Create: `templates/organizations/member_detail.html`
 - Modify: `templates/organizations/staff_list.html` — link rows
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 In `apps/organizations/tests.py`, add:
 
@@ -500,7 +502,7 @@ class MemberDetailViewTest(TestCase):
 Run: `python manage.py test apps.organizations.tests.MemberDetailViewTest --settings=config.settings.dev`
 Expected: FAIL — `NoReverseMatch`
 
-- [ ] **Step 2: Add URL**
+- [x] **Step 2: Add URL**
 
 In `apps/organizations/urls.py`, add after the `staff/<int:member_id>/deactivate/` line:
 
@@ -508,7 +510,7 @@ In `apps/organizations/urls.py`, add after the `staff/<int:member_id>/deactivate
     path('<slug:org_slug>/staff/<int:member_id>/', views.member_detail, name='member_detail'),
 ```
 
-- [ ] **Step 3: Add member_detail view**
+- [x] **Step 3: Add member_detail view**
 
 In `apps/organizations/views.py`, add after the `deactivate_member` function:
 
@@ -552,7 +554,7 @@ def member_detail(request, org_slug, member_id):
     })
 ```
 
-- [ ] **Step 4: Create member_detail.html template**
+- [x] **Step 4: Create member_detail.html template**
 
 Create `templates/organizations/member_detail.html`:
 
@@ -682,7 +684,7 @@ Create `templates/organizations/member_detail.html`:
 {% endblock %}
 ```
 
-- [ ] **Step 5: Update staff_list.html to link member rows**
+- [x] **Step 5: Update staff_list.html to link member rows**
 
 Open `templates/organizations/staff_list.html`. Find where member rows are rendered (each `<tr>` or `<li>` with member info). Add a "View" link pointing to `member_detail`:
 
@@ -707,7 +709,7 @@ Also surface `hospital_user_id` in the staff list table. Add a column header `ID
 <td class="px-4 py-3 font-mono text-xs text-gray-500">{{ m.hospital_user_id|default:"—" }}</td>
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 python manage.py test apps.organizations.tests.MemberDetailViewTest --settings=config.settings.dev
@@ -715,7 +717,7 @@ python manage.py test apps.organizations.tests.MemberDetailViewTest --settings=c
 
 Expected: PASS (2 tests).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/organizations/urls.py apps/organizations/views.py \
@@ -735,7 +737,7 @@ git commit -m "feat(identity): hospital-facing member detail view with provider 
 - Modify: `apps/adminpanel/templates/adminpanel/organizations/detail.html` — link rows
 - Modify: `apps/accounts/tests.py` — admin view tests
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 In `apps/accounts/tests.py`, add:
 
@@ -790,7 +792,7 @@ class AdminMemberDetailTest(TestCase):
 Run: `python manage.py test apps.accounts.tests.AdminMemberDetailTest --settings=config.settings.dev`
 Expected: FAIL — `NoReverseMatch`
 
-- [ ] **Step 2: Add URL to adminpanel**
+- [x] **Step 2: Add URL to adminpanel**
 
 In `apps/adminpanel/urls.py`, add after the existing `organizations/<int:org_id>/needs-info/` line:
 
@@ -798,7 +800,7 @@ In `apps/adminpanel/urls.py`, add after the existing `organizations/<int:org_id>
     path('organizations/<int:org_id>/members/<int:membership_id>/', views.org_member_detail, name='org_member_detail'),
 ```
 
-- [ ] **Step 3: Add org_member_detail view**
+- [x] **Step 3: Add org_member_detail view**
 
 In `apps/adminpanel/views.py`, add after the `organization_needs_info` function:
 
@@ -835,7 +837,7 @@ def org_member_detail(request, org_id, membership_id):
     })
 ```
 
-- [ ] **Step 4: Create the admin member_detail template**
+- [x] **Step 4: Create the admin member_detail template**
 
 Create `apps/adminpanel/templates/adminpanel/organizations/member_detail.html`:
 
@@ -990,7 +992,7 @@ Create `apps/adminpanel/templates/adminpanel/organizations/member_detail.html`:
 {% endblock %}
 ```
 
-- [ ] **Step 5: Update adminpanel org detail template to link member rows**
+- [x] **Step 5: Update adminpanel org detail template to link member rows**
 
 In `apps/adminpanel/templates/adminpanel/organizations/detail.html`, find the members list `{% for m in memberships %}` block. Replace:
 
@@ -1022,7 +1024,7 @@ With:
       </li>
 ```
 
-- [ ] **Step 6: Run tests**
+- [x] **Step 6: Run tests**
 
 ```bash
 python manage.py test apps.accounts.tests.AdminMemberDetailTest --settings=config.settings.dev
@@ -1030,7 +1032,7 @@ python manage.py test apps.accounts.tests.AdminMemberDetailTest --settings=confi
 
 Expected: PASS (2 tests).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add apps/adminpanel/urls.py apps/adminpanel/views.py \
@@ -1051,7 +1053,7 @@ git commit -m "feat(identity): platform-admin org member detail with provider pr
 
 This allows a hospital owner/admin to fill in department, title, specialization, and org fee for a doctor in their org.
 
-- [ ] **Step 1: Write failing test**
+- [x] **Step 1: Write failing test**
 
 In `apps/organizations/tests.py`, add:
 
@@ -1107,7 +1109,7 @@ class EditProviderProfileTest(TestCase):
 Run: `python manage.py test apps.organizations.tests.EditProviderProfileTest --settings=config.settings.dev`
 Expected: FAIL — `NoReverseMatch`
 
-- [ ] **Step 2: Add URL**
+- [x] **Step 2: Add URL**
 
 In `apps/organizations/urls.py`, add:
 
@@ -1115,7 +1117,7 @@ In `apps/organizations/urls.py`, add:
     path('<slug:org_slug>/staff/<int:member_id>/provider-profile/', views.edit_provider_profile, name='edit_provider_profile'),
 ```
 
-- [ ] **Step 3: Add edit_provider_profile view**
+- [x] **Step 3: Add edit_provider_profile view**
 
 In `apps/organizations/views.py`, add after `member_detail`:
 
@@ -1162,7 +1164,7 @@ def edit_provider_profile(request, org_slug, member_id):
     }))
 ```
 
-- [ ] **Step 4: Add Edit form to member_detail.html**
+- [x] **Step 4: Add Edit form to member_detail.html**
 
 In `templates/organizations/member_detail.html`, inside the `{% if provider_profile %}` block, add an edit form after the `</dl>`:
 
@@ -1206,7 +1208,7 @@ In `templates/organizations/member_detail.html`, inside the `{% if provider_prof
     </form>
 ```
 
-- [ ] **Step 5: Run tests**
+- [x] **Step 5: Run tests**
 
 ```bash
 python manage.py test apps.organizations.tests.EditProviderProfileTest --settings=config.settings.dev
@@ -1214,7 +1216,7 @@ python manage.py test apps.organizations.tests.EditProviderProfileTest --setting
 
 Expected: PASS (1 test).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/organizations/urls.py apps/organizations/views.py \
@@ -1227,7 +1229,7 @@ git commit -m "feat(identity): edit provider profile for hospital owner/admin"
 
 ## Task 6: Full Test Run + CLAUDE.md Update
 
-- [ ] **Step 1: Run full test suite**
+- [x] **Step 1: Run full test suite**
 
 ```bash
 python manage.py test apps --settings=config.settings.dev 2>&1 | tail -20
@@ -1235,7 +1237,7 @@ python manage.py test apps --settings=config.settings.dev 2>&1 | tail -20
 
 Expected: no test failures. Coverage may drop slightly — that's acceptable.
 
-- [ ] **Step 2: Update CLAUDE.md**
+- [x] **Step 2: Update CLAUDE.md**
 
 Add this to the "Completed Work" section of `CLAUDE.md` under a new heading after Multi-Tenancy:
 
@@ -1251,7 +1253,7 @@ Add this to the "Completed Work" section of `CLAUDE.md` under a new heading afte
 - `staff_list.html` and adminpanel `organizations/detail.html` link rows to respective member detail pages
 ```
 
-- [ ] **Step 3: Final commit**
+- [x] **Step 3: Final commit**
 
 ```bash
 git add CLAUDE.md
