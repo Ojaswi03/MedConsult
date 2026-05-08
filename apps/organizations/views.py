@@ -60,20 +60,15 @@ def accept_invite(request, token):
         return render(request, 'organizations/invite_invalid.html', {'reason': 'expired'})
 
     if request.method == 'POST':
-        from apps.accounts.models import OrganizationMembership
-        from django.db import IntegrityError
-        try:
-            OrganizationMembership.objects.create(
-                user=request.user,
-                organization=invite.organization,
-                role=invite.role,
-                is_active=True,
-            )
-        except IntegrityError:
-            # Already a member — update role
-            OrganizationMembership.objects.filter(
-                user=request.user, organization=invite.organization,
-            ).update(role=invite.role, is_active=True)
+        from apps.organizations.services import create_membership
+        from django.utils import timezone
+        create_membership(
+            user=request.user,
+            organization=invite.organization,
+            role=invite.role,
+            invited_by=invite.invited_by,
+            accepted_at=timezone.now(),
+        )
 
         invite.status = 'accepted'
         invite.accepted_by = request.user

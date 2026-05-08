@@ -4,6 +4,79 @@ from django.db import transaction
 from apps.accounts.models import User, Organization, OrganizationMembership
 from apps.accounts.tasks import send_verification_email_task
 
+_ROLE_CODE = {
+    'hospital_owner': 'OWN',
+    'hospital_admin': 'ADM',
+    'doctor': 'DOC',
+    'scheduler': 'SCH',
+    'billing_staff': 'BIL',
+    'compliance_officer': 'CMP',
+    'clinical_staff': 'CLN',
+    'platform_owner': 'PLT',
+    'platform_admin': 'PLA',
+}
+
+
+def generate_hospital_user_id(organization, role: str) -> str:
+    """
+    Returns a unique ID like CIT-DOC-0007 scoped to the given organization.
+    Prefix = first 3 chars of slug (uppercased, no hyphens).
+    Sequence = existing membership count in org + 1.
+    """
+    prefix = organization.slug.replace('-', '')[:3].upper()
+    role_code = _ROLE_CODE.get(role, 'USR')
+    count = OrganizationMembership.objects.filter(organization=organization).count() + 1
+    return f"{prefix}-{role_code}-{count:04d}"
+
+
+@transaction.atomic
+def create_membership(user, organization, role: str, invited_by=None, accepted_at=None):
+    """
+    Create (or reactivate) a membership with auto-generated hospital_user_id.
+    Also creates ProviderOrganizationProfile if role == 'doctor'.
+    """
+    from apps.accounts.models import ProviderOrganizationProfile
+    from django.utils import timezone
+
+    existing = OrganizationMembership.objects.filter(
+        user=user, organization=organization,
+    ).first()
+
+    if existing:
+        existing.role = role
+        existing.is_active = True
+        if not existing.hospital_user_id:
+            existing.hospital_user_id = generate_hospital_user_id(organization, role)
+        existing.save(update_fields=['role', 'is_active', 'hospital_user_id'])
+        membership = existing
+    else:
+        hospital_user_id = generate_hospital_user_id(organization, role)
+        membership = OrganizationMembership.objects.create(
+            user=user,
+            organization=organization,
+            role=role,
+            is_active=True,
+            hospital_user_id=hospital_user_id,
+            invited_by=invited_by,
+            invited_at=timezone.now() if invited_by else None,
+            accepted_at=accepted_at,
+        )
+
+    if role == 'doctor':
+        ProviderOrganizationProfile.objects.get_or_create(
+            doctor=user,
+            organization=organization,
+            defaults={
+                'membership': membership,
+                'provider_id': membership.hospital_user_id,
+                'specialization': getattr(
+                    getattr(user, 'doctorprofile', None), 'specialization', ''
+                ) or '',
+            },
+        )
+
+    return membership
+
 
 @transaction.atomic
 def register_organization(account_data: dict, org_data: dict):
@@ -39,12 +112,7 @@ def register_organization(account_data: dict, org_data: dict):
         org.logo = org_data['logo']
         org.save(update_fields=['logo'])
 
-    OrganizationMembership.objects.create(
-        user=user,
-        organization=org,
-        role='hospital_owner',
-        is_active=True,
-    )
+    create_membership(user=user, organization=org, role='hospital_owner')
 
     send_verification_email_task.delay(user.id)
     _notify_platform_owners_new_org(org)

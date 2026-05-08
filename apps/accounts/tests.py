@@ -2,6 +2,7 @@ import pytest
 from django.test import TestCase, Client
 from django.urls import reverse
 from django.contrib.auth import get_user_model
+from apps.accounts.models import Organization, OrganizationMembership
 
 User = get_user_model()
 
@@ -642,3 +643,42 @@ class OrgSwitcherTest(TestCase):
             {'org_id': str(self.org.id)},
         )
         self.assertEqual(response.status_code, 403)
+
+
+class HospitalUserIdTest(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(
+            name='City General',
+            slug='city-general',
+            org_type='hospital',
+            status='active',
+        )
+        self.user = User.objects.create_user(
+            username='doc1_hid', email='doc1hid@test.com',
+            password='pass', role='doctor',
+        )
+
+    def test_generate_creates_prefixed_id(self):
+        from apps.organizations.services import generate_hospital_user_id
+        hid = generate_hospital_user_id(self.org, 'doctor')
+        self.assertRegex(hid, r'^CIT-DOC-\d{4}$')
+
+    def test_generate_different_roles(self):
+        from apps.organizations.services import generate_hospital_user_id
+        hid_owner = generate_hospital_user_id(self.org, 'hospital_owner')
+        self.assertIn('-OWN-', hid_owner)
+        hid_sched = generate_hospital_user_id(self.org, 'scheduler')
+        self.assertIn('-SCH-', hid_sched)
+
+    def test_sequence_increments(self):
+        from apps.organizations.services import generate_hospital_user_id
+        OrganizationMembership.objects.create(
+            user=self.user, organization=self.org,
+            role='doctor', hospital_user_id='CIT-DOC-0001',
+        )
+        user2 = User.objects.create_user(
+            username='doc2_hid', email='doc2hid@test.com',
+            password='pass', role='doctor',
+        )
+        hid = generate_hospital_user_id(self.org, 'doctor')
+        self.assertEqual(hid, 'CIT-DOC-0002')
