@@ -1,3 +1,4 @@
+import hashlib
 import secrets
 from django.contrib.auth.models import AbstractUser, BaseUserManager
 from django.db import models
@@ -381,3 +382,168 @@ class PasswordResetToken(models.Model):
     @property
     def is_valid(self):
         return not self.is_used and not self.is_expired
+
+
+class Organization(models.Model):
+    ORG_TYPE_CHOICES = [
+        ('platform', 'Platform'),
+        ('hospital', 'Hospital'),
+        ('clinic', 'Clinic'),
+        ('private_practice', 'Private Practice'),
+        ('urgent_care', 'Urgent Care'),
+        ('mental_health', 'Mental Health Group'),
+    ]
+    STATUS_CHOICES = [
+        ('pending', 'Pending Approval'),
+        ('active', 'Active'),
+        ('needs_info', 'Needs More Information'),
+        ('rejected', 'Rejected'),
+        ('suspended', 'Suspended'),
+    ]
+
+    name = models.CharField(max_length=255)
+    slug = models.SlugField(max_length=100, unique=True)
+    org_type = models.CharField(max_length=30, choices=ORG_TYPE_CHOICES)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    address = models.TextField(blank=True)
+    phone = models.CharField(max_length=20, blank=True)
+    website = models.URLField(blank=True)
+    logo = models.ImageField(upload_to='org_logos/', blank=True, null=True)
+    approved_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='approved_organizations',
+    )
+    approved_at = models.DateTimeField(null=True, blank=True)
+    rejected_reason = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='created_organizations',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'organizations'
+        indexes = [
+            models.Index(fields=['slug']),
+            models.Index(fields=['status']),
+        ]
+
+    def __str__(self):
+        return self.name
+
+
+class OrganizationMembership(models.Model):
+    ROLE_CHOICES = [
+        ('platform_owner', 'Platform Owner'),
+        ('platform_admin', 'Platform Admin'),
+        ('hospital_owner', 'Hospital Owner'),
+        ('hospital_admin', 'Hospital Admin'),
+        ('doctor', 'Doctor'),
+        ('scheduler', 'Scheduler'),
+        ('billing_staff', 'Billing Staff'),
+        ('compliance_officer', 'Compliance Officer'),
+        ('clinical_staff', 'Clinical Staff'),
+    ]
+
+    user = models.ForeignKey(
+        'User', on_delete=models.CASCADE, related_name='memberships',
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='memberships',
+    )
+    role = models.CharField(max_length=30, choices=ROLE_CHOICES)
+    is_active = models.BooleanField(default=True)
+    invited_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='sent_memberships',
+    )
+    invited_at = models.DateTimeField(null=True, blank=True)
+    accepted_at = models.DateTimeField(null=True, blank=True)
+    deactivated_at = models.DateTimeField(null=True, blank=True)
+    deactivated_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='deactivated_memberships',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'organization_memberships'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'organization'],
+                name='unique_user_organization_membership',
+            )
+        ]
+        indexes = [
+            models.Index(fields=['organization', 'role', 'is_active']),
+            models.Index(fields=['user', 'is_active']),
+        ]
+
+    def __str__(self):
+        return f"{self.user.email} — {self.role} @ {self.organization.name}"
+
+
+class OrganizationInvite(models.Model):
+    STATUS_CHOICES = [
+        ('pending', 'Pending'),
+        ('accepted', 'Accepted'),
+        ('expired', 'Expired'),
+        ('revoked', 'Revoked'),
+    ]
+
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='invites',
+    )
+    invited_by = models.ForeignKey(
+        'User', on_delete=models.CASCADE, related_name='sent_invites',
+    )
+    email = models.EmailField()
+    role = models.CharField(max_length=30, choices=OrganizationMembership.ROLE_CHOICES)
+    token_hash = models.CharField(max_length=64, unique=True)
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
+    expires_at = models.DateTimeField()
+    accepted_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='accepted_invites',
+    )
+    revoked_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='revoked_invites',
+    )
+    revoked_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'organization_invites'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['organization', 'email'],
+                condition=models.Q(status='pending'),
+                name='unique_pending_invite_per_org_email',
+            )
+        ]
+
+    def save(self, *args, **kwargs):
+        self.email = self.email.lower()
+        if not self.expires_at:
+            from datetime import timedelta
+            self.expires_at = timezone.now() + timedelta(days=7)
+        super().save(*args, **kwargs)
+
+    @classmethod
+    def make_token_hash(cls, raw_token: str) -> str:
+        return hashlib.sha256(raw_token.encode()).hexdigest()
+
+    @property
+    def is_expired(self):
+        return timezone.now() > self.expires_at
+
+    @property
+    def is_valid(self):
+        return self.status == 'pending' and not self.is_expired
+
+    def __str__(self):
+        return f"Invite {self.email} → {self.role} @ {self.organization.name}"
