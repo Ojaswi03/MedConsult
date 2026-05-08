@@ -48,6 +48,9 @@ urlpatterns = [
     # Knowledge graph (UI under /internal/, API under /api/v1/)
     path('internal/knowledge-graph/', include('apps.knowledge_graph.urls')),
 
+    # Organization management (hospital signup, dashboards, staff, invites)
+    path('org/', include('apps.organizations.urls', namespace='organizations')),
+
     # REST API v1
     path('api/v1/', include('apps.api.urls')),
 ]

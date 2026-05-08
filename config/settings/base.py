@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     'apps.messaging',
     'apps.consultations',
     'apps.knowledge_graph',
+    'apps.organizations',
 
     # REST API
     'rest_framework',
