@@ -81,6 +81,8 @@ def checkout(request, appointment_id):
 def payment_success(request, appointment_id):
     """
     Handle successful payment return from Stripe.
+    Status-aware: Stripe webhooks can lag, so we check payment.status
+    rather than trusting the browser redirect alone.
     """
     appointment = get_object_or_404(
         Appointment,
@@ -90,11 +92,17 @@ def payment_success(request, appointment_id):
 
     payment = get_payment_for_appointment(appointment)
 
-    messages.success(request, 'Payment successful! Your appointment has been confirmed.')
+    if payment and payment.status == 'succeeded':
+        payment_state = 'confirmed'
+    elif payment and payment.status == 'processing':
+        payment_state = 'processing'
+    else:
+        payment_state = 'unknown'
 
     return render(request, 'payments/success.html', {
         'appointment': appointment,
         'payment': payment,
+        'payment_state': payment_state,
     })
 
 

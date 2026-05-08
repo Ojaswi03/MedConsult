@@ -7,7 +7,17 @@ from .base import *
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '0.0.0.0', 'testserver']
+ALLOWED_HOSTS = [
+    'localhost', '127.0.0.1', '0.0.0.0', 'testserver',
+    '.ngrok-free.app', '.ngrok-free.dev', '.ngrok.io',
+]
+
+# Allow ngrok HTTPS tunnels for CSRF
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.ngrok-free.app',
+    'https://*.ngrok-free.dev',
+    'https://*.ngrok.io',
+]
 
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases

@@ -28,6 +28,8 @@ try:
 except ImportError:
     HAS_PSYCOPG2 = False
 
+import urllib.request
+
 # ── Paths ──────────────────────────────────────────────────────────────────────
 BASE_DIR    = Path(__file__).resolve().parent
 VENV_PYTHON = BASE_DIR / "venv" / "bin" / "python"
@@ -119,6 +121,8 @@ class DevPanel(tk.Tk):
         self.beat_proc:     subprocess.Popen | None = None
         self.pg_log_proc:   subprocess.Popen | None = None
         self.redis_log_proc: subprocess.Popen | None = None
+        self.tunnel_proc:   subprocess.Popen | None = None
+        self.tunnel_url:    str = ""
         self.busy = False
 
         # ── Shared state ─────────────────────────────────────────────────
@@ -180,7 +184,7 @@ class DevPanel(tk.Tk):
               background=[("selected", ACCENT)], foreground=[("selected", BG)])
 
     def _build_ui(self) -> None:
-        self.rowconfigure(2, weight=1)
+        self.rowconfigure(3, weight=1)
         self.columnconfigure(0, weight=1)
 
         # ── Header ───────────────────────────────────────────────────────
@@ -201,9 +205,33 @@ class DevPanel(tk.Tk):
                   cursor="hand2", command=self.apply_pending_reload
                   ).grid(row=0, column=2, padx=16)
 
+        # ── Tunnel URL bar ────────────────────────────────────────────────
+        self._tunnel_bar = tk.Frame(self, bg="#0d1f0d", pady=8)
+        self._tunnel_bar.grid(row=1, column=0, sticky="ew")
+        self._tunnel_bar.columnconfigure(1, weight=1)
+
+        tk.Label(self._tunnel_bar, text="🌐  Public URL:",
+                 bg="#0d1f0d", fg="#4ade80",
+                 font=(UI[0], 10, "bold")).grid(row=0, column=0, padx=(16, 8))
+
+        self._tunnel_url_var = tk.StringVar(value="Not tunneled — click  Start Tunnel  to share with testers")
+        self._tunnel_url_lbl = tk.Label(
+            self._tunnel_bar, textvariable=self._tunnel_url_var,
+            bg="#0d1f0d", fg="#6b7280",
+            font=(UI[0], 10), cursor="hand2",
+        )
+        self._tunnel_url_lbl.grid(row=0, column=1, sticky="w")
+        self._tunnel_url_lbl.bind("<Button-1>", self._copy_tunnel_url)
+
+        self._tunnel_copy_hint = tk.Label(
+            self._tunnel_bar, text="", bg="#0d1f0d", fg="#4ade80",
+            font=(UI[0], 8),
+        )
+        self._tunnel_copy_hint.grid(row=0, column=2, padx=(4, 16))
+
         # ── Status strip ─────────────────────────────────────────────────
         strip = tk.Frame(self, bg=BG2, pady=6)
-        strip.grid(row=1, column=0, sticky="ew")
+        strip.grid(row=2, column=0, sticky="ew")
 
         self._dot_vars: dict[str, tk.StringVar] = {}
         for name in ("Docker", "Server", "Worker", "Beat"):
@@ -212,13 +240,18 @@ class DevPanel(tk.Tk):
             tk.Label(strip, textvariable=var, bg=BG2, fg=MUTED,
                      font=(UI[0], 10, "bold")).pack(side="left", padx=16)
 
+        self._tunnel_dot_var = tk.StringVar(value="● Tunnel")
+        self._tunnel_dot_lbl = tk.Label(strip, textvariable=self._tunnel_dot_var,
+                                        bg=BG2, fg=MUTED, font=(UI[0], 10, "bold"))
+        self._tunnel_dot_lbl.pack(side="left", padx=16)
+
         self._busy_var = tk.StringVar(value="Idle")
         tk.Label(strip, textvariable=self._busy_var, bg=BG2, fg=MUTED,
                  font=(UI[0], 9)).pack(side="right", padx=16)
 
         # ── Notebook ──────────────────────────────────────────────────────
         nb = ttk.Notebook(self, style="Dark.TNotebook")
-        nb.grid(row=2, column=0, sticky="nsew", padx=0, pady=0)
+        nb.grid(row=3, column=0, sticky="nsew", padx=0, pady=0)
         self._nb = nb
 
         ctrl_tab  = tk.Frame(nb, bg=BG)
@@ -285,18 +318,22 @@ class DevPanel(tk.Tk):
         actions.grid(row=1, column=0, sticky="ew", padx=16)
 
         btns = [
-            ("▶  Start Stack",  self.start_stack,       ACCENT, BG),
-            ("■  Stop All",     self.stop_all,           RED,    BG),
-            ("Run Migrations",  self.run_migrations,     BG3,    FG),
-            ("Run Checks",      self.run_checks,         BG3,    FG),
-            ("DB Logs On/Off",  self.toggle_docker_logs, BG3,    FG),
-            ("Refresh Status",  self._refresh_status,    BG3,    FG),
+            ("▶  Start Stack",  self.start_stack,       ACCENT,   BG),
+            ("■  Stop All",     self.stop_all,           RED,      BG),
+            ("Run Migrations",  self.run_migrations,     BG3,      FG),
+            ("Run Checks",      self.run_checks,         BG3,      FG),
+            ("DB Logs On/Off",  self.toggle_docker_logs, BG3,      FG),
+            ("Refresh Status",  self._refresh_status,    BG3,      FG),
+            ("🌐  Start Tunnel", self.toggle_tunnel,     "#14532d", GREEN),
         ]
+        self._tunnel_btn: tk.Button | None = None
         for text, cmd, bg, fg in btns:
             b = tk.Button(actions, text=text, bg=bg, fg=fg,
-                          font=(UI[0], 10, "bold" if bg != BG3 else "normal"),
+                          font=(UI[0], 10, "bold" if bg not in (BG3, "#14532d") else "normal"),
                           relief="flat", padx=12, pady=5, cursor="hand2", command=cmd)
             b.pack(side="left", padx=(0, 8))
+            if text.startswith("🌐"):
+                self._tunnel_btn = b
 
         # ── Live log ──────────────────────────────────────────────────────
         log_frame = tk.Frame(parent, bg=BG)
@@ -857,6 +894,7 @@ class DevPanel(tk.Tk):
 
     def stop_all(self):
         def target():
+            self.after(0, self.stop_tunnel)
             self.stop_celery_beat()
             time.sleep(0.3)
             self.stop_celery_worker()
@@ -867,6 +905,115 @@ class DevPanel(tk.Tk):
             self._run_cmd(self.docker_cmd + ["down"], "docker")
             self.log("Full stack stopped.")
         self._run_bg("Stopping All", target)
+
+    def toggle_tunnel(self):
+        if self.tunnel_proc and self.tunnel_proc.poll() is None:
+            self.stop_tunnel()
+        else:
+            self.start_tunnel()
+
+    def start_tunnel(self):
+        if self.tunnel_proc and self.tunnel_proc.poll() is None:
+            self.log("Tunnel already running.")
+            return
+        if not shutil.which("ngrok"):
+            self.log("ngrok not found. Install from https://ngrok.com/download and add to PATH.")
+            messagebox.showwarning(
+                "ngrok not found",
+                "ngrok is not installed or not in PATH.\n\n"
+                "Install it from https://ngrok.com/download\n"
+                "then run: ngrok config add-authtoken YOUR_TOKEN"
+            )
+            return
+        self.log("Starting ngrok tunnel on port 8000…")
+        self._update_tunnel_bar("", running=False, starting=True)
+        try:
+            self.tunnel_proc = subprocess.Popen(
+                ["ngrok", "http", "8000", "--log=stdout", "--log-format=json"],
+                cwd=BASE_DIR,
+                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                text=True, bufsize=1,
+                preexec_fn=os.setsid if os.name != "nt" else None,
+            )
+        except Exception as e:
+            self.log(f"Failed to start ngrok: {e}")
+            return
+        threading.Thread(target=self._poll_tunnel_api, daemon=True).start()
+        threading.Thread(target=self._stream_proc,
+                         args=(self.tunnel_proc, "ngrok", "tunnel_proc"), daemon=True).start()
+
+    def stop_tunnel(self):
+        self._kill(self.tunnel_proc, "ngrok")
+        self.tunnel_proc = None
+        self.tunnel_url = ""
+        self._update_tunnel_bar("", running=False)
+        self.log("Tunnel stopped.")
+
+    def _poll_tunnel_api(self):
+        """Poll ngrok local API until public URL is available."""
+        deadline = time.time() + 20
+        while time.time() < deadline:
+            if not self.tunnel_proc or self.tunnel_proc.poll() is not None:
+                break
+            try:
+                with urllib.request.urlopen("http://localhost:4040/api/tunnels", timeout=2) as r:
+                    data = json.loads(r.read())
+                tunnels = data.get("tunnels", [])
+                https = next((t for t in tunnels if t.get("proto") == "https"), None)
+                url = (https or (tunnels[0] if tunnels else None) or {}).get("public_url", "")
+                if url:
+                    self.tunnel_url = url
+                    self.after(0, self._update_tunnel_bar, url, True)
+                    self.log(f"Tunnel active: {url}")
+                    return
+            except Exception:
+                pass
+            time.sleep(1)
+        self.after(0, self._update_tunnel_bar, "", False)
+        self.log("ngrok tunnel URL not detected after 20s — check ngrok is authenticated.")
+
+    def _update_tunnel_bar(self, url: str, running: bool, starting: bool = False):
+        if running and url:
+            self._tunnel_url_var.set(url + "   ← click to copy")
+            self._tunnel_url_lbl.configure(fg="#4ade80",
+                                           font=(UI[0], 12, "bold"))
+            self._tunnel_bar.configure(bg="#052e16")
+            for w in self._tunnel_bar.winfo_children():
+                try:
+                    w.configure(bg="#052e16")
+                except Exception:
+                    pass
+            self._tunnel_dot_var.set("● Tunnel")
+            self._tunnel_dot_lbl.configure(fg=GREEN)
+            if self._tunnel_btn:
+                self._tunnel_btn.configure(text="■  Stop Tunnel", bg="#7f1d1d", fg=RED)
+        elif starting:
+            self._tunnel_url_var.set("Starting tunnel…")
+            self._tunnel_url_lbl.configure(fg=YELLOW, font=(UI[0], 10))
+            self._tunnel_dot_var.set("● Tunnel")
+            self._tunnel_dot_lbl.configure(fg=YELLOW)
+        else:
+            self._tunnel_url_var.set("Not tunneled — click  Start Tunnel  to share with testers")
+            self._tunnel_url_lbl.configure(fg="#6b7280", font=(UI[0], 10))
+            self._tunnel_bar.configure(bg="#0d1f0d")
+            for w in self._tunnel_bar.winfo_children():
+                try:
+                    w.configure(bg="#0d1f0d")
+                except Exception:
+                    pass
+            self._tunnel_dot_var.set("● Tunnel")
+            self._tunnel_dot_lbl.configure(fg=MUTED)
+            if self._tunnel_btn:
+                self._tunnel_btn.configure(text="🌐  Start Tunnel", bg="#14532d", fg=GREEN)
+
+    def _copy_tunnel_url(self, _event=None):
+        if self.tunnel_url:
+            self.clipboard_clear()
+            self.clipboard_append(self.tunnel_url)
+            self._tunnel_copy_hint.configure(text="✓ Copied!")
+            self.after(2000, lambda: self._tunnel_copy_hint.configure(text=""))
+        else:
+            self.log("No active tunnel URL to copy.")
 
     def run_migrations(self):
         def _check_and_migrate():
@@ -1441,8 +1588,9 @@ print(json.dumps(results))
         self.after(2000, self._watch_source)
 
     def _has_procs(self) -> bool:
+        tunnel_running = self.tunnel_proc and self.tunnel_proc.poll() is None
         return any([self._is_running("server"), self._is_running("worker"),
-                    self._is_running("beat"), self._log_running()])
+                    self._is_running("beat"), self._log_running(), tunnel_running])
 
     def _do_reload(self) -> None:
         self.pending_reload = False
@@ -1469,6 +1617,9 @@ print(json.dumps(results))
             self.stop_celery_beat()
             self.stop_celery_worker()
             self.stop_server()
+        if self.tunnel_proc and self.tunnel_proc.poll() is None:
+            self._kill(self.tunnel_proc, "ngrok")
+            self.tunnel_proc = None
         if self._db_conn and not self._db_conn.closed:
             self._db_conn.close()
         self.destroy()

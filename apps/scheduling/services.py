@@ -522,25 +522,17 @@ def book_appointment(slot, patient, reason=''):
         slot.is_booked = True
         slot.save()
 
-    # Create appointment
+    # Create appointment as held — caller confirms after payment or immediately for free slots
     appointment = Appointment.objects.create(
         slot=slot,
         patient=patient,
         doctor=slot.doctor,
         reason=reason,
-        status='scheduled'
+        status='scheduled',
+        booking_status='held',
     )
 
-    # Send confirmation email async
-    from .tasks import send_appointment_confirmation_email
-    send_appointment_confirmation_email.delay(appointment.id)
-
-    # Send SMS confirmation for patients with phone notifications
-    if patient.phone_notifications and patient.phone:
-        from .tasks import send_sms_appointment_confirmation
-        send_sms_appointment_confirmation.delay(appointment.id)
-
-    # In-app notifications
+    # In-app notifications fire immediately regardless of payment status
     from apps.accounts.services import create_notification
     create_notification(
         patient, 'appointment_booked',
@@ -568,6 +560,20 @@ def book_appointment(slot, patient, reason=''):
     })
 
     return appointment
+
+
+def confirm_free_appointment(appointment):
+    """
+    Confirm a free (no-charge) appointment immediately after booking.
+    Sends confirmation email/SMS. Only call for slots where get_price() == 0.
+    """
+    appointment.booking_status = 'confirmed'
+    appointment.save(update_fields=['booking_status'])
+
+    from .tasks import send_appointment_confirmation_email, send_sms_appointment_confirmation
+    send_appointment_confirmation_email.delay(appointment.id)
+    if appointment.patient.phone_notifications and appointment.patient.phone:
+        send_sms_appointment_confirmation.delay(appointment.id)
 
 
 @transaction.atomic

@@ -119,6 +119,12 @@ def handle_checkout_completed(session):
     appointment.booking_status = 'confirmed'
     appointment.save(update_fields=['booking_status'])
 
+    # Send confirmation email/SMS now that payment is verified
+    from apps.scheduling.tasks import send_appointment_confirmation_email, send_sms_appointment_confirmation
+    send_appointment_confirmation_email.delay(appointment.id)
+    if appointment.patient.phone_notifications and appointment.patient.phone:
+        send_sms_appointment_confirmation.delay(appointment.id)
+
     return payment
 
 

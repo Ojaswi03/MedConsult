@@ -13,6 +13,7 @@ from .models import Slot, Appointment, AvailabilityWindow, BodyPart, Condition, 
 from .forms import AvailabilityWindowForm, ManualSlotForm, BlockSlotForm, get_appointment_type_formset
 from .services import (
     book_appointment,
+    confirm_free_appointment,
     cancel_appointment,
     reschedule_appointment,
     generate_slots_for_doctor,
@@ -175,6 +176,10 @@ def patient_book_appointment(request, slot_id):
         reason = request.POST.get('reason', '')
         try:
             appointment = book_appointment(slot, request.user, reason)
+            price = slot.get_price()
+            if price and price > 0:
+                return redirect('payments:checkout', appointment_id=appointment.id)
+            confirm_free_appointment(appointment)
             messages.success(request, 'Appointment booked successfully!')
             return redirect('patient:patient_appointments')
         except ValueError as e:

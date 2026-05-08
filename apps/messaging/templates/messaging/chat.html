@@ -185,6 +185,24 @@ document.addEventListener('DOMContentLoaded', function() {
 
     connectWebSocket();
 
+    // Escape user content before inserting into the DOM
+    function escapeHtml(str) {
+        if (str == null) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    // Only allow relative paths and https:// attachment URLs
+    function safeUrl(url) {
+        if (!url) return '#';
+        if (url.startsWith('/') || url.startsWith('https://')) return url;
+        return '#';
+    }
+
     // Add message to UI
     function addMessage(message) {
         const isOwn = message.sender_id === currentUserId;
@@ -201,7 +219,7 @@ document.addEventListener('DOMContentLoaded', function() {
             return `
                 <div class="flex justify-center">
                     <div class="bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 px-4 py-2 rounded-lg text-sm">
-                        ${message.content}
+                        ${escapeHtml(message.content)}
                     </div>
                 </div>
             `;
@@ -210,18 +228,20 @@ document.addEventListener('DOMContentLoaded', function() {
         let bodyHtml = '';
         if (message.message_type === 'file' && message.attachment_url) {
             const linkClass = isOwn ? 'text-blue-100 hover:text-white' : 'text-blue-600 dark:text-blue-400 hover:underline';
+            const safeName = escapeHtml(message.attachment_name) || 'Attachment';
+            const url = safeUrl(message.attachment_url);
             bodyHtml = `
-                <a href="${message.attachment_url}" target="_blank" rel="noopener noreferrer"
+                <a href="${url}" target="_blank" rel="noopener noreferrer"
                    class="flex items-center gap-2 ${linkClass}">
                     <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.172 7l-6.586 6.586a2 2 0 102.828 2.828l6.414-6.586a4 4 0 00-5.656-5.656l-6.415 6.585a6 6 0 108.486 8.486L20.5 13"/>
                     </svg>
-                    <span class="text-sm truncate max-w-[200px]">${message.attachment_name || 'Attachment'}</span>
+                    <span class="text-sm truncate max-w-[200px]">${safeName}</span>
                 </a>
-                ${message.content && message.content !== message.attachment_name ? `<p class="mt-1 text-sm">${message.content}</p>` : ''}
+                ${message.content && message.content !== message.attachment_name ? `<p class="mt-1 text-sm">${escapeHtml(message.content)}</p>` : ''}
             `;
         } else {
-            bodyHtml = `<p>${message.content}</p>`;
+            bodyHtml = `<p>${escapeHtml(message.content)}</p>`;
         }
 
         return `

@@ -14,7 +14,7 @@ from apps.scheduling.selectors import (
     get_patient_appointments,
     get_upcoming_patient_appointments,
 )
-from apps.scheduling.services import book_appointment as svc_book_appointment
+from apps.scheduling.services import book_appointment as svc_book_appointment, confirm_free_appointment
 from apps.scheduling.models import Slot
 
 from .serializers import (
@@ -73,7 +73,20 @@ def book_appointment_api(request, slot_id):
         if is_second_opinion:
             appointment.is_second_opinion = True
             appointment.save(update_fields=['is_second_opinion'])
-        return Response(AppointmentSerializer(appointment).data, status=status.HTTP_201_CREATED)
+
+        price = slot.get_price()
+        data = AppointmentSerializer(appointment).data
+        if price and price > 0:
+            from django.urls import reverse
+            data['requires_payment'] = True
+            data['checkout_url'] = request.build_absolute_uri(
+                reverse('payments:checkout', kwargs={'appointment_id': appointment.id})
+            )
+        else:
+            confirm_free_appointment(appointment)
+            data['requires_payment'] = False
+
+        return Response(data, status=status.HTTP_201_CREATED)
     except ValueError as e:
         return Response({'error': str(e)}, status=status.HTTP_400_BAD_REQUEST)
 

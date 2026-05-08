@@ -197,6 +197,21 @@ def start_direct_message(request, doctor_id=None, patient_id=None):
     elif request.user.role == 'doctor':
         patient_user = get_object_or_404(User, id=patient_id, role='patient')
         doctor_user = request.user
+        doctor_profile = get_object_or_404(DoctorProfile, user=doctor_user)
+        has_relationship = Appointment.objects.filter(
+            patient=patient_user,
+            doctor=doctor_profile,
+        ).exists()
+        if not has_relationship:
+            from django.http import HttpResponseForbidden
+            return HttpResponseForbidden('No prior appointment relationship with this patient.')
+        from apps.adminpanel.services import log_admin_action
+        log_admin_action(
+            admin=doctor_user,
+            action_type='direct_chat_created',
+            target_user=patient_user,
+            description=f'Doctor {doctor_user.username} started direct chat with patient {patient_user.username}',
+        )
     else:
         messages.error(request, 'Only patients and doctors can start conversations.')
         return redirect('messaging:conversations')

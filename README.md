@@ -665,6 +665,11 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | B6 | 🔲 Deferred | **2FA policy inconsistent** - all roles currently use session-flag skip for development ease. Will enforce strict doctor/admin policy at end of backlog. |
 | B7 | ✅ Fixed | **CI never runs the test suite** - added `pytest --cov=apps --cov-fail-under=40` step to `django-ci.yml`. |
 | B8 | ✅ Fixed | **Slot booking has no row lock** - added `select_for_update()` at start of `book_appointment` transaction. |
+| B9 | 🔲 Open | **Booking bypasses payment** - `patient_book_appointment()` redirects to appointments page instead of Stripe checkout; payment layer is decorative armor. Fix: redirect to `payments:checkout` when `slot.get_price() > 0`; free slots → `confirmed` directly. Same fix for API booking endpoint. |
+| B10 | 🔲 Open | **Payment success page trusts browser redirect** - `payment_success()` shows "Payment successful" even if webhook hasn't confirmed. Fix: check `payment.status` — `succeeded` → confirmed, `processing` → pending message, missing/failed → warning. Never trust the redirect alone. |
+| B11 | 🔲 Open | **Checkout template uses nonexistent field** - `checkout.html` references `appointment.slot.price` but `Slot` has no `price` field; it has `get_price()`. Fix: use `appointment.slot.get_price`. Also store `amount_at_booking` on `Payment` so later price changes don't rewrite history. |
+| B12 | 🔲 Open | **Admin templates use stale field names** - several templates reference `profile_picture` (model field is `profile_image`) and `phone_number` (model field is `phone`). Causes silent UI breakage on admin user/patient/appointment pages. Fix: audit and replace; add smoke tests. |
+| B13 | 🔲 Open | **2FA not strictly enforced for doctors/admins** - session-flag bypass allows doctors/admins to skip TOTP. Fix: role check in `EnforceTwoFactorMiddleware`; doctors/admins cannot bypass; patients may skip. Add tests for all three roles. (Elevated from B6 — previously deferred, now required.) |
 
 ---
 
@@ -695,46 +700,54 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | B3 | ✅ Done | **Patient data export field audit** - fixed `phone_number` → `phone` and `appointment_type` path; assertion tests added |
 | B4 | ✅ Done | **"Join Call" URL fix** - corrected to `consultations:join` in `chat.html` |
 | B5 | ✅ Done | **Admin redirect namespace fix** - changed `accounts:login` → `login` |
-| B6 | 🔲 Deferred | **2FA policy enforcement** - doctors/admins cannot bypass via session flag (deferred to end of backlog) |
+| B6 | → B13 | **2FA strict enforcement** - superseded by B13 (elevated, no longer deferred) |
 | B7 | ✅ Done | **CI actually run pytest** - `pytest --cov=apps --cov-fail-under=40` added to `django-ci.yml` |
 | B8 | ✅ Done | **Slot booking race condition** - `select_for_update()` added to `book_appointment` |
+| B9 | 🔲 Open | **Booking bypasses payment** - `patient_book_appointment()` redirects to appointments page, not Stripe checkout; payment layer is decorative. Fix: redirect to `payments:checkout` when `slot.get_price() > 0`; free slots → `confirmed` directly. |
+| B10 | 🔲 Open | **Payment success page trusts browser redirect** - shows "Payment successful" even if webhook hasn't confirmed. Fix: check `payment.status` and show conditional message. |
+| B11 | 🔲 Open | **Checkout template uses nonexistent field** - `checkout.html` references `appointment.slot.price`; `Slot` has no `price` field, only `get_price()`. Also store `amount_at_booking` on `Payment`. |
+| B12 | 🔲 Open | **Admin templates use stale field names** - `profile_picture` → `profile_image`/`get_profile_image_url`; `phone_number` → `phone`; causes silent UI breakage. |
+| B13 | 🔲 Open | **2FA not strictly enforced for doctors/admins** - session-flag bypass allows TOTP skip. Fix: role check in `EnforceTwoFactorMiddleware`; doctors/admins cannot bypass; patients may skip. Add tests for all three roles. |
 
 ### P0 - Security & HIPAA Compliance
 
 | # | Status | Item |
 |---|--------|------|
-| 1 | ✅ Done | **PHI encrypted at rest** - `medical_license_number`, `account_number`, `routing_number`, prescription fields encrypted with `django-cryptography` |
-| 2 | ✅ Done | **2FA/MFA for doctors + admins** - TOTP via `django-two-factor-auth`; `EnforceTwoFactorMiddleware` redirects on first login |
-| 3 | ✅ Done | **Email verification enforced at login** - unverified users blocked, resend link shown |
-| 4 | ✅ Done | **`SECRET_KEY` insecure fallback removed** - `prod.py` raises `ImproperlyConfigured` if key is missing or starts with `django-insecure-` |
-| 5 | ✅ Done | **`HealthRecordAccessLog` wired** - logged on all doctor views and patient share actions |
-| 6 | ✅ Done | **Patient data export** - `/patient/export/` returns JSON with profile, appointments, health records, prescriptions |
-| 7 | ✅ Done | **Baseline test suite** - `pytest-django`, 40% coverage gate enforced in CI and locally |
-| 8 | ✅ Done | **Rate limiting expanded** - booking `10/h/user`, messaging `60/m/user`, API `30/m anon` + `120/m user` via DRF throttle |
-| 9 | ✅ Done | **Structured logging + Sentry** - `LOGGING` dict in `base.py`; Sentry auto-initialised when `SENTRY_DSN` is set |
+| P0-1 | ✅ Done | **PHI encrypted at rest** - `medical_license_number`, `account_number`, `routing_number`, prescription fields encrypted with `django-cryptography` |
+| P0-2 | ✅ Done | **2FA/MFA for doctors + admins** - TOTP via `django-two-factor-auth`; `EnforceTwoFactorMiddleware` redirects on first login |
+| P0-3 | ✅ Done | **Email verification enforced at login** - unverified users blocked, resend link shown |
+| P0-4 | ✅ Done | **`SECRET_KEY` insecure fallback removed** - `prod.py` raises `ImproperlyConfigured` if key is missing or starts with `django-insecure-` |
+| P0-5 | ✅ Done | **`HealthRecordAccessLog` wired** - logged on all doctor views and patient share actions |
+| P0-6 | ✅ Done | **Patient data export** - `/patient/export/` returns JSON with profile, appointments, health records, prescriptions |
+| P0-7 | ✅ Done | **Baseline test suite** - `pytest-django`, 40% coverage gate enforced in CI and locally |
+| P0-8 | ✅ Done | **Rate limiting expanded** - booking `10/h/user`, messaging `60/m/user`, API `30/m anon` + `120/m user` via DRF throttle |
+| P0-9 | ✅ Done | **Structured logging + Sentry** - `LOGGING` dict in `base.py`; Sentry auto-initialised when `SENTRY_DSN` is set |
+| P0-10 | 🔲 Open | **Chat XSS vulnerability** - `chat.html` inserts message bubbles with `insertAdjacentHTML` and raw message content; a malicious user can inject HTML/JS into a healthcare chat thread. Fix: use `textContent` for message content; escape `attachment_name`; validate `attachment_url`. |
+| P0-11 | 🔲 Open | **Direct messaging too open** - a doctor can start a direct chat with any patient ID; no relationship or consent check. Fix: require prior appointment or patient-initiated contact; add patient block/report controls; log chat creation in audit log. |
+| P0-12 | 🔲 Open | **PHI files served without auth** - health record files referenced via `record.file.url` (direct `/media/` path); no ownership check, no access log, no expiry. Fix: protected Django download view with ownership/share check + `HealthRecordAccessLog` entry + short-lived signed URLs. (Escalated from P2-10.) |
 
 ### P1 - Functional Gaps
 
 | # | Status | Item |
 |---|--------|------|
-| 10 | ✅ Done | **Real contact form + FAQ model** - persists to DB, emails admin via Celery; 8 default FAQs seeded |
-| 11 | 🔶 Partial | **Stripe end-to-end + refund button** - admin refund wired (`/internal/appointments/` → amber modal); patient-side refund request still open |
-| 12 | ✅ Done | **Daily.co: fix silent demo fallback** - raises `ImproperlyConfigured` in prod; logs warning in dev |
-| 13 | ✅ Done | **Message file attachments UI** - file input in chat, 10 MB max, extension allowlist, download links rendered |
-| 14 | ✅ Done | **"Join video call" from chat** - green "Join Call" button in chat header when active VideoRoom exists |
-| 15 | ✅ Done | **Group consultation browse filter** - "Group Sessions Available" checkbox in doctor search sidebar |
-| 16 | ✅ Done | **`send_welcome_email_task`** - now called from `verify_email_token` after email confirmation |
-| 17 | ✅ Done | **Doctor catalog API auth** - `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
-| 18 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country` to `DoctorProfile`; wire into `get_filtered_doctors` |
-| 19 | ✅ Done | **Living Knowledge Graph** - `apps/knowledge_graph/` app; Cytoscape.js UI at `/internal/knowledge-graph/`; AI agent JSON at `/api/v1/knowledge-graph/`; auto-updates via Django signals + Celery + git hook |
-| 20 | 🔲 Open | **Patient-side refund request** - patient can request refund from appointments list; goes to admin review queue |
-| 21 | 🔲 Open | **Privacy Cockpit** - patient-facing trust center: who accessed my record, consent history, device/session log, revoke doctor access, download audit log, delete request workflow |
-| 22 | 🔲 Open | **Insurance + price transparency** - insurance accepted field on doctor profile; estimated cost before booking; superbill PDF after appointment; cancellation fee preview |
-| 23 | 🔲 Open | **Provider verification depth** - NPI number, license expiry date, malpractice insurance, board certification, sanctions checklist, 30/60/90-day expiry reminders, verification status history |
-| 24 | 🔲 Open | **Care continuity page** - post-appointment summary: notes, prescriptions, shared files, follow-up date, message link; auto-generated when appointment → completed |
-| 25 | 🔲 Open | **Pre-visit telehealth readiness check** - per-visit (not just signup): camera/mic, private space confirmation, emergency contact/location, phone fallback, consent reconfirmation; triggered 5 min before start |
-| 26 | 🔲 Open | **Symptom intake → risk routing** - red-flag detection (e.g. chest pain → ER warning + block booking), urgency level, suggested specialty, "not a diagnosis" disclaimer, doctor-visible intake summary |
-| 27 | 🔲 Open | **Operational analytics** - no-show rate, cancelled slot rate, payment failure rate, avg wait time, refund rate, video connection failure rate; add to `/internal/` dashboard |
+| P1-1 | ✅ Done | **Real contact form + FAQ model** - persists to DB, emails admin via Celery; 8 default FAQs seeded |
+| P1-2 | 🔶 Partial | **Stripe end-to-end + refund button** - admin refund wired (`/internal/appointments/` → amber modal); patient-side refund request still open |
+| P1-3 | ✅ Done | **Daily.co: fix silent demo fallback** - raises `ImproperlyConfigured` in prod; logs warning in dev |
+| P1-4 | ✅ Done | **Message file attachments UI** - file input in chat, 10 MB max, extension allowlist, download links rendered |
+| P1-5 | ✅ Done | **"Join video call" from chat** - green "Join Call" button in chat header when active VideoRoom exists |
+| P1-6 | ✅ Done | **Group consultation browse filter** - "Group Sessions Available" checkbox in doctor search sidebar |
+| P1-7 | ✅ Done | **`send_welcome_email_task`** - now called from `verify_email_token` after email confirmation |
+| P1-8 | ✅ Done | **Doctor catalog API auth** - `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
+| P1-9 | ✅ Done | **Living Knowledge Graph** - `apps/knowledge_graph/` app; Cytoscape.js UI at `/internal/knowledge-graph/`; AI agent JSON at `/api/v1/knowledge-graph/`; auto-updates via Django signals + Celery + git hook |
+| P1-10 | 🔲 Open | **Symptom intake → clinical risk routing** - red-flag detection (chest pain, stroke signs, severe bleeding, breathing difficulty, suicidal ideation) → ER warning + block telehealth booking; urgency level + suggested specialty output; "not a diagnosis" disclaimer; doctor-visible intake summary; audit trail of patient input |
+| P1-11 | 🔲 Open | **Pre-visit telehealth readiness check** - per-visit (not just signup): camera/mic, internet stability, private space confirmation, headphones suggested, emergency contact/location, phone fallback, consent reconfirmation, "do not record without consent" reminder; triggered 5 min before start |
+| P1-12 | 🔲 Open | **Provider verification depth** - NPI number + validation workflow, license state + expiry date, malpractice insurance field, board certification, sanctions/exclusions checklist, 30/60/90-day expiry reminders via Celery, verification status history (who verified, when, notes) |
+| P1-13 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country`, optional `lat`/`lng`, `timezone` to `DoctorProfile`; wire into `get_filtered_doctors` |
+| P1-14 | 🔲 Open | **Insurance + price transparency** - insurance accepted field on doctor profile; estimated patient cost before booking; self-pay price display; cancellation fee preview; refund eligibility display; superbill PDF after completed appointment (ReportLab) |
+| P1-15 | 🔲 Open | **Care continuity page** - post-appointment summary: notes, prescriptions, shared files, follow-up date, billing/superbill, message link, download care packet; auto-generated when appointment → completed |
+| P1-16 | 🔲 Open | **Privacy Cockpit** - patient-facing trust center: who accessed my record, consent history, device/session log, revoke doctor access, download audit log, delete request workflow, "private mode" reminder before video visits |
+| P1-17 | 🔲 Open | **Patient-side refund request** - patient requests refund from appointments list; goes to admin review queue or auto-refunds if policy allows |
+| P1-18 | 🔲 Open | **Operational analytics** - no-show rate, cancelled slot rate, payment failure rate, avg wait time, refund rate, video connection failure rate, waitlist conversion; add to `/internal/` dashboard with Chart.js |
 
 ### P2 - Quality & Operational
 
@@ -749,19 +762,21 @@ These are confirmed broken - not gaps or missing features, but code that silentl
 | P2-7 | 🔲 Open | Bandit security scan in CI |
 | P2-8 | 🔲 Open | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
 | P2-9 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
-| P2-10 | 🔲 Open | **Private-media PHI architecture** - signed short-lived URLs, per-object auth check, encrypted storage, malware scan, file hash logging, immutable access logs; replace casual `/media/` serving |
+| P2-10 | ↑ P0-12 | **PHI file protection** - escalated to P0 (see item 12 above) |
 | P2-11 | 🔲 Open | **CSP / production asset hardening** - `Content-Security-Policy` headers (`django-csp`), SRI hashes for CDN scripts, no third-party tracking on health pages |
+| P2-12 | 🔲 Open | **Secure upload pipeline** - `python-magic` MIME detection, UUID filenames, strip original filename from storage path, block double extensions, hash every uploaded file, audit every download, antivirus scan |
+| P2-13 | 🔲 Open | **Test suite expansion** - paid booking flow, free booking flow, Stripe webhook success/failure, held appointment expiry, group slot capacity, same-patient duplicate group booking, appointment cancellation with payment, refund flow, direct chat authorization, chat XSS escaping, PHI file access permissions, 2FA doctor/admin enforcement, admin template smoke tests |
 
 ### P3 - Future Features
 
-| Item | Notes |
-|------|-------|
-| **FHIR R4 export** | Phase 1: export-only JSON for Patient/Practitioner/Appointment/MedicationRequest/Condition/Encounter. Phase 2: import. Phase 3: SMART-on-FHIR. ONC Cures Act pushes this. |
-| **Remote patient monitoring - lite** | Patient-entered vitals (BP, glucose, weight, O2); threshold alerts; trend charts; CSV/FHIR export. Start manual, no wearables yet. |
-| **Asynchronous consults** | Text + photo async review (dermatology, lab review, second opinion). No slot required; different pricing tier. |
-| **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages (Spanish + French recommended) |
-| **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
-| **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
-| **Video session recording** | Hardcoded off (`consultations/services.py:50`); requires patient consent flow + encrypted storage |
-| **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts); requires vendor onboarding |
-| **Push notifications** | Web Push / FCM for mobile readiness; add after mobile app decision |
+| # | Item | Notes |
+|---|------|-------|
+| P3-1 | **FHIR R4 export** | Phase 1: export-only JSON for Patient/Practitioner/Appointment/MedicationRequest/Condition/Encounter. Phase 2: import. Phase 3: SMART-on-FHIR. ONC Cures Act pushes this. |
+| P3-2 | **Remote patient monitoring - lite** | Patient-entered vitals (BP, glucose, weight, O2); threshold alerts; trend charts; CSV/FHIR export. Start manual, no wearables yet. |
+| P3-3 | **Asynchronous consults** | Text + photo async review (dermatology, lab review, second opinion). No slot required; different pricing tier. |
+| P3-4 | **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages (Spanish + French recommended) |
+| P3-5 | **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
+| P3-6 | **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
+| P3-7 | **Video session recording** | Hardcoded off (`consultations/services.py:50`); requires patient consent flow + encrypted storage |
+| P3-8 | **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts); requires vendor onboarding |
+| P3-9 | **Push notifications** | Web Push / FCM for mobile readiness; add after mobile app decision |
