@@ -228,3 +228,64 @@ class HealthRecordDownloadTests(TestCase):
             HealthRecordAccessLog.objects.filter(record=self.record).count(),
             initial_count + 1,
         )
+
+
+# ── P1-10: Symptom triage — emergency red-flag detection ──────────────────────
+
+class TriageTests(TestCase):
+    """Unit tests for the triage.check_emergency_flags helper."""
+
+    def test_no_emergency_for_normal_symptoms(self):
+        from apps.scheduling.triage import check_emergency_flags
+        result = check_emergency_flags(['runny nose', 'sore throat'], 'mild cold')
+        self.assertFalse(result['is_emergency'])
+        self.assertEqual(result['matched_flags'], [])
+
+    def test_chest_pain_triggers_emergency(self):
+        from apps.scheduling.triage import check_emergency_flags
+        result = check_emergency_flags(['chest pain', 'fatigue'])
+        self.assertTrue(result['is_emergency'])
+        self.assertIn('chest pain', result['matched_flags'])
+
+    def test_suicidal_ideation_triggers_emergency(self):
+        from apps.scheduling.triage import check_emergency_flags
+        result = check_emergency_flags([], reason_text='I have been feeling suicidal lately')
+        self.assertTrue(result['is_emergency'])
+
+    def test_breathing_difficulty_triggers_emergency(self):
+        from apps.scheduling.triage import check_emergency_flags
+        result = check_emergency_flags(['difficulty breathing'])
+        self.assertTrue(result['is_emergency'])
+
+    def test_emergency_blocks_booking_in_view(self):
+        """Booking form with chest pain returns 200 with emergency block (not redirect)."""
+        patient = make_patient(username='triage_pat', email='triage_pat@test.com')
+        doc_user, doctor = make_doctor(username='triage_doc', email='triage_doc@test.com')
+
+        future = timezone.now() + timedelta(days=2)
+        slot = Slot.objects.create(
+            doctor=doctor,
+            start_datetime=future,
+            end_datetime=future + timedelta(hours=1),
+            appointment_type='video',
+        )
+
+        client = Client()
+        client.force_login(patient)
+        session = client.session
+        session['2fa_skipped'] = True
+        session.save()
+
+        from unittest.mock import patch
+        with patch.object(Slot, 'get_price', return_value=__import__('decimal').Decimal('75.00')):
+            resp = client.post(
+                reverse('patient:book_appointment', kwargs={'slot_id': slot.id}),
+                {
+                    'reason': 'I have severe chest pain and shortness of breath',
+                    'symptom_names[]': ['chest pain'],
+                },
+            )
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Emergency')
+        # No appointment should have been created
+        self.assertFalse(Appointment.objects.filter(patient=patient, slot=slot).exists())

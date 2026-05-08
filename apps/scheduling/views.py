@@ -174,6 +174,16 @@ def patient_book_appointment(request, slot_id):
 
     if request.method == 'POST':
         reason = request.POST.get('reason', '')
+        symptom_names = request.POST.getlist('symptom_names[]', [])
+
+        from .triage import check_emergency_flags
+        triage = check_emergency_flags(symptom_names, reason)
+        if triage['is_emergency']:
+            return render(request, 'scheduling/patient/book.html', {
+                'slot': slot,
+                'emergency': triage,
+            })
+
         try:
             appointment = book_appointment(slot, request.user, reason)
             price = slot.get_price()
@@ -186,7 +196,8 @@ def patient_book_appointment(request, slot_id):
             messages.error(request, str(e))
             return redirect('patient:doctor_detail', doctor_id=slot.doctor.id)
 
-    return render(request, 'scheduling/patient/book.html', {'slot': slot})
+    from .triage import DISCLAIMER
+    return render(request, 'scheduling/patient/book.html', {'slot': slot, 'triage_disclaimer': DISCLAIMER})
 
 
 @login_required
