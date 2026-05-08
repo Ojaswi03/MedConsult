@@ -1,0 +1,79 @@
+{% extends "layouts/app.html" %}
+
+{% block title %}Pre-Visit Readiness Check — MedConsult{% endblock %}
+
+{% block content %}
+<div class="max-w-2xl mx-auto">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mb-2">Before You Join</h1>
+    <p class="text-gray-500 dark:text-gray-400 mb-8 text-sm">
+        Please confirm the following before joining your video consultation with
+        Dr. {{ appointment.doctor.user.get_display_name }}.
+    </p>
+
+    {% include 'partials/messages.html' %}
+
+    <form method="post" class="space-y-6">
+        {% csrf_token %}
+
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-md divide-y dark:divide-gray-700">
+
+            <!-- Privacy of location -->
+            <label class="flex items-start gap-4 p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+                <input type="checkbox" name="check_privacy" required class="mt-1 h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">I am in a private location</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">No one can overhear my consultation. My screen is not visible to others nearby.</p>
+                </div>
+            </label>
+
+            <!-- Device ready -->
+            <label class="flex items-start gap-4 p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+                <input type="checkbox" name="check_device" required class="mt-1 h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">My camera and microphone are working</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">I have tested my device. I am using headphones or have audio turned down to protect privacy.</p>
+                </div>
+            </label>
+
+            <!-- Internet stability -->
+            <label class="flex items-start gap-4 p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+                <input type="checkbox" name="check_internet" required class="mt-1 h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">I have a stable internet connection</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">If my connection drops, I understand the doctor may be reached by phone at the number on my profile.</p>
+                </div>
+            </label>
+
+            <!-- Consent -->
+            <label class="flex items-start gap-4 p-5 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-750">
+                <input type="checkbox" name="check_consent" required class="mt-1 h-5 w-5 text-blue-600 rounded border-gray-300 dark:border-gray-600">
+                <div>
+                    <p class="font-medium text-gray-900 dark:text-white">I consent to this telehealth consultation</p>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">
+                        I understand this is a telehealth consultation, not an in-person visit.
+                        This session is <strong>not recorded</strong> without explicit consent from both parties.
+                        For emergencies, I will call 911 rather than use this service.
+                    </p>
+                </div>
+            </label>
+
+        </div>
+
+        <input type="hidden" name="readiness_confirmed" value="1">
+
+        <div class="flex flex-col sm:flex-row gap-4 justify-between">
+            <a href="{% url 'patient:patient_appointments' %}"
+               class="px-6 py-3 border dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 text-center">
+                Cancel
+            </a>
+            <button type="submit"
+                    class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center justify-center gap-2">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                </svg>
+                Join Consultation
+            </button>
+        </div>
+    </form>
+</div>
+{% endblock %}

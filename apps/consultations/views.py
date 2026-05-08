@@ -149,3 +149,30 @@ def consultation_status(request, appointment_id):
         'status': video_room.status if video_room else None,
         'can_join': video_room.can_join if video_room else False,
     })
+
+
+@login_required
+def pre_visit_readiness(request, appointment_id):
+    """
+    Pre-visit telehealth readiness check shown before joining a video consultation.
+    Patient must confirm privacy, device readiness, and consent before proceeding.
+    GET: render checklist. POST (confirmed): redirect to actual join.
+    """
+    appointment = get_object_or_404(Appointment, id=appointment_id)
+
+    if request.user != appointment.patient and request.user != appointment.doctor.user:
+        messages.error(request, 'You do not have access to this consultation.')
+        return redirect('dashboard:home')
+
+    if appointment.slot.appointment_type != 'video':
+        return redirect('consultations:join', appointment_id=appointment_id)
+
+    if request.method == 'POST':
+        confirmed = request.POST.get('readiness_confirmed') == '1'
+        if confirmed:
+            return redirect('consultations:join', appointment_id=appointment_id)
+        messages.error(request, 'Please confirm all readiness checks before joining.')
+
+    return render(request, 'consultations/pre_visit_readiness.html', {
+        'appointment': appointment,
+    })
