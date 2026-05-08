@@ -66,11 +66,11 @@ MedConsult is a Django 4.2 LTS telehealth platform connecting patients with veri
 
 | Template | Notes |
 |----------|-------|
-| `apps/accounts/templates/accounts/landing.html` | Hero + stats + features + CTA |
+| `apps/accounts/templates/accounts/landing.html` | Hero + stats + features + For Hospitals section + CTA |
 | `apps/accounts/templates/accounts/login.html` | Split layout, password toggle, staggered form |
 | `apps/accounts/templates/accounts/signup_role_select.html` | Split layout, patient/doctor cards |
 | `apps/accounts/templates/accounts/signup_wizard.html` + partials | Animated gradient, frosted glass card, full dark mode |
-| `templates/layouts/public.html` | Blue-50 glass navbar |
+| `templates/layouts/public.html` | Blue-50 glass navbar + "For Hospitals" nav link |
 | `templates/layouts/admin.html` | Dark mode variants added to wrapper/header/footer |
 | `apps/support/templates/support/help.html` | Dark mode fixed, icon badges, hover cards |
 | `apps/support/templates/support/faq.html` | Accordion + dark mode |

@@ -366,7 +366,7 @@ docker-compose exec redis redis-cli
 
 ```
 Public
-/                                         Landing page
+/                                         Landing page (patient + hospital CTAs, For Hospitals section)
 /auth/login/                              Login (email or username)
 /auth/signup/                             Role selection
 /auth/signup/patient/<step>/              Patient signup wizard (5 steps)
@@ -377,6 +377,8 @@ Public
 /support/contact/                         Contact
 /support/privacy-policy/                  Privacy policy
 /support/terms-of-service/                Terms of service
+/org/register/                            Hospital/clinic self-signup (links from landing nav + For Hospitals section)
+/org/register/pending/                    Post-registration pending-approval page
 
 Authenticated (all roles)
 /app/                                     Role-based dashboard redirect
