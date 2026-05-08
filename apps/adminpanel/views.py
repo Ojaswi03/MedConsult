@@ -855,6 +855,38 @@ def organization_needs_info(request, org_id):
     return redirect('adminpanel:organization_list')
 
 
+@login_required
+def org_member_detail(request, org_id, membership_id):
+    _platform_forbidden(request)
+    from apps.accounts.models import Organization, OrganizationMembership, ProviderOrganizationProfile
+    from apps.scheduling.models import Appointment
+
+    org = get_object_or_404(Organization, id=org_id)
+    membership = get_object_or_404(
+        OrganizationMembership.objects.select_related('user', 'invited_by'),
+        id=membership_id, organization=org,
+    )
+
+    provider_profile = None
+    appointments = []
+    if membership.role == 'doctor':
+        provider_profile = ProviderOrganizationProfile.objects.filter(
+            membership=membership,
+        ).first()
+        appointments = Appointment.objects.filter(
+            slot__doctor__user=membership.user,
+            organization=org,
+        ).select_related('patient', 'slot').order_by('-slot__start_datetime')[:10]
+
+    return render(request, 'adminpanel/organizations/member_detail.html', {
+        'org': org,
+        'membership': membership,
+        'member': membership.user,
+        'provider_profile': provider_profile,
+        'recent_appointments': appointments,
+    })
+
+
 def _notify_org_owner_status(org, action, reason=''):
     from apps.accounts.services import create_notification
     messages_map = {

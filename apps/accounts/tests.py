@@ -1,5 +1,5 @@
 import pytest
-from django.test import TestCase, Client
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
 from django.contrib.auth import get_user_model
 from apps.accounts.models import Organization, OrganizationMembership
@@ -682,3 +682,55 @@ class HospitalUserIdTest(TestCase):
         )
         hid = generate_hospital_user_id(self.org, 'doctor')
         self.assertEqual(hid, 'CIT-DOC-0002')
+
+
+def _middleware_without_2fa():
+    from django.conf import settings
+    return [m for m in settings.MIDDLEWARE if 'EnforceTwoFactor' not in m]
+
+
+@override_settings(MIDDLEWARE=_middleware_without_2fa())
+@override_settings(MIDDLEWARE=_middleware_without_2fa())
+class AdminMemberDetailTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.org = Organization.objects.create(
+            name='City General', slug='city-general-amd',
+            org_type='hospital', status='active',
+        )
+        self.platform_owner = User.objects.create_user(
+            username='platowner_amd', email='plat_amd@test.com',
+            password='pass', role='platform_owner',
+        )
+        self.doctor_user = User.objects.create_user(
+            username='doc99_amd', email='doc99amd@test.com',
+            password='pass', role='doctor',
+        )
+        self.membership = OrganizationMembership.objects.create(
+            user=self.doctor_user, organization=self.org,
+            role='doctor', is_active=True,
+            hospital_user_id='CIT-DOC-0001',
+        )
+        self.client.force_login(self.platform_owner)
+
+    def test_admin_member_detail_loads(self):
+        url = reverse('adminpanel:org_member_detail', kwargs={
+            'org_id': self.org.id,
+            'membership_id': self.membership.id,
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'CIT-DOC-0001')
+
+    def test_non_platform_staff_gets_302(self):
+        patient = User.objects.create_user(
+            username='pat_amd', email='pat_amd@test.com',
+            password='pass', role='patient',
+        )
+        self.client.force_login(patient)
+        url = reverse('adminpanel:org_member_detail', kwargs={
+            'org_id': self.org.id,
+            'membership_id': self.membership.id,
+        })
+        resp = self.client.get(url)
+        self.assertEqual(resp.status_code, 403)

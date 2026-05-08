@@ -1,5 +1,5 @@
-{% extends "adminpanel/base.html" %}
-{% block title %}{{ org.name }} — Admin{% endblock %}
+{% extends "layouts/admin.html" %}
+{% block page_title %}{{ org.name }}{% endblock %}
 {% block content %}
 <div class="p-6 max-w-4xl">
   <div class="flex items-center gap-3 mb-6">
@@ -79,8 +79,14 @@
       {% for m in memberships %}
       <li class="px-6 py-3 flex items-center justify-between">
         <div>
-          <span class="font-medium text-gray-900 dark:text-white">{{ m.user.get_display_name }}</span>
+          <a href="{% url 'adminpanel:org_member_detail' org.id m.id %}"
+             class="font-medium text-blue-600 dark:text-blue-400 hover:underline">
+            {{ m.user.get_display_name }}
+          </a>
           <span class="text-xs text-gray-500 ml-2">{{ m.user.email }}</span>
+          {% if m.hospital_user_id %}
+          <span class="text-xs text-gray-400 font-mono ml-2">{{ m.hospital_user_id }}</span>
+          {% endif %}
         </div>
         <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">{{ m.role }}</span>
       </li>
