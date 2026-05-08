@@ -430,3 +430,115 @@ class OrgContextTests(TestCase):
         ctx = get_selected_organization(request)
         self.assertEqual(ctx.organization, self.org)
         self.assertEqual(ctx.source, 'session')
+
+
+class PermissionHelpersTests(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Organization, OrganizationMembership
+        self.org = Organization.objects.create(
+            name='Perm Hosp', slug='perm-hosp', org_type='hospital', status='active',
+        )
+        self.platform_owner = User.objects.create_user(
+            username='permpo', email='permpo@test.com',
+            password='pass1234!', role='platform_owner',
+        )
+        self.org_user = User.objects.create_user(
+            username='permou', email='permou@test.com',
+            password='pass1234!', role='org_user',
+        )
+        self.patient = User.objects.create_user(
+            username='permpat', email='permpat@test.com',
+            password='pass1234!', role='patient',
+        )
+        self.doctor_user = User.objects.create_user(
+            username='permdoc', email='permdoc@test.com',
+            password='pass1234!', role='doctor',
+        )
+        OrganizationMembership.objects.create(
+            user=self.org_user, organization=self.org,
+            role='hospital_admin', is_active=True,
+        )
+        OrganizationMembership.objects.create(
+            user=self.doctor_user, organization=self.org,
+            role='doctor', is_active=True,
+        )
+
+    def test_is_platform_owner(self):
+        from apps.accounts.permissions import is_platform_owner
+        self.assertTrue(is_platform_owner(self.platform_owner))
+        self.assertFalse(is_platform_owner(self.org_user))
+        self.assertFalse(is_platform_owner(None))
+
+    def test_is_platform_staff(self):
+        from apps.accounts.permissions import is_platform_staff
+        self.assertTrue(is_platform_staff(self.platform_owner))
+        self.assertFalse(is_platform_staff(self.org_user))
+
+    def test_has_org_role(self):
+        from apps.accounts.permissions import has_org_role
+        self.assertTrue(has_org_role(self.org_user, self.org, ['hospital_admin']))
+        self.assertFalse(has_org_role(self.org_user, self.org, ['hospital_owner']))
+        self.assertFalse(has_org_role(self.patient, self.org, ['hospital_admin']))
+
+    def test_inactive_membership_fails(self):
+        from apps.accounts.models import OrganizationMembership
+        from apps.accounts.permissions import has_org_role
+        OrganizationMembership.objects.filter(
+            user=self.org_user, organization=self.org,
+        ).update(is_active=False)
+        self.assertFalse(has_org_role(self.org_user, self.org, ['hospital_admin']))
+
+    def test_patient_always_false_on_has_org_role(self):
+        from apps.accounts.permissions import has_org_role
+        self.assertFalse(has_org_role(self.patient, self.org, ['hospital_admin', 'doctor']))
+
+    def test_can_manage_staff(self):
+        from apps.accounts.permissions import can_manage_staff
+        self.assertTrue(can_manage_staff(self.org_user, self.org))
+        self.assertFalse(can_manage_staff(self.patient, self.org))
+        self.assertFalse(can_manage_staff(self.doctor_user, self.org))
+
+    def test_can_manage_org_appointments(self):
+        from apps.accounts.permissions import can_manage_org_appointments
+        self.assertTrue(can_manage_org_appointments(self.org_user, self.org))
+        self.assertFalse(can_manage_org_appointments(self.doctor_user, self.org))
+
+    def test_can_manage_own_appointment(self):
+        from apps.accounts.permissions import can_manage_own_appointment
+        from unittest.mock import MagicMock
+        appt = MagicMock()
+        appt.doctor.user = self.doctor_user
+        self.assertTrue(can_manage_own_appointment(self.doctor_user, appt))
+        self.assertFalse(can_manage_own_appointment(self.org_user, appt))
+
+    def test_get_invitable_roles_hospital_admin_cannot_grant_compliance(self):
+        from apps.accounts.permissions import get_invitable_roles
+        roles = get_invitable_roles(self.org_user, self.org)
+        self.assertNotIn('hospital_owner', roles)
+        self.assertNotIn('compliance_officer', roles)
+        self.assertIn('doctor', roles)
+        self.assertIn('scheduler', roles)
+
+    def test_can_approve_organization_platform_only(self):
+        from apps.accounts.permissions import can_approve_organization
+        self.assertTrue(can_approve_organization(self.platform_owner))
+        self.assertFalse(can_approve_organization(self.org_user))
+
+    def test_has_any_elevated_membership_scheduler(self):
+        from apps.accounts.models import Organization, OrganizationMembership
+        from apps.accounts.permissions import has_any_elevated_membership
+        org = Organization.objects.create(
+            name='SchedOrg', slug='sched-org', org_type='hospital', status='active',
+        )
+        scheduler = User.objects.create_user(
+            username='schedu', email='schedu@test.com',
+            password='pass1234!', role='org_user',
+        )
+        OrganizationMembership.objects.create(
+            user=scheduler, organization=org, role='scheduler', is_active=True,
+        )
+        self.assertTrue(has_any_elevated_membership(scheduler))
+
+    def test_has_any_elevated_membership_patient_false(self):
+        from apps.accounts.permissions import has_any_elevated_membership
+        self.assertFalse(has_any_elevated_membership(self.patient))
