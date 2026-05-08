@@ -2,8 +2,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center">
-            {% if user.profile_picture %}
-            <img class="w-16 h-16 rounded-full object-cover" src="{{ user.profile_picture.url }}" alt="">
+            {% if user.has_profile_image %}
+            <img class="w-16 h-16 rounded-full object-cover" src="{{ user.get_profile_image_url }}" alt="">
             {% else %}
             <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
                 <span class="text-gray-600 font-bold text-xl">
@@ -43,10 +43,10 @@
             <p class="text-sm text-gray-500">Joined</p>
             <p class="font-medium text-gray-900">{{ user.created_at|date:"M d, Y" }}</p>
         </div>
-        {% if user.phone_number %}
+        {% if user.phone %}
         <div class="bg-gray-50 rounded-lg p-4">
             <p class="text-sm text-gray-500">Phone</p>
-            <p class="font-medium text-gray-900">{{ user.phone_number }}</p>
+            <p class="font-medium text-gray-900">{{ user.phone }}</p>
         </div>
         {% endif %}
         {% if user.date_of_birth %}

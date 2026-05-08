@@ -2,8 +2,8 @@
     <!-- Header -->
     <div class="flex items-center justify-between mb-6">
         <div class="flex items-center">
-            {% if doctor.user.profile_picture %}
-            <img class="w-16 h-16 rounded-full object-cover" src="{{ doctor.user.profile_picture.url }}" alt="">
+            {% if doctor.user.has_profile_image %}
+            <img class="w-16 h-16 rounded-full object-cover" src="{{ doctor.user.get_profile_image_url }}" alt="">
             {% else %}
             <div class="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center">
                 <span class="text-purple-600 font-bold text-xl">

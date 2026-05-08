@@ -17,8 +17,8 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
                         <div class="w-8 h-8 flex-shrink-0">
-                            {% if apt.patient.profile_picture %}
-                            <img class="w-8 h-8 rounded-full object-cover" src="{{ apt.patient.profile_picture.url }}" alt="">
+                            {% if apt.patient.has_profile_image %}
+                            <img class="w-8 h-8 rounded-full object-cover" src="{{ apt.patient.get_profile_image_url }}" alt="">
                             {% else %}
                             <div class="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                                 <span class="text-green-600 font-medium text-xs">
@@ -36,8 +36,8 @@
                 <td class="px-6 py-4 whitespace-nowrap">
                     <div class="flex items-center">
                         <div class="w-8 h-8 flex-shrink-0">
-                            {% if apt.doctor.user.profile_picture %}
-                            <img class="w-8 h-8 rounded-full object-cover" src="{{ apt.doctor.user.profile_picture.url }}" alt="">
+                            {% if apt.doctor.user.has_profile_image %}
+                            <img class="w-8 h-8 rounded-full object-cover" src="{{ apt.doctor.user.get_profile_image_url }}" alt="">
                             {% else %}
                             <div class="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
                                 <span class="text-purple-600 font-medium text-xs">
