@@ -32,7 +32,7 @@ from .services import (
     reset_user_password,
 )
 from .selectors import get_user_profile
-from .models import User, Notification
+from .models import User, Notification, Organization
 
 
 def serialize_form_data(cleaned_data):
@@ -571,3 +571,21 @@ def mark_all_notifications_read(request):
     """Mark all notifications as read for current user."""
     request.user.notifications.filter(is_read=False).update(is_read=True)
     return JsonResponse({'unread_count': 0})
+
+
+@login_required
+@require_POST
+def switch_org(request):
+    """Platform staff: switch active org context stored in session."""
+    from apps.accounts.permissions import is_platform_staff
+    from django.http import HttpResponseForbidden
+    if not is_platform_staff(request.user):
+        return HttpResponseForbidden()
+    org_id = request.POST.get('org_id', '').strip()
+    if org_id:
+        org = get_object_or_404(Organization, id=org_id, status='active')
+        request.session['active_organization_id'] = org.id
+    else:
+        request.session.pop('active_organization_id', None)
+    next_url = request.POST.get('next') or request.META.get('HTTP_REFERER') or '/'
+    return redirect(next_url)

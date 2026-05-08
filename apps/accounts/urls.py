@@ -40,4 +40,7 @@ urlpatterns = [
     path('notifications/', views.notifications_list, name='notifications'),
     path('notifications/<int:notif_id>/read/', views.mark_notification_read, name='mark_notification_read'),
     path('notifications/read-all/', views.mark_all_notifications_read, name='mark_all_notifications_read'),
+
+    # Org switcher (platform staff only)
+    path('switch-org/', views.switch_org, name='switch_org'),
 ]

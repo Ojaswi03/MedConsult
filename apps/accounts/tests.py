@@ -595,3 +595,50 @@ class PermissionHelpersTests(TestCase):
     def test_has_any_elevated_membership_patient_false(self):
         from apps.accounts.permissions import has_any_elevated_membership
         self.assertFalse(has_any_elevated_membership(self.patient))
+
+
+class OrgSwitcherTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.platform_owner = User.objects.create_user(
+            username='po_switch', email='po_switch@test.com',
+            password='pass1234!', role='platform_owner',
+        )
+        self.platform_owner.is_email_verified = True
+        self.platform_owner.save()
+        self.patient = User.objects.create_user(
+            username='pat_switch', email='pat_switch@test.com',
+            password='pass1234!', role='patient',
+        )
+        self.patient.is_email_verified = True
+        self.patient.save()
+        from apps.accounts.models import Organization
+        self.org = Organization.objects.create(
+            name='Switch Test Org', slug='switch-test-org',
+            org_type='clinic', status='active',
+        )
+
+    def test_switch_sets_session(self):
+        self.client.login(username='po_switch', password='pass1234!')
+        response = self.client.post(
+            reverse('switch_org'),
+            {'org_id': str(self.org.id), 'next': '/app/'},
+        )
+        self.assertRedirects(response, '/app/', fetch_redirect_response=False)
+        self.assertEqual(self.client.session['active_organization_id'], self.org.id)
+
+    def test_switch_clear_removes_session(self):
+        self.client.login(username='po_switch', password='pass1234!')
+        session = self.client.session
+        session['active_organization_id'] = self.org.id
+        session.save()
+        self.client.post(reverse('switch_org'), {'org_id': '', 'next': '/app/'})
+        self.assertNotIn('active_organization_id', self.client.session)
+
+    def test_non_platform_user_gets_403(self):
+        self.client.login(username='pat_switch', password='pass1234!')
+        response = self.client.post(
+            reverse('switch_org'),
+            {'org_id': str(self.org.id)},
+        )
+        self.assertEqual(response.status_code, 403)

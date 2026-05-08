@@ -49,8 +49,8 @@
                             {% endif %}
                         </a>
                     </div>
-                    {% elif user.role == 'admin' %}
-                    <div class="hidden md:flex space-x-4">
+                    {% elif is_platform_staff %}
+                    <div class="hidden md:flex items-center space-x-4">
                         <a href="{% url 'adminpanel:dashboard' %}" class="text-gray-700 dark:text-gray-300 hover:text-blue-600 dark:hover:text-blue-400 px-3 py-2 rounded-md">
                             Dashboard
                         </a>
@@ -74,6 +74,7 @@
                             </svg>
                             Graph
                         </a>
+                        {% include 'partials/org_switcher.html' %}
                     </div>
                     {% endif %}
                 {% endif %}
@@ -82,8 +83,8 @@
             <!-- Right: Notifications + Profile dropdown -->
             <div class="flex items-center space-x-4">
                 {% if user.is_authenticated %}
-                    <!-- Knowledge Graph icon (admin only) -->
-                    {% if user.role == 'admin' %}
+                    <!-- Knowledge Graph icon (platform staff only) -->
+                    {% if is_platform_staff %}
                     <a href="{% url 'knowledge_graph:graph' %}"
                        title="Knowledge Graph"
                        class="text-gray-600 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors {% if 'knowledge-graph' in request.path %}text-blue-600 dark:text-blue-400{% endif %}">
