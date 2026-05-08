@@ -217,6 +217,13 @@ class DoctorProfile(models.Model):
     npi_number = models.CharField(max_length=20, blank=True, help_text='National Provider Identifier (10-digit NPI)')
     offers_second_opinions = models.BooleanField(default=False, help_text='Whether doctor offers second opinion consultations')
 
+    # Verification depth (P1-12)
+    license_state = models.CharField(max_length=50, blank=True, help_text='State where license was issued')
+    license_expiry_date = models.DateField(null=True, blank=True, help_text='Medical license expiry date')
+    malpractice_insurance_expiry = models.DateField(null=True, blank=True, help_text='Malpractice insurance expiry date')
+    board_certification = models.CharField(max_length=200, blank=True, help_text='Board certification(s)')
+    sanctions_checked = models.BooleanField(default=False, help_text='Admin confirmed sanctions/exclusions check performed')
+
     # Compliance
     hipaa_acknowledged = models.BooleanField(default=False)
     hipaa_acknowledged_at = models.DateTimeField(null=True, blank=True)

@@ -170,3 +170,59 @@ class TwoFactorEnforcementTests(TestCase):
             '/account/' in loc or 'two_factor' in loc,
             f'Expected 2FA redirect, got: {loc}'
         )
+
+
+# ── P1-12: Provider verification depth ───────────────────────────────────────
+
+class DoctorVerificationDepthTests(TestCase):
+    """NPI field, license expiry, malpractice expiry, board cert, sanctions."""
+
+    def setUp(self):
+        self.doc_user = User.objects.create_user(
+            username='vd_doc', email='vd_doc@test.com', password='pass1234!', role='doctor'
+        )
+        self.doc_user.is_email_verified = True
+        self.doc_user.save()
+        from apps.accounts.models import DoctorProfile
+        from datetime import date, timedelta
+        self.profile = DoctorProfile.objects.create(
+            user=self.doc_user,
+            medical_license_number='LIC-001',
+            specialization='General Practice',
+            verification_status='verified',
+            npi_number='1234567890',
+            license_state='CA',
+            license_expiry_date=date.today() + timedelta(days=30),
+            malpractice_insurance_expiry=date.today() + timedelta(days=60),
+            board_certification='ABIM',
+            sanctions_checked=True,
+        )
+
+    def test_npi_stored_and_retrieved(self):
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.npi_number, '1234567890')
+
+    def test_license_expiry_date_stored(self):
+        from datetime import date, timedelta
+        self.profile.refresh_from_db()
+        self.assertIsNotNone(self.profile.license_expiry_date)
+        self.assertEqual(self.profile.license_expiry_date, date.today() + timedelta(days=30))
+
+    def test_malpractice_expiry_stored(self):
+        self.profile.refresh_from_db()
+        self.assertIsNotNone(self.profile.malpractice_insurance_expiry)
+
+    def test_board_certification_stored(self):
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.board_certification, 'ABIM')
+
+    def test_sanctions_checked_flag(self):
+        self.profile.refresh_from_db()
+        self.assertTrue(self.profile.sanctions_checked)
+
+    def test_expiry_reminder_task_sends_email(self):
+        from unittest.mock import patch
+        with patch('django.core.mail.send_mail') as mock_mail:
+            from apps.accounts.tasks import send_license_expiry_reminders
+            send_license_expiry_reminders()
+            self.assertTrue(mock_mail.called)

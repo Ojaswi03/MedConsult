@@ -316,4 +316,8 @@ CELERY_BEAT_SCHEDULE = {
         'task': 'apps.payments.tasks.expire_held_appointments',
         'schedule': crontab(minute='*/5'),
     },
+    'license-expiry-reminders': {
+        'task': 'apps.accounts.tasks.send_license_expiry_reminders',
+        'schedule': crontab(hour=8, minute=0),
+    },
 }
