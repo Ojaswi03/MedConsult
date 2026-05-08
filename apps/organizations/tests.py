@@ -261,3 +261,70 @@ class MemberDetailViewTest(TestCase):
         })
         resp = self.client.get(url)
         self.assertEqual(resp.status_code, 403)
+
+
+@override_settings(MIDDLEWARE=_middleware_without_2fa())
+class EditProviderProfileTest(TestCase):
+    def setUp(self):
+        self.client = Client()
+        self.org = Organization.objects.create(
+            name='Metro Hospital', slug='metro-hospital-ep',
+            org_type='hospital', status='active',
+        )
+        self.owner = User.objects.create_user(
+            username='owner_ep', email='owner_ep@test.com',
+            password='pass', role='org_user',
+        )
+        OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org,
+            role='hospital_owner', is_active=True,
+            hospital_user_id='MET-OWN-0001',
+        )
+        self.doctor = User.objects.create_user(
+            username='doc_ep', email='doc_ep@test.com',
+            password='pass', role='doctor',
+        )
+        self.doc_membership = OrganizationMembership.objects.create(
+            user=self.doctor, organization=self.org,
+            role='doctor', is_active=True,
+            hospital_user_id='MET-DOC-0002',
+        )
+        self.profile = ProviderOrganizationProfile.objects.create(
+            doctor=self.doctor,
+            organization=self.org,
+            membership=self.doc_membership,
+            provider_id='MET-DOC-0002',
+        )
+        self.client.force_login(self.owner)
+
+    def test_edit_provider_profile_updates_fields(self):
+        url = reverse('organizations:edit_provider_profile', kwargs={
+            'org_slug': self.org.slug,
+            'member_id': self.doc_membership.id,
+        })
+        resp = self.client.post(url, {
+            'department': 'Cardiology',
+            'title': 'Dr.',
+            'specialization': 'Interventional Cardiology',
+            'consultation_fee': '150.00',
+            'is_accepting_patients': 'on',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.profile.refresh_from_db()
+        self.assertEqual(self.profile.department, 'Cardiology')
+        self.assertEqual(self.profile.title, 'Dr.')
+        self.assertEqual(self.profile.specialization, 'Interventional Cardiology')
+        self.assertTrue(self.profile.is_accepting_patients)
+
+    def test_outsider_cannot_edit(self):
+        outsider = User.objects.create_user(
+            username='out_ep', email='out_ep@test.com',
+            password='pass', role='patient',
+        )
+        self.client.force_login(outsider)
+        url = reverse('organizations:edit_provider_profile', kwargs={
+            'org_slug': self.org.slug,
+            'member_id': self.doc_membership.id,
+        })
+        resp = self.client.post(url, {'department': 'Hacked'})
+        self.assertEqual(resp.status_code, 403)
