@@ -1,6 +1,6 @@
 """
 Builds the knowledge graph nodes + edges from ORM state and git history.
-No PHI — only IDs, roles, statuses, counts, and timestamps.
+No PHI - only IDs, roles, statuses, counts, and timestamps.
 """
 import subprocess
 import logging
@@ -248,53 +248,8 @@ def _build_git_commit_nodes(limit=20):
 
 # ── Edge builders ────────────────────────────────────────────────────────────
 
-def _build_edges(user_nodes, appointment_nodes, slot_nodes, payment_nodes, app_nodes):
+def _build_edges(user_nodes, appointment_nodes, slot_nodes, payment_nodes):
     edges = []
-
-    # project → app
-    for app_node in app_nodes:
-        edges.append({
-            'id': f"e_project_{app_node['id']}",
-            'source': 'project_medconsult',
-            'target': app_node['id'],
-            'label': 'contains',
-        })
-
-    # user → app_accounts
-    for user_node in user_nodes:
-        edges.append({
-            'id': f"e_{user_node['id']}_app_accounts",
-            'source': user_node['id'],
-            'target': 'app_accounts',
-            'label': 'belongs_to',
-        })
-
-    # appointment → app_scheduling
-    for appt_node in appointment_nodes:
-        edges.append({
-            'id': f"e_{appt_node['id']}_app_scheduling",
-            'source': appt_node['id'],
-            'target': 'app_scheduling',
-            'label': 'part_of',
-        })
-
-    # slot → app_scheduling
-    for slot_node in slot_nodes:
-        edges.append({
-            'id': f"e_{slot_node['id']}_app_scheduling",
-            'source': slot_node['id'],
-            'target': 'app_scheduling',
-            'label': 'part_of',
-        })
-
-    # payment → app_payments
-    for payment_node in payment_nodes:
-        edges.append({
-            'id': f"e_{payment_node['id']}_app_payments",
-            'source': payment_node['id'],
-            'target': 'app_payments',
-            'label': 'part_of',
-        })
 
     # appointment → slot (via appointment.slot_id)
     try:
@@ -343,7 +298,7 @@ def _build_summary():
         summary['total_users'] = User.objects.count()
         summary['patients'] = User.objects.filter(role='patient').count()
         summary['doctors'] = User.objects.filter(role='doctor').count()
-        summary['admins'] = User.objects.filter(role='admin').count()
+        summary['admins'] = User.objects.filter(role__in=('platform_owner', 'platform_admin')).count()
     except Exception:
         pass
     try:
@@ -397,7 +352,7 @@ def _build_app_structure():
 def build_graph(quick=False):
     """
     Build the full knowledge graph dict.
-    quick=True: only project + git_commit + system_health (fast, for git hook).
+    quick=True: only project + system_health (fast, for git hook).
     """
     import django
     django_version = django.get_version()
@@ -405,11 +360,10 @@ def build_graph(quick=False):
     git_head = _run_git(['git', 'rev-parse', 'HEAD'])
 
     project_node = _build_project_node()
-    git_nodes = _build_git_commit_nodes()
 
     if quick:
         system_node = _build_system_health_node()
-        nodes = [project_node] + git_nodes
+        nodes = [project_node]
         if system_node:
             nodes.append(system_node)
         return {
@@ -423,7 +377,6 @@ def build_graph(quick=False):
             'edges': [],
         }
 
-    app_nodes = _build_app_nodes()
     user_nodes = _build_user_nodes()
     appointment_nodes = _build_appointment_nodes()
     slot_nodes = _build_slot_nodes()
@@ -433,27 +386,26 @@ def build_graph(quick=False):
 
     nodes = (
         [project_node]
-        + app_nodes
         + user_nodes
         + appointment_nodes
         + slot_nodes
         + conversation_nodes
         + payment_nodes
-        + git_nodes
     )
     if system_node:
         nodes.append(system_node)
 
-    edges = _build_edges(user_nodes, appointment_nodes, slot_nodes, payment_nodes, app_nodes)
+    edges = _build_edges(user_nodes, appointment_nodes, slot_nodes, payment_nodes)
 
-    recent_commits = [
-        {
-            'hash': n['data']['hash'],
-            'message': n['data']['message'],
-            'date': n['data']['date'],
-        }
-        for n in git_nodes[:5]
-    ]
+    recent_commits = []
+    try:
+        log = _run_git(['git', 'log', '--oneline', '--format=%H|%s|%ai', '-5'])
+        for line in log.splitlines():
+            parts = line.split('|', 2)
+            if len(parts) == 3:
+                recent_commits.append({'hash': parts[0][:7], 'message': parts[1], 'date': parts[2]})
+    except Exception:
+        pass
 
     return {
         'metadata': {

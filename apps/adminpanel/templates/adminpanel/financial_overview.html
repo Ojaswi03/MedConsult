@@ -4,17 +4,17 @@
 
 {% block content %}
 <div class="mb-6">
-    <h2 class="text-2xl font-bold text-gray-900">Financial Overview</h2>
-    <p class="text-sm text-gray-500 mt-1">Revenue tracking and pricing overview</p>
+    <h2 class="text-2xl font-bold text-gray-900 dark:text-white">Financial Overview</h2>
+    <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Revenue tracking and pricing overview</p>
 </div>
 
 <!-- Summary Cards -->
 <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-gray-500">Total Completed</p>
-                <p class="text-3xl font-bold text-gray-900 mt-1">{{ revenue_summary.total_completed }}</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Completed</p>
+                <p class="text-3xl font-bold text-gray-900 dark:text-white mt-1">{{ revenue_summary.total_completed }}</p>
             </div>
             <div class="p-3 bg-green-100 rounded-full">
                 <svg class="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -22,13 +22,13 @@
                 </svg>
             </div>
         </div>
-        <p class="text-xs text-gray-500 mt-2">Completed appointments</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Completed appointments</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-gray-500">Potential Revenue</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Potential Revenue</p>
                 <p class="text-3xl font-bold text-green-600 mt-1">${{ revenue_summary.total_potential_revenue }}</p>
             </div>
             <div class="p-3 bg-green-100 rounded-full">
@@ -37,13 +37,13 @@
                 </svg>
             </div>
         </div>
-        <p class="text-xs text-gray-500 mt-2">Based on completed appointments</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Based on completed appointments</p>
     </div>
 
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div class="flex items-center justify-between">
             <div>
-                <p class="text-sm font-medium text-gray-500">Active Doctors</p>
+                <p class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Doctors</p>
                 <p class="text-3xl font-bold text-purple-600 mt-1">{{ top_doctors|length }}</p>
             </div>
             <div class="p-3 bg-purple-100 rounded-full">
@@ -52,22 +52,22 @@
                 </svg>
             </div>
         </div>
-        <p class="text-xs text-gray-500 mt-2">Verified doctors with activity</p>
+        <p class="text-xs text-gray-500 dark:text-gray-400 mt-2">Verified doctors with activity</p>
     </div>
 </div>
 
 <!-- Two Column Layout -->
 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
     <!-- Top Performing Doctors -->
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Top Performing Doctors</h3>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Top Performing Doctors</h3>
         </div>
         <div class="p-4">
             {% if top_doctors %}
             <div class="space-y-4">
                 {% for doctor in top_doctors %}
-                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                     <div class="flex items-center">
                         <div class="w-10 h-10 rounded-full bg-purple-100 flex items-center justify-center">
                             <span class="text-purple-600 font-medium text-sm">
@@ -75,41 +75,41 @@
                             </span>
                         </div>
                         <div class="ml-3">
-                            <p class="text-sm font-medium text-gray-900">Dr. {{ doctor.user.get_display_name }}</p>
-                            <p class="text-xs text-gray-500">{{ doctor.specialization }}</p>
+                            <p class="text-sm font-medium text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ doctor.specialization }}</p>
                         </div>
                     </div>
                     <div class="text-right">
-                        <p class="text-sm font-bold text-gray-900">{{ doctor.completed_appointments }} completed</p>
+                        <p class="text-sm font-bold text-gray-900 dark:text-white">{{ doctor.completed_appointments }} completed</p>
                         <p class="text-xs text-green-600">${{ doctor.consultation_fee }}/session</p>
                     </div>
                 </div>
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-sm text-gray-500 text-center py-8">No doctor activity yet</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No doctor activity yet</p>
             {% endif %}
         </div>
     </div>
 
     <!-- Appointment Type Usage -->
-    <div class="bg-white rounded-lg shadow-sm">
-        <div class="p-4 border-b border-gray-200">
-            <h3 class="text-lg font-semibold text-gray-900">Appointment Type Usage</h3>
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+        <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Appointment Type Usage</h3>
         </div>
         <div class="p-4">
             {% if type_usage %}
             <div class="space-y-4">
                 {% for usage in type_usage %}
-                <div class="p-4 bg-gray-50 rounded-lg">
+                <div class="p-4 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                     <div class="flex items-center justify-between mb-2">
-                        <span class="text-sm font-medium text-gray-900">
+                        <span class="text-sm font-medium text-gray-900 dark:text-white">
                             {% if usage.slot__appointment_type == 'video' %}Video Call
                             {% elif usage.slot__appointment_type == 'phone' %}Phone Call
                             {% elif usage.slot__appointment_type == 'chat' %}Chat
                             {% else %}{{ usage.slot__appointment_type|default:"Unknown" }}{% endif %}
                         </span>
-                        <span class="text-sm font-bold text-gray-900">{{ usage.total }} total</span>
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">{{ usage.total }} total</span>
                     </div>
                     <div class="flex items-center space-x-4 text-xs">
                         <span class="text-green-600">{{ usage.completed }} completed</span>
@@ -124,34 +124,34 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p class="text-sm text-gray-500 text-center py-8">No appointment data yet</p>
+            <p class="text-sm text-gray-500 dark:text-gray-400 text-center py-8">No appointment data yet</p>
             {% endif %}
         </div>
     </div>
 </div>
 
 <!-- Pricing Overview -->
-<div class="bg-white rounded-lg shadow-sm">
-    <div class="p-4 border-b border-gray-200">
-        <h3 class="text-lg font-semibold text-gray-900">Doctor Pricing Overview</h3>
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Doctor Pricing Overview</h3>
     </div>
     <div class="overflow-x-auto">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Doctor</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Appointment Type</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Duration</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Doctor</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Appointment Type</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Duration</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Price</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {% for config in pricing %}
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50 dark:bg-gray-900/50">
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <div class="text-sm font-medium text-gray-900">Dr. {{ config.doctor.user.get_display_name }}</div>
-                        <div class="text-xs text-gray-500">{{ config.doctor.specialization }}</div>
+                        <div class="text-sm font-medium text-gray-900 dark:text-white">Dr. {{ config.doctor.user.get_display_name }}</div>
+                        <div class="text-xs text-gray-500 dark:text-gray-400">{{ config.doctor.specialization }}</div>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="inline-flex items-center px-2 py-1 text-xs font-medium rounded-full
@@ -161,11 +161,11 @@
                             {{ config.get_appointment_type_display }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                         {{ config.duration_minutes }} min
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
-                        <span class="text-sm font-bold text-gray-900">${{ config.price }}</span>
+                        <span class="text-sm font-bold text-gray-900 dark:text-white">${{ config.price }}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         {% if config.is_enabled %}
@@ -183,7 +183,7 @@
                 </tr>
                 {% empty %}
                 <tr>
-                    <td colspan="5" class="px-6 py-12 text-center text-gray-500">
+                    <td colspan="5" class="px-6 py-12 text-center text-gray-500 dark:text-gray-400">
                         No pricing configurations found.
                     </td>
                 </tr>

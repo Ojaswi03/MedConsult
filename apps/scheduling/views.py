@@ -1043,7 +1043,7 @@ def patient_health_records(request):
 
 @login_required
 def health_record_download(request, record_id):
-    """Protected health record download — verifies ownership or share permission, logs access."""
+    """Protected health record download - verifies ownership or share permission, logs access."""
     from apps.adminpanel.models import HealthRecordAccessLog
     import os
 
@@ -1056,7 +1056,8 @@ def health_record_download(request, record_id):
         and hasattr(request.user, 'doctor_profile')
         and record.shared_with_doctors.filter(user=request.user).exists()
     )
-    is_admin = request.user.role == 'admin'
+    from apps.accounts.permissions import is_platform_staff
+    is_admin = is_platform_staff(request.user)
 
     if not (is_owner or is_shared_doctor or is_admin):
         return HttpResponseForbidden('You do not have permission to access this file.')
@@ -1311,7 +1312,7 @@ def _build_billing_context(appointment):
         'line_items': [
             {
                 'label': f'{appointment.slot.get_appointment_type_display()} Consultation',
-                'description': f'Dr. {appointment.doctor.user.get_display_name()} — {appointment.start_datetime.strftime("%B %d, %Y")}',
+                'description': f'Dr. {appointment.doctor.user.get_display_name()} - {appointment.start_datetime.strftime("%B %d, %Y")}',
                 'amount': slot_price,
             },
             {

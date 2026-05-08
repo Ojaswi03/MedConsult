@@ -37,16 +37,16 @@
 
 <!-- Slot Actions Modal -->
 <div id="slot-actions-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-sm w-full p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-sm w-full p-6">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-gray-900">Slot Actions</h3>
-            <button onclick="closeSlotModal()" class="text-gray-400 hover:text-gray-600">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Slot Actions</h3>
+            <button onclick="closeSlotModal()" class="text-gray-400 hover:text-gray-600 dark:text-gray-400">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
                 </svg>
             </button>
         </div>
-        <p class="text-sm text-gray-600 mb-4">Time: <span id="slot-time" class="font-medium"></span></p>
+        <p class="text-sm text-gray-600 dark:text-gray-400 mb-4">Time: <span id="slot-time" class="font-medium"></span></p>
 
         <div id="slot-actions-content" class="space-y-3">
             <!-- Actions populated by JavaScript -->
@@ -65,7 +65,7 @@ function showSlotActions(slotId, time, isBlocked, isBooked) {
     let html = '';
 
     if (isBooked) {
-        html = '<p class="text-sm text-gray-600">This slot is booked and cannot be modified directly. Cancel the appointment from the patient management page.</p>';
+        html = '<p class="text-sm text-gray-600 dark:text-gray-400">This slot is booked and cannot be modified directly. Cancel the appointment from the patient management page.</p>';
     } else if (isBlocked) {
         html = `
             <form method="post" action="/internal/slots/${slotId}/unblock/"
@@ -97,7 +97,7 @@ function showSlotActions(slotId, time, isBlocked, isBooked) {
                 <input type="hidden" name="csrfmiddlewaretoken" value="${getCSRFToken()}">
                 <div class="mb-2">
                     <input type="text" name="reason" placeholder="Block reason (optional)"
-                           class="w-full rounded-lg border-gray-300 shadow-sm text-sm">
+                           class="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm text-sm">
                 </div>
                 <button type="submit" class="w-full bg-yellow-600 text-white py-2 px-4 rounded-lg hover:bg-yellow-700">
                     Block Slot

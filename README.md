@@ -8,39 +8,52 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 
 ### Authentication & Accounts
 - Username **or** email login via a custom authentication backend
-- Email verification enforced at login - unverified users are blocked with a resend link
+- Email verification enforced at login - unverified users blocked with resend link
 - Multi-step signup wizards - 5 steps for patients, 6 steps for doctors
 - Camera/microphone readiness test during signup
 - Profile image uploads (PNG, JPG, JPEG, max 5 MB)
 - Email verification and password reset via secure tokens
 - Light / Dark / System theme preference per user
-- **Two-factor authentication (2FA)** for doctors and all org staff via TOTP (django-two-factor-auth); patients may skip; all hospital staff roles require TOTP
-- **Multi-tenant organization system** — hospitals/clinics register as Organizations; staff join via invite; platform owner approves each org before it goes live
+- **Two-factor authentication (2FA)** for doctors and all org staff via TOTP (django-two-factor-auth); patients may skip; all hospital staff roles require TOTP; bypassed in dev via `SKIP_2FA = True` in `dev.py`
+- **Multi-tenant organization system** - hospitals/clinics register as Organizations; staff join via invite; platform owner approves each org before it goes live
+- **Hospital user identity** - each `OrganizationMembership` gets a unique `hospital_user_id` in `{PREFIX}-{ROLE}-{NNNN}` format (e.g. `CGH-DOC-0007`)
+- **Argon2 password hashing** (PBKDF2 kept as fallback for existing hashes)
+
+### Roles
+Two-level role system:
+
+**Global (`User.role`):**
+- `platform_owner` (PlatOwner) - full platform control
+- `platform_admin` (PlatAdmin) - MedConsult internal staff
+- `doctor` - verified provider
+- `patient` - platform-wide, not org-scoped
+- `org_user` - hospital staff (any org role)
+
+**Org membership (`OrganizationMembership.role`):**
+- `hospital_owner` (Org Owner), `hospital_admin` (Org Admin), `doctor`, `scheduler`, `billing_staff`, `compliance_officer`, `clinical_staff`
 
 ### Scheduling
 - Doctor self-service availability management with a visual weekly calendar
 - Recurring availability windows with configurable buffer times
 - Multi-type appointments per window (Video, Chat, Phone) with individual pricing
 - Automatic slot generation from availability windows (nightly Celery task extends 60 days out)
-- Manual / urgent slot creation
-- Block / unblock individual slots
-- Doctor time-off blocks - block date ranges, auto-block existing unbooked slots
-- Group consultations - slots with `max_capacity > 1`, shows spots remaining to patients (capacity enforced via ForeignKey + select_for_update)
+- Manual / urgent slot creation; block / unblock individual slots
+- Group consultations - slots with `max_capacity > 1`, capacity enforced via `select_for_update()`
 - Real-time calendar updates via WebSocket (Django Channels) with HTMX polling fallback
 
 ### Patient Booking
 - Browse and filter verified doctors (search, specialization, rating, price, availability, group sessions)
-- Live slot availability updates - no page refresh needed
-- Structured symptom/injury selector (20 body parts, 95 conditions, 10 symptom categories, 54 symptoms) powered by Alpine.js
-- **Emergency triage** - selected symptoms and reason text checked against emergency red-flag keywords (chest pain, stroke signs, difficulty breathing, suicidal ideation, etc.) before booking; emergency card blocks telehealth booking with ER redirect prompt; "not a diagnosis" disclaimer always shown
-- Price display before booking; paid slots create a `held` appointment and redirect to Stripe checkout; free slots are confirmed immediately
-- **Booking/payment state machine** - `booking_status` (held → confirmed → expired → cancelled); held appointments auto-expire after 15 min via Celery; payment webhook confirms booking and triggers confirmation emails
+- Live slot availability updates via WebSocket / HTMX polling
+- Structured symptom/injury selector (20 body parts, 95 conditions, 10 symptom categories, 54 symptoms)
+- Slot booking creates `held` appointment -> redirects to Stripe checkout -> webhook confirms
+- Free slots confirmed immediately without payment
 - View, cancel, and reschedule appointments
 - Join/leave waitlist when a doctor has no available slots - auto-notified when a slot opens
+- Appointment reminders via email + SMS (Celery Beat)
 - **Patient data export** - download a full JSON copy of your data (profile, appointments, health records, prescriptions) at `/patient/export/`
 
 ### Reviews
-- Patients rate doctors (1–5 stars) after completed appointments
+- Patients rate doctors (1-5 stars) after completed appointments
 - Optional comment per review
 - Doctor detail pages show average rating, review count, and individual reviews
 
@@ -53,8 +66,7 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Patients upload health documents (lab results, imaging, discharge summaries, etc.)
 - Share specific records with individual doctors
 - Doctors view shared records on patient history page
-- **Protected downloads** - files served via `/patient/health-records/<id>/download/`; verifies ownership or share permission before serving; rejects unauthenticated and unauthorized requests with 403
-- All record views, shares, and downloads logged to `HealthRecordAccessLog` for HIPAA audit trail
+- All record views and shares logged to `HealthRecordAccessLog` for HIPAA audit trail
 
 ### Referrals
 - Doctors refer patients to other specialists on the platform
@@ -72,53 +84,59 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Schedule follow-up - send patient a link to book a specific future slot
 - Refer patient to another specialist
 
-### Admin Panel (`/internal/`)
-- Dashboard with Chart.js analytics (user growth, appointment distribution)
-- Doctor verification queue with document viewer (medical license, government ID)
-- Doctor slot management - create, block, unblock, delete slots on behalf of doctors
-- Patient management - view history, cancel appointments
-- User management - search, filter, activate/deactivate, export to CSV
-- Appointments list with filtering and CSV export
-- Financial overview (revenue by doctor, appointment type usage)
-- Full audit log - all admin actions, slot changes, and health record access with IP addresses
-
-### Messaging & Consultations
-- In-app chat (WebSocket-powered) linked to appointments or started directly without one
-- Direct patient → doctor chat requires no prior appointment; direct doctor → patient chat requires a prior appointment relationship (403 otherwise); creation logged to `AdminActivityLog`
-- Amber disclaimer banner on direct chats (dismissible); conversations only appear in list once a real message is sent
-- Per-user soft delete - each side can delete a conversation from their view; admin retains all records
-- File attachments in chat - upload documents, images, PDFs (10 MB max); rendered as inline download links
-- **XSS-safe message rendering** - all message content and attachment names are wrapped in `escapeHtml()`; attachment URLs validated via `safeUrl()` before rendering; server-side Django template auto-escaping also active
-- **"Join Call" button** appears in chat header when an active video room exists for the appointment
-- **Pre-visit readiness check** at `/consultation/readiness/<id>/` - patient confirms private location, camera/mic, stable internet, telehealth consent, and no-recording acknowledgment before joining
-- Video consultations via Daily.co (raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` missing)
-
-### Support & Legal
-- Help center with dark mode support and quick-link cards to FAQ and Contact
-- FAQ page with animated accordion interaction
-- Contact form persists to DB and emails admin via Celery
-- **Privacy Policy** at `/support/privacy/` - 8-section HIPAA-aware policy (data collection, HIPAA compliance, data sharing, retention, rights, cookies)
-- **Terms of Service** at `/support/terms/` - 13-section telehealth ToS with emergency disclaimer, cancellation/refund policy, and governing law
-
 ### Payments
-- Stripe Checkout Session integration with webhook-first confirmation
-- `booking_status` state machine (held/confirmed/expired/cancelled); 15-min hold timeout via Celery; idempotency key on every session
-- Payment success page is status-aware: `succeeded` → confirmed UI; `processing` → pending message; no payment / failed → warning (never trusts browser redirect alone)
-- Refund tracking; admin refund button wired in appointments table
+- Stripe Checkout integration with idempotency key on session creation
+- `booking_status` state machine: `held` -> `confirmed` / `expired` / `cancelled`
+- Held appointments auto-expire after 15 minutes (Celery task frees the slot)
+- Payment success page verifies `payment.status` server-side before showing confirmed UI
+- Admin refund button with inline modal
+- Patient data export includes payment history
 
-### Knowledge Graph (`/internal/knowledge-graph/`)
-- Living network graph of the entire project state - auto-updates on every model change, git commit, and Celery heartbeat
-- **Visualization**: Cytoscape.js force-directed interactive graph; nodes color-coded by type (users, appointments, slots, payments, code modules, system health); click any node for details; filter panel by node type; export JSON
-- **Auto-update triggers**: Django signals (`post_save`/`post_delete`) on User, Appointment, Slot, Conversation, Payment → debounced Celery rebuild (max once per 10s); Celery Beat every 5 min; git `post-commit` hook
-- **AI agent / CLI access**: `GET /api/v1/knowledge-graph/` returns structured JSON (metadata, stats summary, app structure, recent git commits, full nodes + edges); 60s Redis cache; `IsAdmin` auth
-- **CLI**: `python manage.py export_knowledge_graph` writes `knowledge_graph.json` at project root; `--quick` flag for git hook (updates only git + stats nodes)
+### Video Consultations
+- Daily.co video rooms created on appointment confirmation
+- "Join Call" button visible in chat when active VideoRoom exists
+- Recording hardcoded off (requires explicit consent flow before enabling)
 
-### Notifications & Reminders
-- Email reminders at 24h and 1h before appointments (Celery Beat, every 15 min)
-- SMS reminders via Twilio for patients with `phone_notifications=True`
-- Appointment confirmation email + SMS on booking
-- Doctor rejection email with reason
-- Welcome email sent on successful email verification
+### Messaging
+- Real-time chat via WebSocket (Django Channels)
+- File attachments (up to 10 MB)
+- Typing indicators and read receipts
+- Direct messaging from doctor to patient requires prior appointment relationship
+- XSS protection via `escapeHtml()` / `safeUrl()` JS helpers
+
+### Organization Management
+- Hospital self-signup at `/org/register/` - pending approval by PlatOwner
+- Platform owner approves/rejects/suspends orgs at `/internal/organizations/`
+- Hospital owner invites staff via token-based invites (7-day expiry)
+- Org-scoped dashboards for each role (owner, admin, scheduler, etc.)
+- `ProviderOrganizationProfile` - per-org doctor profile (title, department, specialization, fee, accepting patients)
+- PlatOwner can enter any org's panel, view all members (active + inactive), enable/disable accounts, change roles
+
+### PlatOwner Panel (`/internal/`)
+- Full platform dashboard with metrics and Chart.js visualizations
+- User management with search/filter/activate/deactivate
+- Doctor verification queue with document viewer
+- Doctor slot management (visual weekly calendar, block/unblock, create slots)
+- Patient management with full appointment history
+- Appointments list with CSV export
+- Financial overview by doctor
+- Audit logs (admin actions + slot change logs)
+- Organization management - approve/reject/suspend orgs, drill into any org, manage all members
+- Knowledge Graph - live Cytoscape.js force-directed graph of platform entities (manual refresh, position retention, diff badge)
+
+### Security (HIPAA)
+- PHI encrypted at rest with `django-cryptography` (Fernet/AES-256): medical license, bank account/routing numbers, prescription fields
+- Every PHI read logged to `HealthRecordAccessLog`
+- Protected health record download - ownership/share/admin check before serving
+- Rate limiting: booking 10/h/user, messaging 60/m/user, DRF 30/m anon + 120/m user
+- HTTPS-only in prod; `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, session age 30 min
+- `SECRET_KEY` guard in prod - raises `ImproperlyConfigured` if missing or insecure
+- Structured logging + Sentry (when `SENTRY_DSN` set)
+- XSS protection in chat; direct messaging authorization
+
+### Developer Tooling
+- `dev_gui.py` - Tkinter GUI: Docker healthcheck, server/worker/beat launcher, SQL tab, Page Health tab (tests all routes), Accounts tab with per-field edit buttons (role, username, email, password, active, verified, doctor status)
+- Living Knowledge Graph at `/internal/knowledge-graph/` - manual refresh button, position retention, change diff badge
 
 ---
 
@@ -128,152 +146,36 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 |---------|--------|
 | Email verification enforced at login | ✅ |
 | PHI encrypted at rest (prescriptions, license #, bank details) | ✅ django-cryptography |
-| 2FA mandatory for doctors/admins (TOTP); optional for patients | ✅ role-enforced in `EnforceTwoFactorMiddleware` |
+| 2FA for doctors and org staff (TOTP) | ✅ django-two-factor-auth |
 | `SECRET_KEY` validated at startup in production | ✅ raises `ImproperlyConfigured` |
-| `HealthRecordAccessLog` wired on all PHI reads, shares, and downloads | ✅ |
-| PHI file downloads protected by ownership/share check (403 on unauthorized) | ✅ |
-| Chat XSS prevention — `escapeHtml()` + `safeUrl()` on all user-generated content | ✅ |
-| Doctor direct-message consent — prior appointment required to initiate contact | ✅ 403 + audit log |
+| `HealthRecordAccessLog` wired on all PHI reads/shares | ✅ |
 | Patient data export (HIPAA Right of Access) | ✅ `/patient/export/` |
-| Emergency symptom triage — blocks telehealth booking for red-flag symptoms | ✅ |
-| Pre-visit readiness checklist (privacy, device, consent) before video joins | ✅ |
-| Rate limiting - login (10/min), booking (10/h), messaging (60/min), API (30–120/min) | ✅ django-ratelimit + DRF throttle |
+| Rate limiting - login (10/min), booking (10/h), messaging (60/min), API (30-120/min) | ✅ django-ratelimit + DRF throttle |
 | Structured logging + optional Sentry integration | ✅ set `SENTRY_DSN` env var |
-| Baseline test suite (pytest-django, 40% coverage gate, 71 tests) | ✅ |
+| Baseline test suite (pytest-django, 40% coverage gate) | ✅ |
 | HSTS, `SECURE_SSL_REDIRECT`, `SESSION_COOKIE_SECURE` in production | ✅ |
-| Argon2 password hashing (memory-hard, HIPAA-recommended) | ✅ argon2-cffi |
-| `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, 30-min session age | ✅ |
 
 ---
 
-## Frontend Design System
+## Tech Stack
 
-All pages are being progressively redesigned to share a cohesive look. When updating any page, match the palette, animation style, and layout patterns documented here.
-
-### Color Palette
-
-| Role | Light mode | Dark mode | Tailwind class |
-|------|-----------|-----------|----------------|
-| Page background | `#eff6ff → #eef2ff → #faf5ff` (animated gradient) | `#0f172a → #1e1b4b → #0f172a` | `hero-gradient` CSS class |
-| Auth split - left panel | `#1e3a8a → #312e81 → #1e1b4b` (deep blue/indigo) | same | `hero-panel` CSS class |
-| Public navbar | `bg-blue-50/90` + `backdrop-blur-sm` | `bg-gray-950/90` | `border-blue-100/60` separator |
-| Authenticated navbar / sidebar | `bg-white dark:bg-gray-800` | same | unchanged |
-| Primary action | `bg-blue-600 hover:bg-blue-700` | same | |
-| Secondary / doctor accent | `bg-emerald-500` / `text-emerald-600` | `dark:text-emerald-400` | |
-| Destructive | `bg-red-600` | `dark:bg-red-700` | |
-| Card surface | `bg-white dark:bg-gray-800` | | |
-| Subtle surface | `bg-gray-50 dark:bg-gray-900` | | |
-| Glass card (on dark hero) | `bg-white/10 backdrop-blur-sm border border-white/20` | same | used for floating cards |
-
-Exact gradient CSS:
-```css
-/* Landing hero - light */
-.hero-gradient {
-  background: linear-gradient(135deg, #eff6ff 0%, #eef2ff 50%, #faf5ff 100%);
-  background-size: 200% 200%;
-  animation: gradShift 8s ease infinite;
-}
-/* Landing hero - dark */
-.dark .hero-gradient {
-  background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
-}
-/* Auth split panel (always dark blue regardless of theme) */
-.hero-panel {
-  background: linear-gradient(145deg, #1e3a8a 0%, #312e81 45%, #1e1b4b 100%);
-  background-size: 200% 200%;
-  animation: gradShift 10s ease infinite;
-}
-```
-
-### Animation Keyframes
-
-Every redesigned page uses the same keyframe set defined in an inline `<style>` block within the template. **Do not put these in `custom.css` or `base.html` - keep them per-template so each page is self-contained.**
-
-```css
-@keyframes fadeUp    { from { opacity:0; transform:translateY(24px); } to { opacity:1; transform:translateY(0); } }
-@keyframes fadeIn    { from { opacity:0; } to { opacity:1; } }
-@keyframes floatY    { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-12px); } }
-@keyframes floatSlow { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-8px); } }
-@keyframes gradShift { 0%,100% { background-position:0% 50%; } 50% { background-position:100% 50%; } }
-@keyframes blobPulse { 0%,100% { transform:scale(1) translate(0,0); } 33% { transform:scale(1.05) translate(8px,-8px); } 66% { transform:scale(.96) translate(-6px,6px); } }
-```
-
-Utility classes (also defined inline per template):
-```css
-.animate-fade-up    { animation: fadeUp .65s cubic-bezier(.16,1,.3,1) both; }
-.animate-float      { animation: floatY 3.8s ease-in-out infinite; }
-.animate-float-slow { animation: floatSlow 5.5s ease-in-out infinite; }
-.delay-50  { animation-delay: .05s; }  /* through .delay-600 in steps of 50ms */
-```
-
-Entry animations are staggered: first element `.delay-50`, next `.delay-100`, next `.delay-150`, etc. - creating a cascade effect on page load.
-
-### Layout Patterns
-
-**Auth pages (login, signup role-select, and future: forgot password, reset password)**
-- Extend `base.html` directly and override `{% block body %}` for full-screen control
-- `min-h-screen flex` outer wrapper - no public header/footer
-- Left 48–52% (`hidden lg:flex`): `hero-panel` dark blue gradient + floating glass cards + logo + tagline
-- Right flex-1: `bg-white dark:bg-gray-900`, form with staggered `.animate-fade-up` entries
-- Floating cards on the left use `animate-float` / `animate-float-slow` with staggered `animation-delay`
-- Background decorative blobs: `border-radius: 60% 40% 30% 70% / ...` + `filter: blur(52px)` + `blobPulse` animation
-
-**Landing page**
-- Extends `layouts/public.html` (gets the blue-50 navbar)
-- Full-width sections: hero gradient → blue stats bar → feature cards grid → "how it works" → CTA
-- Feature cards use `.feature-card { transition: transform .25s; }` + `:hover { transform: translateY(-4px); }`
-
-**Authenticated app pages** - defer to existing `layouts/app.html` styling (no redesign needed unless requested).
-
-**Admin pages** - defer to existing `layouts/admin.html` (dark sidebar, `bg-gray-900`).
-
-### Dark Mode
-
-All redesigned templates use Tailwind `dark:` variant classes directly (e.g. `dark:bg-gray-900`, `dark:text-white`). The `.dark` class is toggled on `<html>` by `static/js/theme_switcher.js`. **Do not use CSS custom properties (`var(--color)`) or global overrides in `custom.css`** - they break button styles. Only `dark:` Tailwind classes.
-
-### Pages Redesigned So Far
-
-| Page | Template | Status |
-|------|----------|--------|
-| Landing / home | `apps/accounts/templates/accounts/landing.html` | ✅ Done |
-| Login | `apps/accounts/templates/accounts/login.html` | ✅ Done |
-| Sign up - role select | `apps/accounts/templates/accounts/signup_role_select.html` | ✅ Done |
-| Sign up wizard (patient 5-step / doctor 6-step) | `apps/accounts/templates/accounts/signup_wizard.html` + partials | ✅ Done (animated gradient, frosted glass card, dark mode throughout) |
-| Public navbar | `templates/layouts/public.html` | ✅ Done (blue-50 glass) |
-| Admin layout dark mode | `templates/layouts/admin.html` | ✅ Done |
-| Help center | `apps/support/templates/support/help.html` | ✅ Done (full dark mode, icon badges, hover cards) |
-| FAQ | `apps/support/templates/support/faq.html` | ✅ Done (accordion interaction, dark mode) |
-| Privacy Policy | `apps/support/templates/support/privacy_policy.html` | ✅ Done |
-| Terms of Service | `apps/support/templates/support/terms_of_service.html` | ✅ Done |
-| Forgot Password | `apps/accounts/templates/accounts/forgot_password.html` | ✅ Done (split layout, animated lock icon, floating security cards) |
-| Reset Password | `apps/accounts/templates/accounts/reset_password.html` | ✅ Done (split layout, password strength meter, show/hide toggles, match indicator) |
-
-All remaining pages will be redesigned one by one. Each must follow the palette, animation keyframes, and layout patterns above.
-
----
-
-## Technology Stack
-
-| Component | Technology |
-|-----------|------------|
-| Backend | Django 4.2.27 LTS |
+| Layer | Technology |
+|-------|-----------|
+| Framework | Django 4.2 LTS |
 | Database | PostgreSQL 16 |
-| Cache / Channel Layer | Redis 7 |
-| WebSocket | Django Channels 4 + Daphne |
-| Async Tasks | Celery + django-celery-beat |
-| Frontend | Tailwind CSS (CDN) + HTMX + Alpine.js |
-| PHI Encryption | django-cryptography |
-| Password Hashing | argon2-cffi (Argon2, memory-hard) |
-| 2FA | django-two-factor-auth + django-otp |
-| Rate Limiting | django-ratelimit + DRF throttle |
-| Error Tracking | Sentry SDK (optional, via `SENTRY_DSN`) |
-| PDF Generation | ReportLab |
-| Payments | Stripe |
+| Cache / Broker | Redis 7 |
+| WebSockets | Django Channels 4 (Daphne) |
+| Async tasks | Celery + Celery Beat |
+| Payments | Stripe (Checkout + Webhooks) |
 | Video | Daily.co |
 | SMS | Twilio |
-| Testing | pytest-django + pytest-cov |
-| Graph Visualization | Cytoscape.js |
-| Container | Docker + Docker Compose |
+| Auth | django-two-factor-auth + TOTP |
+| Frontend | Tailwind CSS (CDN), HTMX, Alpine.js, Chart.js, Cytoscape.js |
+| PDF | ReportLab |
+| Password hashing | Argon2 (PBKDF2 fallback) |
+| PHI encryption | django-cryptography (Fernet) |
+| Testing | pytest-django + pytest-cov (40% gate) |
+| CI | GitHub Actions |
 
 ---
 
@@ -282,39 +184,40 @@ All remaining pages will be redesigned one by one. Each must follow the palette,
 ```
 MedConsult/
 ├── apps/
-│   ├── accounts/        # User auth, profiles, tokens, notifications, 2FA middleware
+│   ├── accounts/        # User auth, profiles, roles, org models, encryption
 │   ├── scheduling/      # Availability, slots, appointments, reviews, symptoms,
 │   │                    # prescriptions, health records, referrals, waitlist, time-off
+│   ├── organizations/   # Hospital signup, org dashboards, staff invites, org switcher
 │   ├── dashboard/       # Role-based home pages
-│   ├── adminpanel/      # Admin dashboard, management, HealthRecordAccessLog
+│   ├── adminpanel/      # PlatOwner panel, verification, analytics, org management
 │   ├── payments/        # Stripe payments and refunds
 │   ├── messaging/       # In-app chat (WebSocket)
 │   ├── consultations/   # Video rooms (Daily.co)
-│   ├── api/             # REST API (JWT auth, DRF - requires authentication)
-│   ├── support/         # Help, FAQ, contact
+│   ├── api/             # REST API (JWT auth, DRF)
+│   ├── support/         # Help, FAQ, contact, privacy policy, terms
 │   └── knowledge_graph/ # Living knowledge graph - signals, Celery task, Cytoscape UI, AI agent API
 ├── config/
 │   ├── settings/
 │   │   ├── base.py      # Shared settings (logging, Sentry, throttle, Beat schedule)
-│   │   ├── dev.py       # Development
+│   │   ├── dev.py       # Development (SKIP_2FA=True)
 │   │   └── prod.py      # Production (SECRET_KEY guard, HSTS, SSL)
 │   ├── urls.py
 │   └── asgi.py          # ASGI + Django Channels routing
 ├── templates/
 │   ├── base.html
 │   ├── layouts/         # public.html, app.html, admin.html
-│   ├── partials/        # navbar (with notification bell), footer, messages
-│   └── components/      # avatar, dropdown
+│   ├── partials/        # navbar (with notification bell), footer, org_switcher
+│   └── organizations/   # Org dashboard templates
 ├── static/
 │   └── js/
 │       ├── availability_calendar.js
 │       ├── signup_wizard.js
 │       ├── dropdown.js
 │       └── theme_switcher.js
-├── .github/workflows/django-ci.yml   # CI: check → migrations → pytest --cov
+├── .github/workflows/django-ci.yml   # CI: check -> migrations -> pytest --cov
 ├── pytest.ini
 ├── docker-compose.yml
-├── dev_gui.py           # Desktop launcher (Control / SQL / Terminal / Accounts tabs)
+├── dev_gui.py           # Desktop launcher (Control / SQL / Terminal / Accounts / Page Health tabs)
 └── requirements.txt
 ```
 
@@ -331,6 +234,18 @@ apps/<name>/
 ├── tests.py
 └── templates/
 ```
+
+---
+
+## Default Credentials
+
+| Role | Username | Email | Password |
+|------|----------|-------|----------|
+| PlatOwner | `platowner` | `platowner@medconsult.com` | `platowner123` |
+| Test Doctor | `testdoctor` | `doctor@test.com` | `testpass123` |
+| Test Patient | `testpatient` | `patient@test.com` | `testpass123` |
+
+> **Note:** Doctors and org staff are redirected to TOTP 2FA setup on first login. Use an authenticator app (Google Authenticator, Authy, etc.) to scan the QR code at `/account/two_factor/setup/`. In dev, `SKIP_2FA = True` bypasses this for all users.
 
 ---
 
@@ -370,7 +285,7 @@ cp .env.example .env
 # 5. Run migrations
 python manage.py migrate --settings=config.settings.dev
 
-# 6. Create admin user
+# 6. Create platform owner user
 python manage.py createsuperuser --settings=config.settings.dev
 
 # 7. Start the server
@@ -381,8 +296,6 @@ Visit: **http://127.0.0.1:8000**
 
 ### Local GUI Control Panel
 
-Run the unified desktop launcher:
-
 ```bash
 python dev_gui.py
 ```
@@ -391,17 +304,8 @@ Tabs:
 - **Control** - start/stop Docker, server, Celery worker, Beat; live logs
 - **SQL** - write raw SQL against the dev database and see results inline
 - **Terminal** - run shell commands with streaming output and command history
-- **Accounts** - view seeded users, reset passwords, toggle active status
-- **Page Health** - one-click check that hits every page as admin, doctor, and patient; color-codes 200 / warnings / 500 errors so broken routes are caught immediately
-
-Startup sequence:
-
-```
-Start Stack       # Docker + server + worker + beat in one click
-```
-
-Or manually:
-1. `Start Docker` → `Run Migrations` → `Start Server` → `Start Worker` → `Start Beat`
+- **Accounts** - view seeded users, per-field edit (role, username, email, password, active, verified)
+- **Page Health** - one-click check that hits every page as admin, doctor, and patient; color-codes 200 / warnings / 500 errors
 
 ### WebSocket support (Daphne)
 
@@ -421,190 +325,6 @@ celery -A config beat -l info
 
 ---
 
-## Default Credentials
-
-| Role | Email | Password | Org after migration |
-|------|-------|----------|---------------------|
-| Platform Owner (you) | admin@medconsult.com | admin123 | MedConsult Platform |
-| Test Doctor | doctor@test.com | testpass123 | MedConsult Demo Clinic |
-| Test Patient | patient@test.com | testpass123 | — (platform-wide) |
-
-> **Note:** All org staff and doctors are redirected to TOTP 2FA setup on first login. Patients may skip. Use an authenticator app (Google Authenticator, Authy, etc.) to scan the QR code at `/account/two_factor/setup/`.
-
-> **Multi-tenancy:** After the multi-tenancy migration runs, the `admin` account becomes `platform_owner`. Hospitals register at `/org/register/` and are approved by you at `/internal/organizations/`.
-
----
-
-## Environment Variables
-
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `SECRET_KEY` | Yes (prod) | Django secret key - startup raises `ImproperlyConfigured` if missing or insecure in production |
-| `DB_*` | Yes | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` |
-| `REDIS_HOST` / `REDIS_URL` | Yes | Redis connection |
-| `SENTRY_DSN` | Optional | Sentry error tracking - Sentry is disabled if not set |
-| `SENTRY_TRACES_RATE` | Optional | Sample rate for performance tracing (default `0.1`) |
-| `DJANGO_LOG_LEVEL` | Optional | Django log level (default `INFO`) |
-| `STRIPE_PUBLISHABLE_KEY` | Optional | Stripe public key |
-| `STRIPE_SECRET_KEY` | Optional | Stripe secret key |
-| `STRIPE_WEBHOOK_SECRET` | Optional | Stripe webhook signing secret |
-| `DAILY_API_KEY` | Optional | Daily.co video rooms - raises `ImproperlyConfigured` in prod if missing |
-| `TWILIO_ACCOUNT_SID` | Optional | Twilio SMS |
-| `TWILIO_AUTH_TOKEN` | Optional | Twilio SMS |
-| `TWILIO_PHONE_NUMBER` | Optional | Twilio SMS sender |
-| `EMAIL_HOST` / `EMAIL_PORT` | Optional | SMTP config for prod email |
-| `DEFAULT_FROM_EMAIL` | Optional | Sender address |
-
----
-
-## Running Tests
-
-```bash
-# Run full test suite with coverage
-pytest
-
-# Run specific app
-pytest apps/accounts/
-pytest apps/scheduling/
-
-# Coverage only (no fail threshold)
-pytest --cov=apps --cov-report=term-missing --no-cov-on-fail
-```
-
-CI enforces **40% coverage minimum**. Coverage XML report is uploaded as a build artifact on every run.
-
----
-
-## URL Reference
-
-```
-Public
-/                                         Landing page
-/auth/login/                              Login (email or username)
-/auth/signup/                             Role selection
-/auth/signup/patient/<step>/              Patient signup wizard (5 steps)
-/auth/signup/doctor/<step>/               Doctor signup wizard (6 steps)
-/account/two_factor/setup/               2FA TOTP setup (doctors + admins)
-/account/two_factor/                     2FA profile / backup tokens
-/support/help/                            Help center
-/support/faq/                             FAQ
-/support/contact/                         Contact
-/support/privacy/                         Privacy Policy
-/support/terms/                           Terms of Service
-
-Authenticated (all roles)
-/app/                                     Role-based dashboard redirect
-/auth/profile/                            Profile (edit, upload image, languages)
-/auth/settings/                           Account settings (theme, notifications)
-/auth/notifications/                      Full notification history
-
-Patient - /patient/
-  doctors/                                Browse verified doctors
-  doctors/<id>/                           Doctor detail (slots, reviews, bio, languages)
-  doctors/<id>/slots/                     Live slot updates (HTMX polling)
-  doctors/<id>/waitlist/join/             Join waitlist
-  doctors/<id>/waitlist/leave/            Leave waitlist
-  book/<slot_id>/                         Book appointment
-  appointments/                           My appointments (cancel, reschedule, download Rx)
-  appointments/<id>/cancel/               Cancel appointment
-  appointments/<id>/reschedule/           Reschedule appointment
-  appointments/<id>/prescription/download/ Download prescription PDF
-  reviews/<appointment_id>/submit/        Submit review
-  referrals/                              My referrals from doctors
-  health-records/                         Upload and manage health records
-  health-records/<id>/delete/             Delete health record
-  health-records/<id>/share/              Share record with a doctor
-  health-records/<id>/download/           Download health record (auth + ownership check)
-  export/                                 Download full personal data export (JSON)
-  symptoms/body-parts/                    Symptom selector - body parts (HTMX)
-  symptoms/body-parts/<id>/conditions/    Conditions for a body part (HTMX)
-  symptoms/list/                          Symptom list (HTMX)
-
-Doctor - /doctor/
-  availability/                           Availability management (calendar + windows)
-  availability/windows/create/            Create availability window
-  availability/windows/<id>/              Edit availability window form (HTMX)
-  availability/windows/<id>/update/       Update availability window
-  availability/windows/<id>/delete/       Delete availability window
-  availability/slots/create/              Create manual/urgent/group slot
-  availability/slots/<id>/block/          Block slot
-  availability/slots/<id>/unblock/        Unblock slot
-  availability/slots/<id>/delete/         Delete slot
-  availability/calendar/                  Calendar partial (HTMX)
-  availability/types/                     Configure appointment types & pricing
-  availability/time-off/                  Manage time-off / vacation blocks
-  availability/time-off/<id>/delete/      Delete time-off block
-  schedule/                               Upcoming appointments (write Rx, follow-up, refer)
-  generate-slots/                         Generate slots from windows
-  analytics/                              Analytics dashboard (Chart.js)
-  appointments/<id>/prescription/write/   Write prescription
-  appointments/<id>/followup/             Schedule follow-up for patient
-  appointments/<id>/referral/             Refer patient to specialist
-  patients/<id>/history/                  Full patient history timeline
-  patients/<id>/records/                  Shared health records from patient
-
-Organization - /org/
-  register/                               Hospital self-service signup (public)
-  register/pending/                       Post-submit holding page
-  <slug>/                                 Org dashboard (role-determined view)
-  <slug>/settings/                        Edit org profile (owner/admin)
-  <slug>/staff/                           Staff list + invite management (hospital_user_id column)
-  <slug>/staff/invite/                    Send invite (role grant matrix enforced)
-  <slug>/staff/<id>/                      Member detail (identity + provider profile + edit form)
-  <slug>/staff/<id>/provider-profile/     Edit provider profile (owner/admin only)
-  <slug>/staff/<id>/deactivate/           Deactivate staff member
-  invite/<token>/                         Accept org invite (email lock + race-safe)
-
-Admin - /internal/
-  (dashboard)                             Metrics, charts, activity feed
-  verify/                                 Doctor verification queue
-  verify/<id>/approve/                    Approve doctor
-  verify/<id>/reject/                     Reject doctor with reason
-  users/                                  User list (search, filter)
-  users/<id>/toggle-active/              Activate / deactivate user
-  users/export/                           Export users CSV
-  organizations/                          Platform org list (filter by status)
-  organizations/<id>/                     Org detail + review checklist
-  organizations/<id>/approve/             Approve org
-  organizations/<id>/reject/              Reject org with reason
-  organizations/<id>/needs-info/          Request more information
-  organizations/<id>/suspend/             Suspend active org
-  organizations/<id>/reactivate/          Reactivate suspended org
-  organizations/<id>/members/<id>/        Org member detail (identity + provider profile + appointments)
-  doctors/                                Doctor list with statistics
-  doctors/<id>/manage/                    Doctor slot management
-  doctors/<id>/calendar/                  Doctor calendar (HTMX)
-  doctors/<id>/slots/create/              Create slot for doctor
-  doctors/<id>/document/<type>/           View doctor documents
-  slots/<id>/block/                       Block slot
-  slots/<id>/unblock/                     Unblock slot
-  slots/<id>/delete/                      Delete slot
-  patients/<id>/manage/                   Patient appointment management
-  appointments/                           Appointments list
-  appointments/<id>/cancel/               Cancel appointment
-  appointments/export/                    Export appointments CSV
-  financial/                              Revenue and pricing overview
-  audit/                                  Audit logs + health record access log
-
-Other
-/payments/checkout/<slot_id>/             Payment checkout
-/payments/history/                        Payment history
-/messages/                                Conversations list
-/messages/<id>/                           Chat window
-/messages/<id>/delete/                    Delete conversation (soft, per-user)
-/messages/start/<appointment_id>/         Start appointment-linked chat
-/messages/direct/doctor/<id>/            Patient starts direct chat with doctor
-/messages/direct/patient/<id>/           Doctor starts direct chat with patient
-/consultation/<id>/                       Video room
-/consultation/readiness/<id>/             Pre-visit readiness checklist (video only)
-/api/v1/                                  REST API (JWT)
-/api/v1/knowledge-graph/                 Full project knowledge graph (JSON, IsAdmin)
-/internal/knowledge-graph/               Interactive Cytoscape.js graph UI
-/admin/                                   Django admin
-```
-
----
-
 ## Development Commands
 
 ```bash
@@ -615,8 +335,11 @@ python manage.py migrate --settings=config.settings.dev
 python manage.py makemigrations --check --dry-run --settings=config.settings.dev
 
 # Run tests
-pytest
-pytest apps/scheduling/
+pytest --cov=apps --cov-fail-under=40
+
+# Knowledge graph rebuild
+python manage.py export_knowledge_graph --settings=config.settings.dev
+python manage.py export_knowledge_graph --quick --settings=config.settings.dev
 
 # System check
 python manage.py check --settings=config.settings.dev
@@ -635,59 +358,141 @@ docker-compose exec postgres psql -U medconsult_user -d medconsult
 docker-compose exec redis redis-cli
 ```
 
-> **WSL2 note:** If you see `client version 1.43 is too old`, add `export DOCKER_API_VERSION=1.44` to your `~/.bashrc` and reload (`source ~/.bashrc`). `dev_gui.py` sets this automatically.
+> **WSL2 note:** If you see `client version 1.43 is too old`, add `export DOCKER_API_VERSION=1.44` to your `~/.bashrc`.
+
+---
+
+## URL Reference
+
+```
+Public
+/                                         Landing page
+/auth/login/                              Login (email or username)
+/auth/signup/                             Role selection
+/auth/signup/patient/<step>/              Patient signup wizard (5 steps)
+/auth/signup/doctor/<step>/               Doctor signup wizard (6 steps)
+/account/two_factor/setup/                2FA TOTP setup (doctors + org staff)
+/support/help/                            Help center
+/support/faq/                             FAQ
+/support/contact/                         Contact
+/support/privacy-policy/                  Privacy policy
+/support/terms-of-service/                Terms of service
+
+Authenticated (all roles)
+/app/                                     Role-based dashboard redirect
+/auth/profile/                            Profile (edit, upload image)
+/auth/settings/                           Account settings (theme, notifications, 2FA)
+/auth/switch-org/                         Org switcher (platform staff)
+
+Patient - /patient/
+  doctors/                                Browse verified doctors
+  doctors/<id>/                           Doctor detail (slots, reviews, bio)
+  book/<slot_id>/                         Book appointment
+  appointments/                           My appointments (cancel, reschedule, download Rx)
+  appointments/<id>/cancel/               Cancel appointment
+  appointments/<id>/reschedule/           Reschedule appointment
+  appointments/<id>/prescription/download/ Download prescription PDF
+  reviews/<appointment_id>/submit/        Submit review
+  referrals/                              My referrals from doctors
+  health-records/                         Upload and manage health records
+  health-records/<id>/download/           Protected download (auth + ownership check)
+  export/                                 Download full personal data export (JSON)
+
+Doctor - /doctor/
+  availability/                           Availability management (calendar + windows)
+  availability/windows/create/            Create availability window
+  availability/windows/<id>/update/       Update availability window
+  availability/windows/<id>/delete/       Delete availability window
+  availability/slots/create/              Create manual/urgent/group slot
+  availability/slots/<id>/block/          Block slot
+  availability/slots/<id>/unblock/        Unblock slot
+  availability/slots/<id>/delete/         Delete slot
+  availability/types/                     Configure appointment types & pricing
+  schedule/                               Upcoming appointments (write Rx, follow-up, refer)
+  analytics/                              Analytics dashboard (Chart.js)
+  appointments/<id>/prescription/write/   Write prescription
+  appointments/<id>/followup/             Schedule follow-up for patient
+  appointments/<id>/referral/             Refer patient to specialist
+  patients/<id>/history/                  Full patient history timeline
+  patients/<id>/records/                  Shared health records from patient
+
+Organization - /org/
+  register/                               Hospital self-signup
+  <slug>/                                 Org dashboard (role-based)
+  <slug>/staff/                           Staff list with hospital_user_id
+  <slug>/staff/invite/                    Invite staff member
+  <slug>/staff/<id>/                      Member detail
+  <slug>/staff/<id>/provider-profile/     Edit provider org profile
+  <slug>/settings/                        Org settings
+  invite/<token>/                         Accept invite
+
+PlatOwner Panel - /internal/
+  (dashboard)                             Metrics, charts, activity feed
+  verify/                                 Doctor verification queue
+  verify/<id>/approve/                    Approve doctor
+  verify/<id>/reject/                     Reject doctor with reason
+  users/                                  User list (search, filter, export)
+  users/<id>/toggle-active/               Activate / deactivate user
+  doctors/                                Doctor list with statistics
+  doctors/<id>/manage/                    Doctor slot management
+  patients/<id>/manage/                   Patient appointment management
+  appointments/                           Appointments list (filter, export CSV)
+  appointments/<id>/refund/               Issue refund
+  financial/                              Revenue and pricing overview
+  audit/                                  Audit logs + health record access log
+  organizations/                          All orgs (approve/reject/suspend)
+  organizations/<id>/                     Org detail - all members (active + inactive)
+  organizations/<id>/members/<mid>/       Org member detail
+  organizations/<id>/members/<mid>/toggle-membership/  Deactivate/reactivate membership
+  organizations/<id>/members/<mid>/toggle-account/     Disable/enable user account
+  organizations/<id>/members/<mid>/change-role/        Change org role
+  knowledge-graph/                        Interactive Cytoscape.js graph UI
+
+Other
+/payments/checkout/<slot_id>/             Payment checkout
+/payments/history/                        Payment history
+/messages/                                Conversations list
+/messages/<id>/                           Chat window
+/messages/start/<appointment_id>/         Start appointment-linked chat
+/consultation/<id>/                       Video room
+/api/v1/                                  REST API (JWT)
+/api/v1/knowledge-graph/                  Full project knowledge graph (JSON, PlatOwner auth)
+/admin/                                   Django admin
+```
 
 ---
 
 ## Architecture
 
-### Multi-Tenancy
-
-MedConsult is a multi-tenant hospital SaaS. **Status: ✅ Fully implemented.**
-
-- Spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`
-- Plan 1 — data + permissions + query scoping: `docs/superpowers/plans/2026-05-07-multi-tenancy-foundation.md`
-- Plan 2 — UI layer (signup, dashboards, invites, switcher): `docs/superpowers/plans/2026-05-08-multi-tenancy-ui.md`
-- Hospital user identity: `docs/superpowers/plans/2026-05-08-hospital-user-identity.md`
-
-**Core models:**
-- `Organization` — each hospital/clinic/platform is an org (`status`: pending → active / needs_info / rejected / suspended)
-- `OrganizationMembership` — links a user to an org with a role; deactivated not deleted; carries `hospital_user_id` (e.g. `CGH-DOC-0007`) unique per org
-- `OrganizationInvite` — token-based invite with 7-day expiry; hash stored, raw token emailed
-- `ProviderOrganizationProfile` — org-scoped doctor profile (title, department, specialization, org fee, `is_accepting_patients`, `is_verified_for_org`); auto-created when doctor accepts an invite
-
-**Scoping rules:**
-- Hospital staff → all queries scoped to `organization`
-- Patients → scoped by `patient=request.user` only, never by org
-- Platform staff → unscoped (explicit flag required)
-- `organization=None` fails closed (returns `queryset.none()`) unless platform scope proven
-
-**Role system:**
-- `User.role` = global account type: `platform_owner`, `platform_admin`, `doctor`, `patient`, `org_user`
-- `OrganizationMembership.role` = org-specific: `hospital_owner`, `hospital_admin`, `doctor`, `scheduler`, `billing_staff`, `compliance_officer`, `clinical_staff`
-
 ### Services / Selectors Pattern
 
 - **`services.py`** - all write operations (create, update, delete), wrapped in `@transaction.atomic`
-- **`selectors.py`** - all read operations (queries, filters); all org-facing selectors accept explicit `organization` param
-- **`views.py`** - thin HTTP handlers; resolve `OrgContext`, call services/selectors, return responses
+- **`selectors.py`** - all read operations (queries, filters)
+- **`views.py`** - thin HTTP handlers; call services/selectors, return responses
+
+### Multi-Tenancy Scoping Rules
+- Hospital staff - queries scoped to `organization`
+- Doctors - scoped to their active org membership
+- Patients - scoped by `patient=request.user`, never by org
+- Platform staff - unscoped access (`allow_unscoped=True`)
+- `organization=None` fails closed - returns `queryset.none()` unless platform access proven
+
+### Template Inheritance (4 layers)
+
+```
+base.html                   Tailwind CDN, meta, scripts
+- layouts/public.html     Non-authenticated pages
+- layouts/app.html        Authenticated pages (navbar + footer)
+- layouts/admin.html      PlatOwner panel (dark sidebar)
+    - page templates
+        - partials/       HTMX swap targets
+```
 
 ### Real-Time Updates
 
 - `ws/doctor/<id>/calendar/` - doctor's weekly calendar (Django Channels)
 - `ws/patient/doctor/<id>/slots/` - patient booking view (Django Channels)
 - HTMX polling (5s interval, `X-Last-Update` header) as WebSocket fallback
-
-### Template Inheritance (4 layers)
-
-```
-base.html                   Tailwind CDN, meta, scripts
-└── layouts/public.html     Non-authenticated pages
-└── layouts/app.html        Authenticated pages (navbar + footer)
-└── layouts/admin.html      Admin panel (dark sidebar)
-    └── page templates
-        └── partials/       HTMX swap targets
-```
 
 ### Celery Beat Schedule
 
@@ -697,7 +502,6 @@ base.html                   Tailwind CDN, meta, scripts
 | `mark_completed_appointments` | Every 5 minutes |
 | `mark_no_show_appointments` | Every 10 minutes |
 | `extend_slots_for_all_doctors` | Daily at 02:00 UTC |
-| `send_license_expiry_reminders` | Daily at 08:00 UTC |
 
 ### Migration State
 
@@ -712,134 +516,136 @@ base.html                   Tailwind CDN, meta, scripts
 | support | 0002_seed_faqs |
 | knowledge_graph | 0001_initial |
 
----
-
-## Known Bugs
-
-These are confirmed broken - not gaps or missing features, but code that silently fails or errors at runtime. Fix before adding new features.
-
-| # | Severity | Bug |
-|---|----------|-----|
-| B1 | ✅ Fixed | **Group consultations silently broken** - changed `Appointment.slot` from `OneToOneField` → `ForeignKey`; added same-patient duplicate check and `select_for_update()` capacity enforcement. |
-| B2 | ✅ Fixed | **No booking/payment state machine** - added `booking_status` (held/confirmed/expired); Celery task expires held appointments after 15 min and frees the slot; webhook confirms payment; idempotency key on Stripe session; cancel view immediately frees slot. |
-| B3 | ✅ Fixed | **Patient data export has field mismatches** - fixed `profile.phone_number` → `user.phone` and `a.appointment_type` → `a.slot.appointment_type`; added assertion tests. |
-| B4 | ✅ Fixed | **"Join Call" URL is wrong** - corrected namespace from `consultation:video_room` to `consultations:join`. |
-| B5 | ✅ Fixed | **Admin decorator redirects to wrong namespace** - changed `accounts:login` → `login` (no namespace registered). |
-| B6 | → B13 | **2FA strict enforcement** - superseded by B13, resolved. |
-| B7 | ✅ Fixed | **CI never runs the test suite** - added `pytest --cov=apps --cov-fail-under=40` step to `django-ci.yml`. |
-| B8 | ✅ Fixed | **Slot booking has no row lock** - added `select_for_update()` at start of `book_appointment` transaction. |
-| B9 | ✅ Fixed | **Booking bypasses payment** - `patient_book_appointment()` now redirects to `payments:checkout` when `slot.get_price() > 0`; free slots confirmed immediately. `booking_status` = `held` on creation; API endpoint updated identically. |
-| B10 | ✅ Fixed | **Payment success page trusts browser redirect** - `payment_success()` now checks `payment.status`: `succeeded` → confirmed UI; `processing` → pending message; missing/failed → warning. Never trusts redirect alone. |
-| B11 | ✅ Fixed | **Checkout template uses nonexistent field** - `checkout.html` updated to `appointment.slot.get_price`; `amount_at_booking` stored on `Payment` at session creation time. |
-| B12 | ✅ Fixed | **Admin templates use stale field names** - replaced `profile_picture` → `has_profile_image()`/`get_profile_image_url()` and `phone_number` → `phone` across all 5 affected admin templates. |
-| B13 | ✅ Fixed | **2FA not strictly enforced for doctors/admins** - `EnforceTwoFactorMiddleware` now checks role before honouring skip flag; doctors/admins cannot bypass via session flag; patients may skip. Tests added for all three roles. |
+Two default orgs seeded by data migration:
+- **MedConsult Platform** (`platform`) - PlatOwner + PlatAdmin memberships
+- **MedConsult Demo Clinic** (`clinic`) - test doctors and clinical data
 
 ---
 
-## Known Limitations
+## Environment Variables
 
-- **Stripe payments** - admin refund button wired (`/internal/appointments/` → modal); patient-side refund request not yet implemented.
-- **Booking/payment state machine** - `booking_status` (held/confirmed/expired), 15-min slot hold timeout via Celery, webhook-first confirmation, idempotency key on Stripe session.
-- **Daily.co video** - API integration present; no test run documented. Raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
-- **Twilio SMS** - configured in `.env`; not verified with real credentials.
-- **Email sending** - uses Django console backend in dev (no real emails sent).
-- **Doctor location/geographic search** - `DoctorProfile` has no city/state/country fields; no location filter on doctor search.
-- **Private media** - health record downloads are now protected (`/patient/health-records/<id>/download/`). Profile images and doctor ID/license documents are still served directly from `/media/` without auth checks — not suitable for production PHI storage without signed URLs (P2 backlog).
-- **Production frontend assets** - Tailwind, HTMX, Alpine, Chart.js, Cytoscape all loaded from CDN. No CSP headers or SRI hashes yet.
-- **i18n** - `LocaleMiddleware` and `LANGUAGES` configured; zero translated `.po` files exist. UI is English-only.
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `SECRET_KEY` | Yes (prod) | Django secret key - startup raises `ImproperlyConfigured` if missing or insecure in production |
+| `DB_*` | Yes | `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_USER`, `DB_PASSWORD` |
+| `REDIS_HOST` / `REDIS_URL` | Yes | Redis connection |
+| `SENTRY_DSN` | Optional | Sentry error tracking - disabled if not set |
+| `SENTRY_TRACES_RATE` | Optional | Sample rate for performance tracing (default `0.1`) |
+| `DJANGO_LOG_LEVEL` | Optional | Django log level (default `INFO`) |
+| `STRIPE_PUBLISHABLE_KEY` | Optional | Stripe public key |
+| `STRIPE_SECRET_KEY` | Optional | Stripe secret key |
+| `STRIPE_WEBHOOK_SECRET` | Optional | Stripe webhook signing secret |
+| `DAILY_API_KEY` | Optional | Daily.co video rooms - raises `ImproperlyConfigured` in prod if missing |
+| `TWILIO_ACCOUNT_SID` | Optional | Twilio SMS |
+| `TWILIO_AUTH_TOKEN` | Optional | Twilio SMS |
+| `TWILIO_FROM_NUMBER` | Optional | Twilio SMS sender |
+| `EMAIL_HOST` / `EMAIL_PORT` | Optional | SMTP config for prod email |
+| `DEFAULT_FROM_EMAIL` | Optional | Sender address |
+
+See `.env.example` for all variables.
+
+---
+
+## Running Tests
+
+```bash
+# Run full test suite with coverage
+pytest --cov=apps --cov-fail-under=40
+
+# Run specific app
+pytest apps/accounts/
+pytest apps/scheduling/
+
+# Coverage report
+pytest --cov=apps --cov-report=term-missing
+```
+
+CI enforces **40% coverage minimum** on every push.
 
 ---
 
 ## Backlog
 
-> Items are ordered by impact. Bugs = confirmed broken code (fix first); P0 = security/HIPAA compliance; P1 = functional gaps; P2 = quality/ops; P3 = future features.
-
-### Bugs - Fix Before New Features
-
-| # | Status | Item |
-|---|--------|------|
-| B1 | ✅ Done | **Group booking DB fix** - `Appointment.slot` changed to `ForeignKey`; same-patient duplicate check + `select_for_update()` capacity enforcement added |
-| B2 | ✅ Done | **Booking/payment state machine** - `booking_status` field, 15-min hold timeout via Celery, webhook confirms, idempotency key, cancel view frees slot immediately |
-| B3 | ✅ Done | **Patient data export field audit** - fixed `phone_number` → `phone` and `appointment_type` path; assertion tests added |
-| B4 | ✅ Done | **"Join Call" URL fix** - corrected to `consultations:join` in `chat.html` |
-| B5 | ✅ Done | **Admin redirect namespace fix** - changed `accounts:login` → `login` |
-| B6 | → B13 | **2FA strict enforcement** - superseded by B13 (elevated, no longer deferred) |
-| B7 | ✅ Done | **CI actually run pytest** - `pytest --cov=apps --cov-fail-under=40` added to `django-ci.yml` |
-| B8 | ✅ Done | **Slot booking race condition** - `select_for_update()` added to `book_appointment` |
-| B9 | ✅ Done | **Booking bypasses payment** - `patient_book_appointment()` now redirects to `payments:checkout` when `slot.get_price() > 0`; free slots confirmed immediately. API endpoint updated identically. |
-| B10 | ✅ Done | **Payment success page trusts browser redirect** - `payment_success()` checks `payment.status` and shows three-state UI: succeeded / processing / warning. |
-| B11 | ✅ Done | **Checkout template uses nonexistent field** - `checkout.html` updated to `appointment.slot.get_price`; `amount_at_booking` stored on `Payment` at creation. |
-| B12 | ✅ Done | **Admin templates use stale field names** - `profile_picture` and `phone_number` corrected across all 5 affected admin templates. |
-| B13 | ✅ Done | **2FA not strictly enforced for doctors/admins** - role check added to `EnforceTwoFactorMiddleware`; patients may skip via session flag; doctors/admins cannot. Tests for all three roles. |
+> Items ordered by impact. P0 = security/HIPAA compliance; P1 = functional gaps; P2 = quality/ops; P3 = future features.
 
 ### P0 - Security & HIPAA Compliance
 
 | # | Status | Item |
 |---|--------|------|
-| P0-1 | ✅ Done | **PHI encrypted at rest** - `medical_license_number`, `account_number`, `routing_number`, prescription fields encrypted with `django-cryptography` |
-| P0-2 | ✅ Done | **2FA/MFA for doctors + admins** - TOTP via `django-two-factor-auth`; `EnforceTwoFactorMiddleware` redirects on first login |
-| P0-3 | ✅ Done | **Email verification enforced at login** - unverified users blocked, resend link shown |
-| P0-4 | ✅ Done | **`SECRET_KEY` insecure fallback removed** - `prod.py` raises `ImproperlyConfigured` if key is missing or starts with `django-insecure-` |
-| P0-5 | ✅ Done | **`HealthRecordAccessLog` wired** - logged on all doctor views and patient share actions |
-| P0-6 | ✅ Done | **Patient data export** - `/patient/export/` returns JSON with profile, appointments, health records, prescriptions |
-| P0-7 | ✅ Done | **Baseline test suite** - `pytest-django`, 40% coverage gate enforced in CI and locally |
-| P0-8 | ✅ Done | **Rate limiting expanded** - booking `10/h/user`, messaging `60/m/user`, API `30/m anon` + `120/m user` via DRF throttle |
-| P0-9 | ✅ Done | **Structured logging + Sentry** - `LOGGING` dict in `base.py`; Sentry auto-initialised when `SENTRY_DSN` is set |
-| P0-10 | ✅ Done | **Chat XSS vulnerability** - `chat.html` now uses `escapeHtml()` on all message content and attachment names; `safeUrl()` validates attachment URLs before rendering; server-side auto-escaping also active. |
-| P0-11 | ✅ Done | **Direct messaging too open** - `start_direct_message` view now verifies a prior `Appointment` exists between doctor and patient; returns 403 if none found; chat creation logged to `AdminActivityLog`. |
-| P0-12 | ✅ Done | **PHI files served without auth** - `health_record_download` view at `patient:health_record_download` verifies ownership or share permission before serving; rejects unauthorized with 403; every download logged to `HealthRecordAccessLog`. All templates updated to use protected URL. (Escalated from P2-10.) |
+| 1 | ✅ Done | **PHI encrypted at rest** - `medical_license_number`, `account_number`, `routing_number`, prescription fields encrypted with `django-cryptography` |
+| 2 | ✅ Done | **2FA for doctors + org staff** - TOTP via `django-two-factor-auth`; `EnforceTwoFactorMiddleware` enforces for all elevated roles |
+| 3 | ✅ Done | **Email verification enforced at login** - unverified users blocked, resend link shown |
+| 4 | ✅ Done | **`SECRET_KEY` insecure fallback removed** - `prod.py` raises `ImproperlyConfigured` if key is missing or starts with `django-insecure-` |
+| 5 | ✅ Done | **`HealthRecordAccessLog` wired** - logged on all doctor views and patient share actions |
+| 6 | ✅ Done | **Patient data export** - `/patient/export/` returns JSON with profile, appointments, health records, prescriptions |
+| 7 | ✅ Done | **Baseline test suite** - `pytest-django`, 40% coverage gate enforced in CI and locally |
+| 8 | ✅ Done | **Rate limiting** - booking `10/h/user`, messaging `60/m/user`, API `30/m anon` + `120/m user` via DRF throttle |
+| 9 | ✅ Done | **Structured logging + Sentry** - `LOGGING` dict in `base.py`; Sentry auto-initialised when `SENTRY_DSN` is set |
+| 10 | ✅ Done | **Chat XSS protection** - `escapeHtml()` / `safeUrl()` JS helpers; all user content rendered via DOM API |
+| 11 | ✅ Done | **Direct messaging auth** - doctors blocked from opening chats with patients they have no prior appointment with |
+| 12 | ✅ Done | **PHI file download auth** - `health_record_download` checks ownership/share/admin before serving; every download logged |
 
 ### P1 - Functional Gaps
 
 | # | Status | Item |
 |---|--------|------|
-| P1-1 | ✅ Done | **Real contact form + FAQ model** - persists to DB, emails admin via Celery; 8 default FAQs seeded |
-| P1-2 | 🔶 Partial | **Stripe end-to-end + refund button** - admin refund wired (`/internal/appointments/` → amber modal); patient-side refund request still open |
-| P1-3 | ✅ Done | **Daily.co: fix silent demo fallback** - raises `ImproperlyConfigured` in prod; logs warning in dev |
-| P1-4 | ✅ Done | **Message file attachments UI** - file input in chat, 10 MB max, extension allowlist, download links rendered |
-| P1-5 | ✅ Done | **"Join video call" from chat** - green "Join Call" button in chat header when active VideoRoom exists |
-| P1-6 | ✅ Done | **Group consultation browse filter** - "Group Sessions Available" checkbox in doctor search sidebar |
-| P1-7 | ✅ Done | **`send_welcome_email_task`** - now called from `verify_email_token` after email confirmation |
-| P1-8 | ✅ Done | **Doctor catalog API auth** - `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
-| P1-9 | ✅ Done | **Living Knowledge Graph** - `apps/knowledge_graph/` app; Cytoscape.js UI at `/internal/knowledge-graph/`; AI agent JSON at `/api/v1/knowledge-graph/`; auto-updates via Django signals + Celery + git hook |
-| P1-10 | ✅ Done | **Symptom intake → clinical risk routing** - `apps/scheduling/triage.py` checks selected symptoms + reason text against emergency keywords; blocks booking with ER-redirect card; "not a diagnosis" disclaimer shown throughout; booking view wired. |
-| P1-11 | ✅ Done | **Pre-visit telehealth readiness check** - `/consultation/readiness/<id>/` confirms private location, camera/mic, stable internet, consent, and no-recording acknowledgment before joining; non-video appointments bypassed. |
-| P1-12 | ✅ Done | **Provider verification depth** - `DoctorProfile` now has `npi_number`, `license_state`, `license_expiry_date`, `malpractice_insurance_expiry`, `board_certification`, `sanctions_checked`; `send_license_expiry_reminders` Celery Beat task (daily 08:00 UTC) emails warnings at 30/60/90-day windows. |
-| P1-13 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country`, optional `lat`/`lng`, `timezone` to `DoctorProfile`; wire into `get_filtered_doctors` |
-| P1-14 | 🔲 Open | **Insurance + price transparency** - insurance accepted field on doctor profile; estimated patient cost before booking; self-pay price display; cancellation fee preview; refund eligibility display; superbill PDF after completed appointment (ReportLab) |
-| P1-15 | 🔲 Open | **Care continuity page** - post-appointment summary: notes, prescriptions, shared files, follow-up date, billing/superbill, message link, download care packet; auto-generated when appointment → completed |
-| P1-16 | 🔲 Open | **Privacy Cockpit** - patient-facing trust center: who accessed my record, consent history, device/session log, revoke doctor access, download audit log, delete request workflow, "private mode" reminder before video visits |
-| P1-17 | 🔲 Open | **Patient-side refund request** - patient requests refund from appointments list; goes to admin review queue or auto-refunds if policy allows |
-| P1-18 | 🔲 Open | **Operational analytics** - no-show rate, cancelled slot rate, payment failure rate, avg wait time, refund rate, video connection failure rate, waitlist conversion; add to `/internal/` dashboard with Chart.js |
+| 13 | ✅ Done | **Real contact form + FAQ model** - persists to DB, emails admin via Celery; 8 default FAQs seeded |
+| 14 | ✅ Done | **Stripe refund (admin side)** - refund button in appointments table, inline modal, posts to `/internal/appointments/<id>/refund/` |
+| 15 | 🔲 Open | **Stripe refund (patient side)** - patient refund request UI not yet wired |
+| 16 | ✅ Done | **Daily.co: fix silent demo fallback** - raises `ImproperlyConfigured` in prod; logs warning in dev |
+| 17 | ✅ Done | **Message file attachments UI** - file input in chat, 10 MB max, extension allowlist, download links rendered |
+| 18 | ✅ Done | **"Join video call" from chat** - green "Join Call" button in chat header when active VideoRoom exists |
+| 19 | ✅ Done | **Group consultation browse filter** - "Group Sessions Available" checkbox in doctor search sidebar |
+| 20 | ✅ Done | **Welcome email task** - called from `verify_email_token` after email confirmation |
+| 21 | ✅ Done | **Doctor catalog API auth** - `DoctorListAPIView` + `DoctorSlotsAPIView` now require `IsAuthenticated` |
+| 22 | ✅ Done | **Living Knowledge Graph** - Cytoscape.js UI at `/internal/knowledge-graph/`; manual refresh with position retention + diff badge; AI agent JSON at `/api/v1/knowledge-graph/` |
+| 23 | ✅ Done | **Multi-tenant org system** - hospital signup, invite-based staff onboarding, role-scoped dashboards, PlatOwner approval flow |
+| 24 | ✅ Done | **Hospital user identity** - `hospital_user_id` per membership; `ProviderOrganizationProfile` for org-scoped doctor profiles |
+| 25 | ✅ Done | **PlatOwner org management** - drill into any org, view all members (active + inactive), enable/disable accounts, change roles |
+| 26 | ✅ Done | **Booking state machine** - `booking_status` (held/confirmed/expired/cancelled); Celery expires held after 15 min |
+| 27 | 🔲 Open | **Symptom risk routing** - emergency red flag detection (chest pain, stroke signs, etc.) should block booking and show ER warning |
+| 28 | 🔲 Open | **Doctor location/geographic search** - add `city`, `state`, `country` to `DoctorProfile`; wire into search filter |
+| 29 | 🔲 Open | **Pre-visit telehealth readiness check** - per-visit camera/mic test, private space confirmation, phone fallback |
+| 30 | 🔲 Open | **Superbill / insurance transparency** - PDF superbill after completed appointment; insurance fields on doctor profile |
+| 31 | 🔲 Open | **Care continuity page** - summary card after each appointment (notes, prescriptions, follow-up date, billing link) |
+| 32 | 🔲 Open | **Privacy Cockpit** - patient sees who accessed their records, consent history, device log; can revoke doctor access |
 
 ### P2 - Quality & Operational
 
 | # | Status | Item |
 |---|--------|------|
-| P2-1 | 🔲 Open | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
-| P2-2 | ✅ Done | **Argon2 password hasher** - `argon2-cffi==23.1.0` in requirements; `Argon2PasswordHasher` first in `PASSWORD_HASHERS`; PBKDF2 kept as fallback |
-| P2-3 | ✅ Done | **Session hardening** - `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`; `SESSION_COOKIE_AGE` reduced 86400 → 1800 (30 min) |
-| P2-4 | ✅ Done | **`.env.example` completed** - added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL` (all other vars were already present) |
-| P2-5 | 🔲 Open | Seed management commands - `seed_symptoms.py`, `seed_test_users.py` |
-| P2-6 | 🔲 Open | File upload magic-byte validation - replace client-`content_type` trust with `python-magic` MIME check + filename sanitization |
-| P2-7 | 🔲 Open | Bandit security scan in CI |
-| P2-8 | 🔲 Open | Document backup/DR - `pg_dump` cron for dev; managed DB PITR + S3 versioning for prod |
-| P2-9 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
-| P2-10 | ↑ P0-12 | **PHI file protection** - escalated to P0 (see item 12 above) |
-| P2-11 | 🔲 Open | **CSP / production asset hardening** - `Content-Security-Policy` headers (`django-csp`), SRI hashes for CDN scripts, no third-party tracking on health pages |
-| P2-12 | 🔲 Open | **Secure upload pipeline** - `python-magic` MIME detection, UUID filenames, strip original filename from storage path, block double extensions, hash every uploaded file, audit every download, antivirus scan |
-| P2-13 | 🔲 Open | **Test suite expansion** - paid booking flow, free booking flow, Stripe webhook success/failure, held appointment expiry, group slot capacity, same-patient duplicate group booking, appointment cancellation with payment, refund flow, direct chat authorization, chat XSS escaping, PHI file access permissions, 2FA doctor/admin enforcement, admin template smoke tests |
+| 33 | 🔲 Open | Add `ruff` linter/formatter + `.pre-commit-config.yaml` with `ruff` + `detect-secrets` |
+| 34 | ✅ Done | Switch to Argon2 password hasher (`argon2-cffi`); HIPAA-ready, memory-hard |
+| 35 | ✅ Done | Strengthen session security - `SESSION_COOKIE_HTTPONLY`, `SESSION_COOKIE_SAMESITE='Lax'`, `SESSION_COOKIE_AGE` 30 min |
+| 36 | ✅ Done | Complete `.env.example` - `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL` added |
+| 37 | 🔲 Open | File upload magic-byte validation - replace client `content_type` trust with `python-magic` MIME check + filename sanitization |
+| 38 | 🔲 Open | Bandit security scan in CI |
+| 39 | 🔲 Open | Private media PHI file architecture - signed short-lived URLs, per-object auth check, immutable access logs |
+| 40 | 🔲 Open | Content-Security-Policy headers (`django-csp`); SRI hashes for CDN scripts |
+| 41 | 🔲 Open | Accessibility pass - `aria-label` on icon buttons, `aria-live` for HTMX regions, `alt` on images |
+| 42 | 🔲 Open | Operational analytics dashboard - no-show rate, cancellation rate, payment failure rate, avg wait time |
 
 ### P3 - Future Features
 
-| # | Item | Notes |
-|---|------|-------|
-| P3-1 | **FHIR R4 export** | Phase 1: export-only JSON for Patient/Practitioner/Appointment/MedicationRequest/Condition/Encounter. Phase 2: import. Phase 3: SMART-on-FHIR. ONC Cures Act pushes this. |
-| P3-2 | **Remote patient monitoring - lite** | Patient-entered vitals (BP, glucose, weight, O2); threshold alerts; trend charts; CSV/FHIR export. Start manual, no wearables yet. |
-| P3-3 | **Asynchronous consults** | Text + photo async review (dermatology, lab review, second opinion). No slot required; different pricing tier. |
-| P3-4 | **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages (Spanish + French recommended) |
-| P3-5 | **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
-| P3-6 | **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
-| P3-7 | **Video session recording** | Hardcoded off (`consultations/services.py:50`); requires patient consent flow + encrypted storage |
-| P3-8 | **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts); requires vendor onboarding |
-| P3-9 | **Push notifications** | Web Push / FCM for mobile readiness; add after mobile app decision |
+| Item | Notes |
+|------|-------|
+| **i18n translations** | `LocaleMiddleware` wired; run `makemessages`, pick 2 target languages |
+| **React Native / Flutter mobile app** | Consume `/api/v1/`; API now requires authentication |
+| **Doctor payout via Stripe Connect** | Bank info stored but never reaches Stripe; add Express accounts + transfers |
+| **Video session recording** | Hardcoded off; requires patient consent flow + encrypted storage |
+| **ePrescribing integration** | Replace PDF-only prescriptions with pharmacy network (e.g. Surescripts) |
+| **FHIR R4 export** | Phase 1: export-only for Patient, Practitioner, Appointment, MedicationRequest |
+| **Remote patient monitoring (lite)** | Patient-entered vitals (BP, glucose, weight); threshold alerts; trend charts |
+| **Push notifications** | Web Push / FCM; register service worker now, defer until mobile app decision |
+| **Asynchronous consults** | Patient submits text + photos; doctor responds on their own time; different pricing tier |
+
+---
+
+## Known Limitations
+
+- **Stripe payments** - end-to-end flow configured; patient-side refund UI not yet wired.
+- **Daily.co video** - API integration present; raises `ImproperlyConfigured` in prod if `DAILY_API_KEY` is missing (safe fail).
+- **Twilio SMS** - configured in `.env`; not verified with real credentials.
+- **Email sending** - uses Django console backend in dev (no real emails sent).
+- **Doctor location/geographic search** - `DoctorProfile` has no city/state/country fields; no location filter on doctor search.
+- **i18n** - `LocaleMiddleware` and `LANGUAGES` configured; zero translated `.po` files exist. UI is English-only.

@@ -409,7 +409,7 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
             date=current_date
         ).first()
         if exception and not exception.start_time:
-            # Full-day block — skip slot generation entirely for this date
+            # Full-day block - skip slot generation entirely for this date
             current_date += timedelta(days=1)
             continue
 
@@ -422,7 +422,7 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
                         current_date += timedelta(days=1)
                         continue
                 else:
-                    # No specific date set — generate only the first matching weekday, then stop
+                    # No specific date set - generate only the first matching weekday, then stop
                     pass  # slots will be created below, then we break after
             elif availability_window.end_date and current_date > availability_window.end_date:
                 break
@@ -529,12 +529,12 @@ def book_appointment(slot, patient, reason=''):
         slot.is_booked = True
         slot.save()
 
-    # Propagate org from slot — fails closed if slot has no org
+    # Propagate org from slot - fails closed if slot has no org
     org = getattr(slot, 'organization', None)
     if org is None:
         raise ValueError('Slot has no organization; cannot create appointment.')
 
-    # Create appointment as held — caller confirms after payment or immediately for free slots
+    # Create appointment as held - caller confirms after payment or immediately for free slots
     appointment = Appointment.objects.create(
         slot=slot,
         patient=patient,

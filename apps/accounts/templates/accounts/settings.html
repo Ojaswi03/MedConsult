@@ -130,9 +130,9 @@
                         <p class="font-medium text-gray-900 dark:text-white">Backup Codes</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             {% if backup_codes_remaining > 0 %}
-                                <span class="text-green-600 dark:text-green-400 font-medium">{{ backup_codes_remaining }}</span> codes remaining — use these if you lose your phone
+                                <span class="text-green-600 dark:text-green-400 font-medium">{{ backup_codes_remaining }}</span> codes remaining - use these if you lose your phone
                             {% else %}
-                                <span class="text-red-500 font-medium">No codes left</span> — regenerate now to avoid lockout
+                                <span class="text-red-500 font-medium">No codes left</span> - regenerate now to avoid lockout
                             {% endif %}
                         </p>
                     </div>
@@ -161,7 +161,7 @@
                         <p class="font-medium text-gray-900 dark:text-white">Disable Two-Factor Authentication</p>
                         <p class="text-sm text-gray-500 dark:text-gray-400">
                             {% if user.role in 'doctor admin' %}
-                                <span class="text-amber-600 dark:text-amber-400">Required for your role</span> — disabling reduces account security
+                                <span class="text-amber-600 dark:text-amber-400">Required for your role</span> - disabling reduces account security
                             {% else %}
                                 Remove 2FA protection from your account
                             {% endif %}

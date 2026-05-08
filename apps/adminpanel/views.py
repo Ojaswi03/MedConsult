@@ -18,11 +18,12 @@ from . import services
 
 
 def admin_required(view_func):
-    """Decorator to restrict access to admin users only."""
+    """Decorator to restrict access to platform staff only."""
     def wrapper(request, *args, **kwargs):
         if not request.user.is_authenticated:
             return redirect('login')
-        if request.user.role != 'admin':
+        from apps.accounts.permissions import is_platform_staff
+        if not is_platform_staff(request.user):
             return HttpResponseForbidden("Access denied. Admins only.")
         return view_func(request, *args, **kwargs)
     return wrapper
@@ -779,8 +780,8 @@ def organization_detail(request, org_id):
     _platform_forbidden(request)
     org = get_object_or_404(Organization, id=org_id)
     memberships = OrganizationMembership.objects.filter(
-        organization=org, is_active=True,
-    ).select_related('user')
+        organization=org,
+    ).select_related('user').order_by('-is_active', 'role', 'user__first_name')
     return render(request, 'adminpanel/organizations/detail.html', {
         'org': org,
         'memberships': memberships,
@@ -812,7 +813,7 @@ def organization_reject(request, org_id):
     org.rejected_reason = reason
     org.save(update_fields=['status', 'rejected_reason'])
     _notify_org_owner_status(org, 'rejected', reason=reason)
-    services.log_admin_action(request.user, 'org_rejected', description=f"Rejected: {org.name} — {reason}")
+    services.log_admin_action(request.user, 'org_rejected', description=f"Rejected: {org.name} - {reason}")
     messages.warning(request, f"{org.name} rejected.")
     return redirect('adminpanel:organization_list')
 
@@ -884,7 +885,68 @@ def org_member_detail(request, org_id, membership_id):
         'member': membership.user,
         'provider_profile': provider_profile,
         'recent_appointments': appointments,
+        'role_choices': OrganizationMembership.ROLE_CHOICES,
     })
+
+
+@login_required
+@require_POST
+def org_member_toggle_membership(request, org_id, membership_id):
+    _platform_forbidden(request)
+    from apps.accounts.models import Organization, OrganizationMembership
+    org = get_object_or_404(Organization, id=org_id)
+    membership = get_object_or_404(OrganizationMembership, id=membership_id, organization=org)
+    membership.is_active = not membership.is_active
+    membership.save(update_fields=['is_active'])
+    action = 'activated' if membership.is_active else 'deactivated'
+    services.log_admin_action(
+        request.user, 'membership_toggled',
+        description=f"Membership {action}: {membership.user.email} in {org.name}",
+    )
+    messages.success(request, f"Membership {action}.")
+    return redirect('adminpanel:org_member_detail', org_id=org_id, membership_id=membership_id)
+
+
+@login_required
+@require_POST
+def org_member_toggle_account(request, org_id, membership_id):
+    _platform_forbidden(request)
+    from apps.accounts.models import Organization, OrganizationMembership
+    org = get_object_or_404(Organization, id=org_id)
+    membership = get_object_or_404(OrganizationMembership, id=membership_id, organization=org)
+    user = membership.user
+    user.is_active = not user.is_active
+    user.save(update_fields=['is_active'])
+    action = 'enabled' if user.is_active else 'disabled'
+    services.log_admin_action(
+        request.user, 'user_toggled',
+        description=f"Account {action}: {user.email}",
+    )
+    messages.success(request, f"Account {action}.")
+    return redirect('adminpanel:org_member_detail', org_id=org_id, membership_id=membership_id)
+
+
+@login_required
+@require_POST
+def org_member_change_role(request, org_id, membership_id):
+    _platform_forbidden(request)
+    from apps.accounts.models import Organization, OrganizationMembership
+    org = get_object_or_404(Organization, id=org_id)
+    membership = get_object_or_404(OrganizationMembership, id=membership_id, organization=org)
+    new_role = request.POST.get('role', '').strip()
+    valid_roles = [r[0] for r in OrganizationMembership.ROLE_CHOICES]
+    if new_role not in valid_roles:
+        messages.error(request, "Invalid role.")
+        return redirect('adminpanel:org_member_detail', org_id=org_id, membership_id=membership_id)
+    old_role = membership.role
+    membership.role = new_role
+    membership.save(update_fields=['role'])
+    services.log_admin_action(
+        request.user, 'membership_role_changed',
+        description=f"Role changed {old_role} -> {new_role}: {membership.user.email} in {org.name}",
+    )
+    messages.success(request, f"Role changed to {new_role}.")
+    return redirect('adminpanel:org_member_detail', org_id=org_id, membership_id=membership_id)
 
 
 def _notify_org_owner_status(org, action, reason=''):

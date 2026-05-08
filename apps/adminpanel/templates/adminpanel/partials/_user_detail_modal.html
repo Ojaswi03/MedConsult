@@ -6,17 +6,17 @@
             <img class="w-16 h-16 rounded-full object-cover" src="{{ user.get_profile_image_url }}" alt="">
             {% else %}
             <div class="w-16 h-16 rounded-full bg-gray-200 flex items-center justify-center">
-                <span class="text-gray-600 font-bold text-xl">
+                <span class="text-gray-600 dark:text-gray-400 font-bold text-xl">
                     {{ user.first_name|slice:":1"|upper }}{{ user.last_name|slice:":1"|upper }}
                 </span>
             </div>
             {% endif %}
             <div class="ml-4">
-                <h3 class="text-xl font-bold text-gray-900">{{ user.get_display_name }}</h3>
-                <p class="text-sm text-gray-500">{{ user.email }}</p>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">{{ user.get_display_name }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ user.email }}</p>
             </div>
         </div>
-        <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600">
+        <button onclick="closeUserModal()" class="text-gray-400 hover:text-gray-600 dark:text-gray-400">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -25,42 +25,42 @@
 
     <!-- User Info Grid -->
     <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Role</p>
-            <p class="font-medium text-gray-900">{{ user.role|title }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Role</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ user.role|title }}</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Status</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Status</p>
             <p class="font-medium {% if user.is_active %}text-green-600{% else %}text-red-600{% endif %}">
                 {% if user.is_active %}Active{% else %}Inactive{% endif %}
             </p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Username</p>
-            <p class="font-medium text-gray-900">{{ user.username }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Username</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ user.username }}</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Joined</p>
-            <p class="font-medium text-gray-900">{{ user.created_at|date:"M d, Y" }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Joined</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ user.created_at|date:"M d, Y" }}</p>
         </div>
         {% if user.phone %}
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Phone</p>
-            <p class="font-medium text-gray-900">{{ user.phone }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Phone</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ user.phone }}</p>
         </div>
         {% endif %}
         {% if user.date_of_birth %}
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Date of Birth</p>
-            <p class="font-medium text-gray-900">{{ user.date_of_birth|date:"M d, Y" }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Date of Birth</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ user.date_of_birth|date:"M d, Y" }}</p>
         </div>
         {% endif %}
     </div>
 
     <!-- Profile Specific Info -->
     {% if profile %}
-    <div class="border-t border-gray-200 pt-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">
             {% if user.role == 'doctor' %}Doctor Profile{% else %}Patient Profile{% endif %}
         </h4>
 
@@ -68,7 +68,7 @@
         <div class="grid grid-cols-2 gap-4">
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">Specialization</p>
-                <p class="font-medium text-gray-900">{{ profile.specialization }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ profile.specialization }}</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">Verification</p>
@@ -78,15 +78,15 @@
             </div>
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">License Number</p>
-                <p class="font-medium text-gray-900">{{ profile.medical_license_number }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ profile.medical_license_number }}</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">Experience</p>
-                <p class="font-medium text-gray-900">{{ profile.years_of_experience }} years</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ profile.years_of_experience }} years</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">Consultation Fee</p>
-                <p class="font-medium text-gray-900">${{ profile.consultation_fee }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">${{ profile.consultation_fee }}</p>
             </div>
         </div>
         {% elif user.role == 'patient' %}
@@ -94,13 +94,13 @@
             {% if profile.blood_type %}
             <div class="bg-green-50 rounded-lg p-4">
                 <p class="text-sm text-green-600">Blood Type</p>
-                <p class="font-medium text-gray-900">{{ profile.blood_type }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ profile.blood_type }}</p>
             </div>
             {% endif %}
             {% if profile.emergency_contact_name %}
             <div class="bg-green-50 rounded-lg p-4">
                 <p class="text-sm text-green-600">Emergency Contact</p>
-                <p class="font-medium text-gray-900">{{ profile.emergency_contact_name }}</p>
+                <p class="font-medium text-gray-900 dark:text-white">{{ profile.emergency_contact_name }}</p>
             </div>
             {% endif %}
         </div>
@@ -110,26 +110,26 @@
 
     <!-- Statistics -->
     {% if stats %}
-    <div class="border-t border-gray-200 pt-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Statistics</h4>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Statistics</h4>
         <div class="grid grid-cols-3 gap-4">
-            <div class="text-center bg-gray-50 rounded-lg p-4">
-                <p class="text-2xl font-bold text-gray-900">{{ stats.total_appointments|default:0 }}</p>
-                <p class="text-sm text-gray-500">Total Appointments</p>
+            <div class="text-center bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ stats.total_appointments|default:0 }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Appointments</p>
             </div>
-            <div class="text-center bg-gray-50 rounded-lg p-4">
+            <div class="text-center bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-green-600">{{ stats.completed|default:0 }}</p>
-                <p class="text-sm text-gray-500">Completed</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Completed</p>
             </div>
             {% if user.role == 'patient' %}
-            <div class="text-center bg-gray-50 rounded-lg p-4">
+            <div class="text-center bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-red-600">{{ stats.cancelled|default:0 }}</p>
-                <p class="text-sm text-gray-500">Cancelled</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Cancelled</p>
             </div>
             {% elif user.role == 'doctor' %}
-            <div class="text-center bg-gray-50 rounded-lg p-4">
+            <div class="text-center bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-blue-600">{{ stats.available_slots|default:0 }}</p>
-                <p class="text-sm text-gray-500">Available Slots</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Available Slots</p>
             </div>
             {% endif %}
         </div>
@@ -138,20 +138,20 @@
 
     <!-- Recent Appointments -->
     {% if appointments %}
-    <div class="border-t border-gray-200 pt-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Recent Appointments</h4>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Recent Appointments</h4>
         <div class="space-y-3">
             {% for apt in appointments|slice:":5" %}
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+            <div class="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-900/50 rounded-lg">
                 <div>
-                    <p class="text-sm font-medium text-gray-900">
+                    <p class="text-sm font-medium text-gray-900 dark:text-white">
                         {% if user.role == 'patient' %}
                         Dr. {{ apt.doctor.user.get_display_name|default:"Unknown" }}
                         {% else %}
                         {{ apt.patient.get_display_name|default:"Unknown" }}
                         {% endif %}
                     </p>
-                    <p class="text-xs text-gray-500">
+                    <p class="text-xs text-gray-500 dark:text-gray-400">
                         {% if apt.slot %}{{ apt.slot.start_datetime|date:"M d, Y H:i" }}{% endif %}
                     </p>
                 </div>
@@ -169,8 +169,8 @@
     {% endif %}
 
     <!-- Actions -->
-    <div class="border-t border-gray-200 pt-6 mt-6 flex justify-end space-x-3">
-        {% if user.role != 'admin' %}
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mt-6 flex justify-end space-x-3">
+        {% if user.role != 'platform_owner' and user.role != 'platform_admin' %}
         <form method="post" action="{% url 'adminpanel:user_toggle_active' user.id %}" class="inline">
             {% csrf_token %}
             <button type="submit"
@@ -180,7 +180,7 @@
         </form>
         {% endif %}
         <button onclick="closeUserModal()"
-                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                class="px-4 py-2 bg-gray-200 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 transition-colors">
             Close
         </button>
     </div>

@@ -45,7 +45,7 @@ def create_video_room(appointment):
                 'DAILY_API_KEY is required for video consultations in production.'
             )
         logger.warning(
-            'DAILY_API_KEY not set — video consultation room will not connect. '
+            'DAILY_API_KEY not set - video consultation room will not connect. '
             'Set DAILY_API_KEY in your .env to enable real video calls.'
         )
         room_url = f'https://medconsult.daily.co/{room_name}'

@@ -141,7 +141,7 @@ class PatientDataExportTests(TestCase):
         import json
         data = json.loads(resp.content)
         profile = data['profile']
-        assert 'phone' in profile, "profile.phone missing — was phone_number (wrong field)"
+        assert 'phone' in profile, "profile.phone missing - was phone_number (wrong field)"
         assert 'address' in profile
         assert 'phone_number' not in profile, "stale phone_number key present"
         for appt in data['appointments']:
@@ -230,7 +230,7 @@ class HealthRecordDownloadTests(TestCase):
         )
 
 
-# ── P1-10: Symptom triage — emergency red-flag detection ──────────────────────
+# ── P1-10: Symptom triage - emergency red-flag detection ──────────────────────
 
 class TriageTests(TestCase):
     """Unit tests for the triage.check_emergency_flags helper."""

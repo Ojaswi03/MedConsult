@@ -39,11 +39,11 @@ class User(AbstractUser):
     """Custom user model with username/email authentication and role-based access."""
 
     ROLE_CHOICES = [
-        ('platform_owner', 'Platform Owner'),
-        ('platform_admin', 'Platform Admin'),
+        ('platform_owner', 'PlatOwner'),
+        ('platform_admin', 'PlatAdmin'),
         ('doctor', 'Doctor'),
         ('patient', 'Patient'),
-        ('org_user', 'Organization User'),
+        ('org_user', 'Org User'),
     ]
 
     THEME_CHOICES = [
@@ -440,10 +440,10 @@ class Organization(models.Model):
 
 class OrganizationMembership(models.Model):
     ROLE_CHOICES = [
-        ('platform_owner', 'Platform Owner'),
-        ('platform_admin', 'Platform Admin'),
-        ('hospital_owner', 'Hospital Owner'),
-        ('hospital_admin', 'Hospital Admin'),
+        ('platform_owner', 'PlatOwner'),
+        ('platform_admin', 'PlatAdmin'),
+        ('hospital_owner', 'Org Owner'),
+        ('hospital_admin', 'Org Admin'),
         ('doctor', 'Doctor'),
         ('scheduler', 'Scheduler'),
         ('billing_staff', 'Billing Staff'),
@@ -494,7 +494,7 @@ class OrganizationMembership(models.Model):
         ]
 
     def __str__(self):
-        return f"{self.user.email} — {self.role} @ {self.organization.name}"
+        return f"{self.user.email} - {self.role} @ {self.organization.name}"
 
 
 class OrganizationInvite(models.Model):

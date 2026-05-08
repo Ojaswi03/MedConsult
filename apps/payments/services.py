@@ -75,7 +75,7 @@ def create_checkout_session(appointment, success_url, cancel_url, request=None):
             },
         )
 
-        # Mark appointment as held — awaiting payment confirmation
+        # Mark appointment as held - awaiting payment confirmation
         appointment.booking_status = 'held'
         appointment.save(update_fields=['booking_status'])
 

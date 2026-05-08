@@ -12,8 +12,8 @@
             </div>
             {% endif %}
             <div class="ml-4">
-                <h3 class="text-xl font-bold text-gray-900">Dr. {{ doctor.user.get_display_name }}</h3>
-                <p class="text-sm text-gray-500">{{ doctor.specialization }}</p>
+                <h3 class="text-xl font-bold text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h3>
+                <p class="text-sm text-gray-500 dark:text-gray-400">{{ doctor.specialization }}</p>
                 <span class="inline-flex px-2 py-1 text-xs font-medium rounded-full mt-1
                     {% if doctor.verification_status == 'verified' %}bg-green-100 text-green-800
                     {% elif doctor.verification_status == 'pending' %}bg-yellow-100 text-yellow-800
@@ -22,7 +22,7 @@
                 </span>
             </div>
         </div>
-        <button onclick="closeDoctorModal()" class="text-gray-400 hover:text-gray-600">
+        <button onclick="closeDoctorModal()" class="text-gray-400 hover:text-gray-600 dark:text-gray-400">
             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
             </svg>
@@ -31,87 +31,87 @@
 
     <!-- Doctor Info -->
     <div class="grid grid-cols-2 gap-4 mb-6">
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Email</p>
-            <p class="font-medium text-gray-900">{{ doctor.user.email }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Email</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ doctor.user.email }}</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">License Number</p>
-            <p class="font-medium text-gray-900">{{ doctor.medical_license_number }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">License Number</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ doctor.medical_license_number }}</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Experience</p>
-            <p class="font-medium text-gray-900">{{ doctor.years_of_experience }} years</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Experience</p>
+            <p class="font-medium text-gray-900 dark:text-white">{{ doctor.years_of_experience }} years</p>
         </div>
-        <div class="bg-gray-50 rounded-lg p-4">
-            <p class="text-sm text-gray-500">Consultation Fee</p>
-            <p class="font-medium text-gray-900">${{ doctor.consultation_fee }}</p>
+        <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+            <p class="text-sm text-gray-500 dark:text-gray-400">Consultation Fee</p>
+            <p class="font-medium text-gray-900 dark:text-white">${{ doctor.consultation_fee }}</p>
         </div>
     </div>
 
     <!-- Statistics -->
-    <div class="border-t border-gray-200 pt-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Performance Statistics</h4>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Performance Statistics</h4>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center bg-blue-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-blue-600">{{ total_slots }}</p>
-                <p class="text-sm text-gray-500">Total Slots</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total Slots</p>
             </div>
             <div class="text-center bg-green-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-green-600">{{ available_slots }}</p>
-                <p class="text-sm text-gray-500">Available</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Available</p>
             </div>
             <div class="text-center bg-purple-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-purple-600">{{ booked_slots }}</p>
-                <p class="text-sm text-gray-500">Booked</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Booked</p>
             </div>
-            <div class="text-center bg-gray-50 rounded-lg p-4">
-                <p class="text-2xl font-bold text-gray-600">{{ blocked_slots }}</p>
-                <p class="text-sm text-gray-500">Blocked</p>
+            <div class="text-center bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4">
+                <p class="text-2xl font-bold text-gray-600 dark:text-gray-400">{{ blocked_slots }}</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Blocked</p>
             </div>
         </div>
     </div>
 
     <!-- Appointment Stats -->
-    <div class="border-t border-gray-200 pt-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Appointment Statistics</h4>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Appointment Statistics</h4>
         <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div class="text-center bg-indigo-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-indigo-600">{{ total_appointments }}</p>
-                <p class="text-sm text-gray-500">Total</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Total</p>
             </div>
             <div class="text-center bg-green-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-green-600">{{ completed_appointments }}</p>
-                <p class="text-sm text-gray-500">Completed</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Completed</p>
             </div>
             <div class="text-center bg-red-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-red-600">{{ cancelled_appointments }}</p>
-                <p class="text-sm text-gray-500">Cancelled</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">Cancelled</p>
             </div>
             <div class="text-center bg-yellow-50 rounded-lg p-4">
                 <p class="text-2xl font-bold text-yellow-600">{{ no_show_appointments }}</p>
-                <p class="text-sm text-gray-500">No-Shows</p>
+                <p class="text-sm text-gray-500 dark:text-gray-400">No-Shows</p>
             </div>
         </div>
     </div>
 
     <!-- Revenue -->
-    <div class="border-t border-gray-200 pt-6 mb-6">
-        <h4 class="text-lg font-semibold text-gray-900 mb-4">Revenue</h4>
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 mb-6">
+        <h4 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Revenue</h4>
         <div class="grid grid-cols-2 gap-4">
             <div class="bg-green-50 rounded-lg p-4">
                 <p class="text-sm text-green-600">Potential Revenue (Completed)</p>
-                <p class="text-2xl font-bold text-gray-900">${{ potential_revenue }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">${{ potential_revenue }}</p>
             </div>
             <div class="bg-blue-50 rounded-lg p-4">
                 <p class="text-sm text-blue-600">Last 30 Days Appointments</p>
-                <p class="text-2xl font-bold text-gray-900">{{ appointments_30d }}</p>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">{{ appointments_30d }}</p>
             </div>
         </div>
     </div>
 
     <!-- Actions -->
-    <div class="border-t border-gray-200 pt-6 flex justify-end space-x-3">
+    <div class="border-t border-gray-200 dark:border-gray-700 pt-6 flex justify-end space-x-3">
         {% if doctor.verification_status == 'pending' %}
         <a href="{% url 'adminpanel:verification_queue' %}"
            class="px-4 py-2 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors">
@@ -119,7 +119,7 @@
         </a>
         {% endif %}
         <button onclick="closeDoctorModal()"
-                class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                class="px-4 py-2 bg-gray-200 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 transition-colors">
             Close
         </button>
     </div>

@@ -30,7 +30,7 @@ def get_doctor_availability_windows(doctor_profile, organization=None):
 
 
 def get_patient_appointments(patient, status=None):
-    """Patient-owned — scoped by patient FK only, never by org."""
+    """Patient-owned - scoped by patient FK only, never by org."""
     query = Q(patient=patient)
     if status:
         query &= Q(status=status)

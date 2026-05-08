@@ -4,29 +4,29 @@
 
 {% block content %}
 <div>
-    <h1 class="text-3xl font-bold text-gray-900 mb-8">Appointments Audit Log</h1>
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-8">Appointments Audit Log</h1>
 
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
+        <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900/50">
                 <tr>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Patient</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Doctor</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date/Time</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Patient</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Doctor</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Date/Time</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Status</th>
+                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Created</th>
                 </tr>
             </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
+            <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {% for appointment in appointments %}
-                <tr class="hover:bg-gray-50">
+                <tr class="hover:bg-gray-50 dark:bg-gray-900/50">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span class="font-medium">{{ appointment.patient.get_display_name }}</span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
                         <span>Dr. {{ appointment.doctor.user.get_display_name }}</span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                         {{ appointment.start_datetime|date:"M j, Y g:i A" }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap">
@@ -38,7 +38,7 @@
                             {{ appointment.status|title }}
                         </span>
                     </td>
-                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
+                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600 dark:text-gray-400">
                         {{ appointment.created_at|date:"M j, Y" }}
                     </td>
                 </tr>

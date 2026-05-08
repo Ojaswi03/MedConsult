@@ -99,7 +99,7 @@ def start_conversation(request, appointment_id):
 @ratelimit(key='user', rate='60/m', method='POST', block=True)
 def send_message_view(request, conversation_id):
     """
-    Send a message (text or file) in a conversation — HTTP fallback for non-WebSocket.
+    Send a message (text or file) in a conversation - HTTP fallback for non-WebSocket.
     File uploads must use this endpoint; text can also use it as fallback.
     """
     conversation = get_conversation_for_user(conversation_id, request.user)

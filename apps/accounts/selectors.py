@@ -123,7 +123,7 @@ def get_filtered_doctors(
     if offers_second_opinions is not None:
         queryset = queryset.filter(offers_second_opinions=offers_second_opinions)
 
-    # Group sessions filter — only doctors with at least one available group slot
+    # Group sessions filter - only doctors with at least one available group slot
     if group_sessions_only:
         from apps.scheduling.models import Slot
         now = timezone.now()

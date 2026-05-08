@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Create Account — MedConsult{% endblock %}
+{% block title %}Create Account - MedConsult{% endblock %}
 
 {% block body %}
 <style>
@@ -115,7 +115,7 @@
       <div class="flex items-center gap-3 bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-4 py-3">
         <div class="w-7 h-7 bg-blue-500/40 border border-blue-400/40 rounded-lg flex items-center justify-center flex-shrink-0 text-xs font-bold text-white">{{ step }}</div>
         <p class="text-xs text-blue-100">
-          {% if step == "1" %}Choose your role — patient or doctor{% elif step == "2" %}Complete your profile securely{% else %}Start your healthcare journey{% endif %}
+          {% if step == "1" %}Choose your role - patient or doctor{% elif step == "2" %}Complete your profile securely{% else %}Start your healthcare journey{% endif %}
         </p>
       </div>
       {% endfor %}

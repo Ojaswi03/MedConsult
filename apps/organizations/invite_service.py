@@ -41,7 +41,7 @@ def _send_invite_email(invite: OrganizationInvite, raw_token: str) -> None:
                 f"Accept your invitation here:\n{accept_url}\n\n"
                 f"This link expires in 7 days.\n\n"
                 f"If you did not expect this invitation, you can ignore this email.\n\n"
-                f"— MedConsult Team"
+                f"- MedConsult Team"
             ),
             from_email=settings.DEFAULT_FROM_EMAIL,
             recipient_list=[invite.email],

@@ -2,9 +2,9 @@
 Permission helpers for MedConsult multi-tenant access control.
 
 Three tiers:
-  Tier 1 — Global account checks (User.role)
-  Tier 2 — Org membership checks (OrganizationMembership.role)
-  Tier 3 — Action checks (combine tier 1 + 2 + object relationships)
+  Tier 1 - Global account checks (User.role)
+  Tier 2 - Org membership checks (OrganizationMembership.role)
+  Tier 3 - Action checks (combine tier 1 + 2 + object relationships)
 
 All helpers fail closed: unauthenticated / None users return False.
 """
@@ -85,7 +85,7 @@ def get_user_organizations(user):
 def has_any_elevated_membership(user) -> bool:
     """
     True if user has any active org membership with an elevated role.
-    Used by 2FA middleware — does NOT depend on selected org.
+    Used by 2FA middleware - does NOT depend on selected org.
     """
     if not user or not getattr(user, 'is_authenticated', False):
         return False
@@ -141,7 +141,7 @@ def get_invitable_roles(user, organization) -> list:
 
 
 def can_manage_org_appointments(user, organization) -> bool:
-    """Org-wide appointment management — doctors excluded (they use can_manage_own_appointment)."""
+    """Org-wide appointment management - doctors excluded (they use can_manage_own_appointment)."""
     return is_platform_staff(user) or has_org_role(
         user, organization,
         ['hospital_owner', 'hospital_admin', 'scheduler'],
@@ -245,5 +245,5 @@ def can_view_health_record(user, record) -> bool:
 
 
 def can_break_glass_access_phi(user, record, reason) -> bool:
-    """Stub — returns False until break-glass workflow is implemented."""
+    """Stub - returns False until break-glass workflow is implemented."""
     return False

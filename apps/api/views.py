@@ -25,7 +25,7 @@ from .permissions import IsPatient, IsDoctor
 
 
 class DoctorListAPIView(generics.ListAPIView):
-    """GET /api/v1/doctors/ — List verified doctors with optional filters."""
+    """GET /api/v1/doctors/ - List verified doctors with optional filters."""
     serializer_class = DoctorProfileSerializer
     permission_classes = [IsAuthenticated]
 
@@ -46,7 +46,7 @@ class DoctorListAPIView(generics.ListAPIView):
 
 
 class DoctorSlotsAPIView(generics.ListAPIView):
-    """GET /api/v1/doctors/<id>/slots/ — List available slots for a doctor."""
+    """GET /api/v1/doctors/<id>/slots/ - List available slots for a doctor."""
     serializer_class = SlotSerializer
     permission_classes = [IsAuthenticated]
 
@@ -59,7 +59,7 @@ class DoctorSlotsAPIView(generics.ListAPIView):
 @api_view(['POST'])
 @permission_classes([IsPatient])
 def book_appointment_api(request, slot_id):
-    """POST /api/v1/slots/<id>/book/ — Book a slot."""
+    """POST /api/v1/slots/<id>/book/ - Book a slot."""
     try:
         slot = Slot.objects.get(id=slot_id)
     except Slot.DoesNotExist:
@@ -92,7 +92,7 @@ def book_appointment_api(request, slot_id):
 
 
 class PatientAppointmentsAPIView(generics.ListAPIView):
-    """GET /api/v1/appointments/ — List patient's appointments."""
+    """GET /api/v1/appointments/ - List patient's appointments."""
     serializer_class = AppointmentSerializer
     permission_classes = [IsPatient]
 
@@ -102,7 +102,7 @@ class PatientAppointmentsAPIView(generics.ListAPIView):
 
 
 class NotificationListAPIView(generics.ListAPIView):
-    """GET /api/v1/notifications/ — List user notifications."""
+    """GET /api/v1/notifications/ - List user notifications."""
     serializer_class = NotificationSerializer
     permission_classes = [IsAuthenticated]
 
@@ -115,7 +115,7 @@ class NotificationListAPIView(generics.ListAPIView):
 @api_view(['POST'])
 @permission_classes([IsAuthenticated])
 def mark_notification_read_api(request, notif_id):
-    """POST /api/v1/notifications/<id>/read/ — Mark notification as read."""
+    """POST /api/v1/notifications/<id>/read/ - Mark notification as read."""
     try:
         notif = Notification.objects.get(id=notif_id, user=request.user)
         notif.is_read = True

@@ -18,7 +18,7 @@
     </div>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-            <thead class="bg-gray-50 dark:bg-gray-700">
+            <thead class="bg-gray-50 dark:bg-gray-900/50 dark:bg-gray-700">
                 <tr>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Record Patient</th>
                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Accessed By</th>
@@ -29,7 +29,7 @@
             </thead>
             <tbody class="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
                 {% for log in logs %}
-                <tr class="hover:bg-gray-50 dark:hover:bg-gray-700">
+                <tr class="hover:bg-gray-50 dark:bg-gray-900/50 dark:hover:bg-gray-700">
                     <td class="px-6 py-4 whitespace-nowrap">
                         <div class="flex items-center">
                             <div class="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900 flex items-center justify-center flex-shrink-0">
@@ -71,11 +71,11 @@
                         </span>
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700 dark:text-gray-300">
-                        {{ log.ip_address|default:"—" }}
+                        {{ log.ip_address|default:"-" }}
                     </td>
                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {{ log.created_at|date:"M d, Y" }}
-                        <span class="text-xs text-gray-400 dark:text-gray-500 ml-1">{{ log.created_at|time:"H:i:s" }}</span>
+                        <span class="text-xs text-gray-400 dark:text-gray-500 dark:text-gray-400 ml-1">{{ log.created_at|time:"H:i:s" }}</span>
                     </td>
                 </tr>
                 {% empty %}
@@ -94,7 +94,7 @@
 {% if has_more %}
 <div class="mt-4 flex justify-center">
     <a href="?page={{ page|add:1 }}"
-       class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+       class="px-4 py-2 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:bg-gray-900/50 dark:hover:bg-gray-700 transition-colors">
         Next Page
     </a>
 </div>

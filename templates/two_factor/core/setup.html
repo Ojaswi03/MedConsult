@@ -39,9 +39,9 @@
 {% elif wizard.steps.current == 'validation' %}
   {% if challenge_succeeded %}
     {% if device.method == 'call' %}
-      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We are calling your phone now — enter the digits you hear.{% endblocktrans %}</p>
+      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We are calling your phone now - enter the digits you hear.{% endblocktrans %}</p>
     {% elif device.method == 'sms' %}
-      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We sent you a text message — enter the token we sent.{% endblocktrans %}</p>
+      <p class="text-gray-600 dark:text-gray-400 text-sm text-center mb-6">{% blocktrans trimmed %}We sent you a text message - enter the token we sent.{% endblocktrans %}</p>
     {% endif %}
   {% else %}
     <div class="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 rounded-lg p-3 mb-6">

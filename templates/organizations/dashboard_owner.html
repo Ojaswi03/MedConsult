@@ -1,6 +1,12 @@
 {% extends "layouts/app.html" %}
 {% block title %}{{ org.name }} Dashboard{% endblock %}
 {% block content %}
+{% if is_platform_staff_viewing %}
+<div class="bg-indigo-600 text-white text-sm px-4 py-2 flex items-center justify-between">
+  <span>Viewing as platform admin: <strong>{{ org.name }}</strong></span>
+  <a href="{% url 'adminpanel:organization_detail' org.id %}" class="underline hover:no-underline">Back to Admin Panel</a>
+</div>
+{% endif %}
 <div class="max-w-6xl mx-auto px-4 py-8">
   <div class="mb-6">
     <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ org.name }}</h1>

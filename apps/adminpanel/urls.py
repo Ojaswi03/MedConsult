@@ -66,4 +66,7 @@ urlpatterns = [
     path('organizations/<int:org_id>/reactivate/', views.organization_reactivate, name='organization_reactivate'),
     path('organizations/<int:org_id>/needs-info/', views.organization_needs_info, name='organization_needs_info'),
     path('organizations/<int:org_id>/members/<int:membership_id>/', views.org_member_detail, name='org_member_detail'),
+    path('organizations/<int:org_id>/members/<int:membership_id>/toggle-membership/', views.org_member_toggle_membership, name='org_member_toggle_membership'),
+    path('organizations/<int:org_id>/members/<int:membership_id>/toggle-account/', views.org_member_toggle_account, name='org_member_toggle_account'),
+    path('organizations/<int:org_id>/members/<int:membership_id>/change-role/', views.org_member_change_role, name='org_member_change_role'),
 ]

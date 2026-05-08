@@ -1,7 +1,7 @@
 {% if pending_doctors %}
 <div class="space-y-6">
     {% for doctor in pending_doctors %}
-    <div class="bg-white rounded-lg shadow-sm p-6">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-6">
         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-6">
             <!-- Doctor Info -->
             <div class="flex-grow">
@@ -16,42 +16,42 @@
                     </div>
                     {% endif %}
                     <div class="ml-4">
-                        <h3 class="text-xl font-semibold text-gray-900">Dr. {{ doctor.user.get_display_name }}</h3>
-                        <p class="text-sm text-gray-500">{{ doctor.user.email }}</p>
+                        <h3 class="text-xl font-semibold text-gray-900 dark:text-white">Dr. {{ doctor.user.get_display_name }}</h3>
+                        <p class="text-sm text-gray-500 dark:text-gray-400">{{ doctor.user.email }}</p>
                         <p class="text-xs text-gray-400 mt-1">Applied {{ doctor.created_at|timesince }} ago</p>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <p class="text-gray-500 text-xs">Specialization</p>
-                        <p class="font-medium text-gray-900">{{ doctor.specialization }}</p>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                        <p class="text-gray-500 dark:text-gray-400 text-xs">Specialization</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ doctor.specialization }}</p>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <p class="text-gray-500 text-xs">License Number</p>
-                        <p class="font-medium text-gray-900">{{ doctor.medical_license_number }}</p>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                        <p class="text-gray-500 dark:text-gray-400 text-xs">License Number</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ doctor.medical_license_number }}</p>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <p class="text-gray-500 text-xs">Experience</p>
-                        <p class="font-medium text-gray-900">{{ doctor.years_of_experience }} years</p>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                        <p class="text-gray-500 dark:text-gray-400 text-xs">Experience</p>
+                        <p class="font-medium text-gray-900 dark:text-white">{{ doctor.years_of_experience }} years</p>
                     </div>
-                    <div class="bg-gray-50 rounded-lg p-3">
-                        <p class="text-gray-500 text-xs">Consultation Fee</p>
-                        <p class="font-medium text-gray-900">${{ doctor.consultation_fee }}</p>
+                    <div class="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-3">
+                        <p class="text-gray-500 dark:text-gray-400 text-xs">Consultation Fee</p>
+                        <p class="font-medium text-gray-900 dark:text-white">${{ doctor.consultation_fee }}</p>
                     </div>
                 </div>
 
                 {% if doctor.education %}
                 <div class="mt-4">
-                    <p class="text-xs text-gray-500">Education</p>
-                    <p class="text-sm text-gray-900">{{ doctor.education }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Education</p>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ doctor.education }}</p>
                 </div>
                 {% endif %}
 
                 {% if doctor.bio %}
                 <div class="mt-4">
-                    <p class="text-xs text-gray-500">Bio</p>
-                    <p class="text-sm text-gray-900">{{ doctor.bio|truncatewords:50 }}</p>
+                    <p class="text-xs text-gray-500 dark:text-gray-400">Bio</p>
+                    <p class="text-sm text-gray-900 dark:text-white">{{ doctor.bio|truncatewords:50 }}</p>
                 </div>
                 {% endif %}
 
@@ -66,7 +66,7 @@
                         View Medical License
                     </button>
                     {% else %}
-                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 dark:text-gray-400 rounded-lg text-sm">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
@@ -83,7 +83,7 @@
                         View Government ID
                     </button>
                     {% else %}
-                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 rounded-lg text-sm">
+                    <span class="inline-flex items-center px-3 py-2 bg-gray-100 text-gray-500 dark:text-gray-400 rounded-lg text-sm">
                         <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
                         </svg>
@@ -121,13 +121,13 @@
     {% endfor %}
 </div>
 {% else %}
-<div class="bg-white rounded-lg shadow-sm p-12 text-center">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-12 text-center">
     <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
         <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
         </svg>
     </div>
-    <h3 class="text-lg font-semibold text-gray-900 mb-2">All Caught Up!</h3>
-    <p class="text-gray-500">No pending doctor verifications at this time.</p>
+    <h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-2">All Caught Up!</h3>
+    <p class="text-gray-500 dark:text-gray-400">No pending doctor verifications at this time.</p>
 </div>
 {% endif %}

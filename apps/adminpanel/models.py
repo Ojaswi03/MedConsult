@@ -63,7 +63,7 @@ class AdminActivityLog(models.Model):
 
 
 class HealthRecordAccessLog(models.Model):
-    """Audit trail for health record access — required for HIPAA compliance."""
+    """Audit trail for health record access - required for HIPAA compliance."""
     ACCESS_TYPES = [
         ('viewed', 'Viewed'),
         ('downloaded', 'Downloaded'),

@@ -1,6 +1,6 @@
 {% extends "layouts/admin.html" %}
 
-{% block title %}Knowledge Graph — MedConsult{% endblock %}
+{% block title %}Knowledge Graph - MedConsult{% endblock %}
 
 {% block content %}
 <div class="flex flex-col h-full" style="height: calc(100vh - 64px);">
@@ -318,7 +318,7 @@ function showDetail(node) {
   Object.entries(data).forEach(([k, v]) => {
     if (skip.has(k) || v === null || v === undefined) return;
     let display = v;
-    if (Array.isArray(v)) display = v.join(', ') || '—';
+    if (Array.isArray(v)) display = v.join(', ') || '-';
     else if (typeof v === 'object') display = JSON.stringify(v);
     html += `
       <div class="border-b border-gray-100 dark:border-gray-800 pb-1">
@@ -340,7 +340,7 @@ function closeDetail() {
 function updateMeta(data) {
   const m = data.metadata || {};
   document.getElementById('meta-line').textContent =
-    `Branch: ${m.git_head ? m.git_head.slice(0,7) : '—'} · Django ${m.django_version || '?'} · Generated: ${m.generated_at ? new Date(m.generated_at).toLocaleTimeString() : '?'}`;
+    `Branch: ${m.git_head ? m.git_head.slice(0,7) : '-'} · Django ${m.django_version || '?'} · Generated: ${m.generated_at ? new Date(m.generated_at).toLocaleTimeString() : '?'}`;
 }
 
 function updateSummary(data) {

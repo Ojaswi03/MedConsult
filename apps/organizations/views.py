@@ -93,7 +93,9 @@ def org_dashboard(request, org_slug):
         return HttpResponseForbidden("This organization is not active.")
 
     if is_platform_staff(request.user):
-        membership_role = request.user.role
+        # Platform staff view the org as hospital_owner so they see the org's dashboard,
+        # not their own platform dashboard.
+        membership_role = 'hospital_owner'
     else:
         membership = get_membership(request.user, org)
         if not membership or not membership.is_active:
@@ -106,6 +108,7 @@ def org_dashboard(request, org_slug):
     ctx = {
         'org': org,
         'membership_role': membership_role,
+        'is_platform_staff_viewing': is_platform_staff(request.user),
         'active_doctors': DoctorProfile.objects.filter(
             organization=org, user__is_active=True,
         ).count(),

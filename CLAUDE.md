@@ -112,6 +112,35 @@ Each hospital has its own internal user roster. Every `OrganizationMembership` g
 - **`.env.example`**: added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL`
 - **Admin refund button**: amber "Refund" button in appointments table partial → inline modal → posts to `/internal/appointments/<id>/refund/`
 
+### PlatOwner Access & Org Management (done this session)
+
+- **`admin_required` decorator fixed**: was checking `role == 'admin'` (stale); now uses `is_platform_staff(request.user)` from `apps/accounts/permissions.py`
+- **`admin_context` context processor fixed**: same stale check; uses `is_platform_staff()` now
+- **Platform owner credentials**: updated to `platowner` / `platowner@medconsult.com` / `platowner123`
+- **Admin panel dark mode**: bulk-fixed all adminpanel templates — added `dark:bg-gray-800`, `dark:text-white`, `dark:border-gray-700` etc. across all cards and tables
+- **PlatOwner terminology**: `User.ROLE_CHOICES` and `OrganizationMembership.ROLE_CHOICES` updated — "Platform Owner" → "PlatOwner", "Platform Admin" → "PlatAdmin", "Hospital Owner" → "Org Owner", "Hospital Admin" → "Org Admin"; role badge in `_user_row.html` updated accordingly; deactivate guards changed from `role != 'admin'` to `role != 'platform_owner' and role != 'platform_admin'`
+- **PlatOwner Panel label**: sidebar header + footer in `layouts/admin.html` changed from "Admin Panel" to "PlatOwner Panel"; sidebar logos now route to `dashboard:home`
+- **Org detail shows all members**: `organization_detail` view removed `is_active=True` filter; shows all members with active/inactive badges + dimming for inactive
+- **Org member management**: three new POST views in `apps/adminpanel/views.py` + three new URL patterns:
+  - `org_member_toggle_membership` — deactivate/reactivate a membership
+  - `org_member_toggle_account` — disable/enable the user's account platform-wide
+  - `org_member_change_role` — change membership role
+- **Enter Org Panel routing fixed**: `org_dashboard` view was returning platform staff to their own dashboard (`membership_role = request.user.role`); now hardcodes `membership_role = 'hospital_owner'` for platform staff so they see the hospital owner's view
+- **Platform staff banner in org panel**: `is_platform_staff_viewing` context flag; blue banner at top of `dashboard_owner.html` showing "Viewing as platform admin: [org name]" with "Back to Admin Panel" link
+- **`apps/scheduling/views.py`**: `is_admin = request.user.role == 'admin'` → `is_platform_staff(request.user)` (PHI download auth check)
+
+### Knowledge Graph Refactor (done this session)
+
+- **Removed node types**: `git_commit` and `app` nodes removed from `graph_builder.py` — `_build_app_nodes()` and `_build_git_commit_nodes()` deleted; edges referencing them removed
+- **Manual refresh only**: removed 30s auto-refresh polling from `graph.html`; replaced with "Refresh" button with spin animation
+- **Position retention**: `manualRefresh()` saves all node positions before fetch, restores them after merge so user layout is preserved
+- **Diff badge**: `showChangeBadge()` shows amber "+N nodes / +M edges" if any changes, gray "No changes" if none; auto-hides after 6s
+- **New nodes flash**: new nodes added during refresh get a green border flash animation, then fade to normal
+- **XSS-safe**: all user data in graph detail panel, filter list, and summary rendered via `textContent`/`createElement`/`appendChild` (no `innerHTML` with untrusted data)
+- **`recent_commits`** in API response: rebuilt using direct `git log` subprocess (no longer reads from removed `git_nodes`)
+- **`summary['admins']`** filter: `role='admin'` → `role__in=('platform_owner', 'platform_admin')`
+- **`ROLE_COLORS`** in graph UI: added `platform_owner`, `platform_admin`, `org_user`; removed `app` and `git_commit` from `TYPE_COLORS`
+
 ### All Confirmed Bugs — Fixed
 
 All B1–B13 bugs confirmed fixed (see plan file for full detail):
@@ -356,10 +385,10 @@ Platform roles (`platform_owner`, `platform_admin`) are also valid membership ro
 ### Default Credentials
 
 **Platform Owner (you):**
-- Username: `admin`
-- Email: `admin@medconsult.com`
-- Password: `admin123`
-- Role after migration: `platform_owner`, membership in *MedConsult Platform* org
+- Username: `platowner`
+- Email: `platowner@medconsult.com`
+- Password: `platowner123`
+- Role: `platform_owner`, membership in *MedConsult Platform* org
 
 **Test Doctor:**
 - Username: `testdoctor`

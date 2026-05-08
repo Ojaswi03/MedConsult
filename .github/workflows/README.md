@@ -13,11 +13,9 @@ Steps:
 4. Check for missing migrations (`makemigrations --check --dry-run`)
 5. Run test suite with coverage (`pytest --cov=apps --cov-fail-under=40`)
 
-> **Bug B7 fixed:** `pytest --cov=apps --cov-fail-under=40` is wired into the workflow. The 40% coverage gate is enforced on every push/PR.
-
 ## Adding New Workflow Steps
 
-Follow the existing job structure in `django-ci.yml`. Always pass `--settings=config.settings.ci` (not `dev`) so `DEBUG=False` in CI.
+Always pass `--settings=config.settings.ci` (not `dev`) so `DEBUG=False` in CI.
 
 ```yaml
 - name: Run tests

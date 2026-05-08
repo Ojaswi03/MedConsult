@@ -244,7 +244,7 @@ class CheckoutTemplateTests(TestCase):
         self.assertContains(resp, '99')
 
     def test_checkout_page_does_not_reference_missing_price_attribute(self):
-        # slot.price does not exist — ensure the template doesn't blow up
+        # slot.price does not exist - ensure the template doesn't blow up
         self.assertFalse(hasattr(self.slot, 'price'), "Slot should not have a 'price' attribute")
 
     def test_checkout_free_slot_redirects_away(self):

@@ -24,7 +24,7 @@ INITIAL_FAQS = [
     },
     {
         'question': 'How do video consultations work?',
-        'answer': 'Once your appointment is confirmed, join the waiting room a few minutes before the start time. Your doctor will admit you when ready. Video uses Daily.co — no download required, works in your browser.',
+        'answer': 'Once your appointment is confirmed, join the waiting room a few minutes before the start time. Your doctor will admit you when ready. Video uses Daily.co - no download required, works in your browser.',
         'order': 5,
     },
     {

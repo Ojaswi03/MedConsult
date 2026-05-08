@@ -1,5 +1,5 @@
 {% extends "layouts/app.html" %}
-{% block title %}{{ member.get_display_name }} — {{ org.name }}{% endblock %}
+{% block title %}{{ member.get_display_name }} - {{ org.name }}{% endblock %}
 {% block content %}
 <div class="max-w-3xl mx-auto px-4 py-8">
   <div class="mb-6">
@@ -26,7 +26,7 @@
       <div>
         <dt class="text-xs text-gray-500 uppercase tracking-wide">Hospital User ID</dt>
         <dd class="mt-1 text-gray-900 dark:text-white font-mono font-medium">
-          {{ membership.hospital_user_id|default:"—" }}
+          {{ membership.hospital_user_id|default:"-" }}
         </dd>
       </div>
       <div>
@@ -90,7 +90,7 @@
     <dl class="grid grid-cols-2 gap-4">
       <div>
         <dt class="text-xs text-gray-500 uppercase tracking-wide">Provider ID</dt>
-        <dd class="mt-1 text-gray-900 dark:text-white font-mono">{{ provider_profile.provider_id|default:"—" }}</dd>
+        <dd class="mt-1 text-gray-900 dark:text-white font-mono">{{ provider_profile.provider_id|default:"-" }}</dd>
       </div>
       <div>
         <dt class="text-xs text-gray-500 uppercase tracking-wide">Accepting Patients</dt>

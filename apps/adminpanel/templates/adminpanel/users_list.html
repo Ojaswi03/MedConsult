@@ -5,8 +5,8 @@
 {% block content %}
 <div class="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>
-        <h2 class="text-2xl font-bold text-gray-900">User Management</h2>
-        <p class="text-sm text-gray-500 mt-1">{{ total }} users total</p>
+        <h2 class="text-2xl font-bold text-gray-900 dark:text-white">User Management</h2>
+        <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">{{ total }} users total</p>
     </div>
     <a href="{% url 'adminpanel:users_export' %}?role={{ filters.role }}&is_active={{ filters.is_active }}"
        class="inline-flex items-center px-4 py-2 bg-gray-800 text-white rounded-lg hover:bg-gray-700 transition-colors">
@@ -18,7 +18,7 @@
 </div>
 
 <!-- Filters -->
-<div class="bg-white rounded-lg shadow-sm p-4 mb-6">
+<div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm p-4 mb-6">
     <form hx-get="{% url 'adminpanel:users_list' %}"
           hx-target="#users-table-container"
           hx-swap="innerHTML"
@@ -26,27 +26,29 @@
           class="grid grid-cols-1 md:grid-cols-4 gap-4">
         <!-- Search -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Search</label>
             <input type="text" name="search" value="{{ filters.search }}"
                    placeholder="Email, name, username..."
-                   class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                   class="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:ring-blue-500 focus:border-blue-500">
         </div>
 
         <!-- Role Filter -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Role</label>
-            <select name="role" class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+            <select name="role" class="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 <option value="">All Roles</option>
                 <option value="patient" {% if filters.role == 'patient' %}selected{% endif %}>Patients</option>
                 <option value="doctor" {% if filters.role == 'doctor' %}selected{% endif %}>Doctors</option>
-                <option value="admin" {% if filters.role == 'admin' %}selected{% endif %}>Admins</option>
+                <option value="platform_owner" {% if filters.role == 'platform_owner' %}selected{% endif %}>PlatOwner</option>
+                <option value="platform_admin" {% if filters.role == 'platform_admin' %}selected{% endif %}>PlatAdmin</option>
+                <option value="org_user" {% if filters.role == 'org_user' %}selected{% endif %}>Org Users</option>
             </select>
         </div>
 
         <!-- Status Filter -->
         <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-            <select name="is_active" class="w-full rounded-lg border-gray-300 shadow-sm focus:ring-blue-500 focus:border-blue-500">
+            <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Status</label>
+            <select name="is_active" class="w-full rounded-lg border-gray-300 dark:border-gray-600 shadow-sm focus:ring-blue-500 focus:border-blue-500">
                 <option value="">All Status</option>
                 <option value="true" {% if filters.is_active == 'true' %}selected{% endif %}>Active</option>
                 <option value="false" {% if filters.is_active == 'false' %}selected{% endif %}>Inactive</option>
@@ -56,7 +58,7 @@
         <!-- Clear Button -->
         <div class="flex items-end">
             <a href="{% url 'adminpanel:users_list' %}"
-               class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-center">
+               class="w-full px-4 py-2 bg-gray-100 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 transition-colors text-center">
                 Clear Filters
             </a>
         </div>
@@ -70,7 +72,7 @@
 
 <!-- User Detail Modal -->
 <div id="user-detail-modal" class="fixed inset-0 bg-black bg-opacity-50 z-50 hidden flex items-center justify-center p-4">
-    <div class="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+    <div class="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div id="user-detail-modal-content">
             <!-- Content loaded via HTMX -->
         </div>

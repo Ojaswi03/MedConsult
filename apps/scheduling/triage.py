@@ -1,7 +1,7 @@
 """
 Clinical triage helper for symptom intake.
 
-NOT a diagnostic tool — only detects emergency red flags that require
+NOT a diagnostic tool - only detects emergency red flags that require
 immediate in-person care and must block telehealth booking.
 """
 

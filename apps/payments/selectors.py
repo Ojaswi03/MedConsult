@@ -19,7 +19,7 @@ def get_payment_for_appointment(appointment):
 
 
 def get_patient_payments(patient):
-    """All payments for a patient — scoped by patient FK, no org filter needed."""
+    """All payments for a patient - scoped by patient FK, no org filter needed."""
     from .models import Payment
     return Payment.objects.filter(patient=patient).select_related(
         'appointment',

@@ -1,7 +1,7 @@
 """
 Tests for messaging app:
-- P0-10: Chat XSS — escapeHtml/safeUrl present in template; send_message API sanitizes inputs
-- P0-11: Direct messaging consent — doctor cannot start chat with arbitrary patient
+- P0-10: Chat XSS - escapeHtml/safeUrl present in template; send_message API sanitizes inputs
+- P0-11: Direct messaging consent - doctor cannot start chat with arbitrary patient
 """
 from django.test import TestCase, Client
 from django.urls import reverse
@@ -130,7 +130,7 @@ class SendMessageViewTests(TestCase):
         self.assertEqual(data['message']['content'], 'Hello world')
 
     def test_send_message_with_xss_payload_stores_raw_content(self):
-        """The raw payload is stored — the frontend escapeHtml prevents execution."""
+        """The raw payload is stored - the frontend escapeHtml prevents execution."""
         login_bypass_2fa(self.client, self.patient)
         xss_payload = '<img src=x onerror=alert(1)>'
         resp = self.client.post(
@@ -204,7 +204,7 @@ class DirectMessagingConsentTests(TestCase):
         resp = self.client.post(
             reverse('messaging:start_direct_patient', kwargs={'patient_id': self.stranger.id}),
         )
-        # Must not allow freely opening a chat — expect 403 or redirect to safe page
+        # Must not allow freely opening a chat - expect 403 or redirect to safe page
         self.assertNotEqual(resp.status_code, 200,
             "Doctor should not be able to start chat with a patient they've never seen")
         self.assertIn(resp.status_code, [403, 302])

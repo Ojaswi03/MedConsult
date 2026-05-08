@@ -1,10 +1,10 @@
 {% extends "layouts/app.html" %}
-{% block title %}Staff — {{ org.name }}{% endblock %}
+{% block title %}Staff - {{ org.name }}{% endblock %}
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 py-8">
   <div class="flex items-center justify-between mb-6">
     <div>
-      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Staff — {{ org.name }}</h1>
+      <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Staff - {{ org.name }}</h1>
       <p class="text-sm text-gray-500 mt-1">{{ members|length }} active member{{ members|length|pluralize }}</p>
     </div>
     {% if invitable_roles %}
@@ -35,7 +35,7 @@
             </a>
             <div class="text-xs text-gray-500">{{ m.user.email }}</div>
           </td>
-          <td class="px-6 py-4 font-mono text-xs text-gray-500">{{ m.hospital_user_id|default:"—" }}</td>
+          <td class="px-6 py-4 font-mono text-xs text-gray-500">{{ m.hospital_user_id|default:"-" }}</td>
           <td class="px-6 py-4">
             <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">
               {{ m.get_role_display }}

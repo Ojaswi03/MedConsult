@@ -471,7 +471,7 @@ class DoctorProfileForm(forms.ModelForm):
             ),
             'npi_number': (
                 'Permanent 10-digit federal identifier (HIPAA-mandated) used for billing, '
-                'claims, and administrative transactions nationwide. Issued once by CMS — '
+                'claims, and administrative transactions nationwide. Issued once by CMS - '
                 'it never changes even if you move states.'
             ),
             'languages': 'Comma-separated list, e.g.: English, Spanish, French',

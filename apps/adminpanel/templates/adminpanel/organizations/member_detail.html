@@ -1,18 +1,64 @@
 {% extends "layouts/admin.html" %}
-{% block page_title %}{{ member.get_display_name }} — {{ org.name }}{% endblock %}
+{% block page_title %}{{ member.get_display_name }} - {{ org.name }}{% endblock %}
 {% block content %}
 <div class="p-6 max-w-4xl">
   <div class="flex items-center gap-3 mb-6">
     <a href="{% url 'adminpanel:organization_detail' org.id %}"
-       class="text-gray-500 hover:text-gray-700 dark:hover:text-gray-300">
+       class="text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300">
       <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
       </svg>
     </a>
     <div>
       <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ member.get_display_name }}</h1>
-      <p class="text-sm text-gray-500">{{ org.name }}</p>
+      <p class="text-sm text-gray-500 dark:text-gray-400">{{ org.name }}</p>
     </div>
+  </div>
+
+  <!-- Action Bar -->
+  <div class="flex flex-wrap gap-3 mb-6 p-4 bg-white dark:bg-gray-800 rounded-xl shadow">
+    <p class="w-full text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase tracking-wide mb-1">Platform Actions</p>
+
+    <!-- Toggle membership -->
+    <form method="post" action="{% url 'adminpanel:org_member_toggle_membership' org.id membership.id %}">
+      {% csrf_token %}
+      {% if membership.is_active %}
+      <button type="submit" class="px-4 py-2 text-sm bg-amber-500 hover:bg-amber-600 text-white rounded-lg font-medium"
+              onclick="return confirm('Deactivate this membership?')">
+        Deactivate Membership
+      </button>
+      {% else %}
+      <button type="submit" class="px-4 py-2 text-sm bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium">
+        Reactivate Membership
+      </button>
+      {% endif %}
+    </form>
+
+    <!-- Toggle account -->
+    <form method="post" action="{% url 'adminpanel:org_member_toggle_account' org.id membership.id %}">
+      {% csrf_token %}
+      {% if member.is_active %}
+      <button type="submit" class="px-4 py-2 text-sm bg-red-600 hover:bg-red-700 text-white rounded-lg font-medium"
+              onclick="return confirm('Disable {{ member.email }}? They will not be able to log in anywhere.')">
+        Disable Account
+      </button>
+      {% else %}
+      <button type="submit" class="px-4 py-2 text-sm bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium">
+        Enable Account
+      </button>
+      {% endif %}
+    </form>
+
+    <!-- Change role -->
+    <form method="post" action="{% url 'adminpanel:org_member_change_role' org.id membership.id %}" class="flex items-center gap-2">
+      {% csrf_token %}
+      <select name="role" class="text-sm border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500">
+        {% for value, label in role_choices %}
+        <option value="{{ value }}" {% if value == membership.role %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="px-4 py-2 text-sm bg-gray-600 hover:bg-gray-700 text-white rounded-lg font-medium">Change Role</button>
+    </form>
   </div>
 
   <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
@@ -21,49 +67,52 @@
       <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-4">Identity</h2>
       <dl class="space-y-3">
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Hospital User ID</dt>
-          <dd class="text-sm font-mono font-medium text-gray-900 dark:text-white">
-            {{ membership.hospital_user_id|default:"—" }}
-          </dd>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Hospital User ID</dt>
+          <dd class="text-sm font-mono font-medium text-gray-900 dark:text-white">{{ membership.hospital_user_id|default:"-" }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Org Role</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Org Role</dt>
           <dd>
-            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium
-              bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+            <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
               {{ membership.get_role_display }}
             </span>
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Global Role</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Global Role</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ member.role }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Email</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Email</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ member.email }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Membership Status</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Membership Status</dt>
           <dd class="text-sm {% if membership.is_active %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
             {% if membership.is_active %}Active{% else %}Inactive{% endif %}
           </dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Account Active</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Account Active</dt>
           <dd class="text-sm {% if member.is_active %}text-emerald-600 dark:text-emerald-400{% else %}text-red-600 dark:text-red-400{% endif %}">
-            {% if member.is_active %}Yes{% else %}No{% endif %}
+            {% if member.is_active %}Yes{% else %}No - account disabled{% endif %}
+          </dd>
+        </div>
+        <div class="flex justify-between">
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Email Verified</dt>
+          <dd class="text-sm {% if member.is_email_verified %}text-emerald-600 dark:text-emerald-400{% else %}text-amber-600 dark:text-amber-400{% endif %}">
+            {% if member.is_email_verified %}Yes{% else %}No{% endif %}
           </dd>
         </div>
         {% if membership.accepted_at %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Joined Org</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Joined Org</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ membership.accepted_at|date:"M d, Y" }}</dd>
         </div>
         {% endif %}
         {% if membership.invited_by %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Invited By</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Invited By</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ membership.invited_by.get_display_name }}</dd>
         </div>
         {% endif %}
@@ -83,35 +132,33 @@
       </div>
       <dl class="space-y-3">
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Provider ID</dt>
-          <dd class="text-sm font-mono text-gray-900 dark:text-white">{{ provider_profile.provider_id|default:"—" }}</dd>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Provider ID</dt>
+          <dd class="text-sm font-mono text-gray-900 dark:text-white">{{ provider_profile.provider_id|default:"-" }}</dd>
         </div>
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Accepting Patients</dt>
-          <dd class="text-sm text-gray-900 dark:text-white">
-            {% if provider_profile.is_accepting_patients %}Yes{% else %}No{% endif %}
-          </dd>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Accepting Patients</dt>
+          <dd class="text-sm text-gray-900 dark:text-white">{% if provider_profile.is_accepting_patients %}Yes{% else %}No{% endif %}</dd>
         </div>
         {% if provider_profile.title %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Title</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Title</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ provider_profile.title }}</dd>
         </div>
         {% endif %}
         {% if provider_profile.department %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Department</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Department</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ provider_profile.department }}</dd>
         </div>
         {% endif %}
         {% if provider_profile.specialization %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Specialization</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Specialization</dt>
           <dd class="text-sm text-gray-900 dark:text-white">{{ provider_profile.specialization }}</dd>
         </div>
         {% endif %}
         <div class="flex justify-between">
-          <dt class="text-sm text-gray-500">Org Fee</dt>
+          <dt class="text-sm text-gray-500 dark:text-gray-400">Org Fee</dt>
           <dd class="text-sm text-gray-900 dark:text-white">${{ provider_profile.consultation_fee }}</dd>
         </div>
       </dl>
@@ -123,7 +170,7 @@
     {% endif %}
   </div>
 
-  <!-- Recent Appointments (doctors only) -->
+  <!-- Recent Appointments -->
   {% if recent_appointments %}
   <div class="bg-white dark:bg-gray-800 rounded-xl shadow overflow-hidden">
     <div class="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
@@ -134,11 +181,9 @@
       <li class="px-6 py-3 flex items-center justify-between">
         <div>
           <span class="text-sm font-medium text-gray-900 dark:text-white">{{ appt.patient.get_display_name }}</span>
-          <span class="text-xs text-gray-500 ml-2">{{ appt.slot.start_time|date:"M d, Y H:i" }}</span>
+          <span class="text-xs text-gray-500 dark:text-gray-400 ml-2">{{ appt.slot.start_datetime|date:"M d, Y H:i" }}</span>
         </div>
-        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">
-          {{ appt.status }}
-        </span>
+        <span class="text-xs bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 px-2 py-1 rounded-full">{{ appt.status }}</span>
       </li>
       {% endfor %}
     </ul>

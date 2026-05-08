@@ -1,6 +1,6 @@
 """
 Tests for consultations app:
-- P1-11: Pre-visit readiness check — GET renders checklist, POST with
+- P1-11: Pre-visit readiness check - GET renders checklist, POST with
   confirmation redirects to join, POST without confirmation re-shows form.
 """
 from django.test import TestCase, Client
