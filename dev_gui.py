@@ -152,7 +152,7 @@ class DevPanel(tk.Tk):
         self.log(f"Python: {self.python_exe}")
         self.log(f"Docker: {' '.join(self.docker_cmd)}")
         if not HAS_PSYCOPG2:
-            self.log("WARNING: psycopg2-binary not installed — SQL tab disabled.")
+            self.log("WARNING: psycopg2-binary not installed - SQL tab disabled.")
 
     # ─────────────────────────────────────────────────────────────────────
     # UI Construction
@@ -214,7 +214,7 @@ class DevPanel(tk.Tk):
                  bg="#0d1f0d", fg="#4ade80",
                  font=(UI[0], 10, "bold")).grid(row=0, column=0, padx=(16, 8))
 
-        self._tunnel_url_var = tk.StringVar(value="Not tunneled — click  Start Tunnel  to share with testers")
+        self._tunnel_url_var = tk.StringVar(value="Not tunneled - click  Start Tunnel  to share with testers")
         self._tunnel_url_lbl = tk.Label(
             self._tunnel_bar, textvariable=self._tunnel_url_var,
             bg="#0d1f0d", fg="#6b7280",
@@ -273,7 +273,7 @@ class DevPanel(tk.Tk):
         self._build_tests_tab(test_tab)
 
     # ─────────────────────────────────────────────────────────────────────
-    # Tab 1 — Control
+    # Tab 1 - Control
     # ─────────────────────────────────────────────────────────────────────
 
     def _build_control_tab(self, parent: tk.Frame) -> None:
@@ -360,7 +360,7 @@ class DevPanel(tk.Tk):
         self.log_text.bind("<Control-C>", self._copy_selected_log)
 
     # ─────────────────────────────────────────────────────────────────────
-    # Tab 2 — SQL
+    # Tab 2 - SQL
     # ─────────────────────────────────────────────────────────────────────
 
     def _build_sql_tab(self, parent: tk.Frame) -> None:
@@ -483,7 +483,7 @@ class DevPanel(tk.Tk):
         vpaned.after(150, lambda: vpaned.sash_place(0, 0, 190))
 
     # ─────────────────────────────────────────────────────────────────────
-    # Tab 3 — Terminal
+    # Tab 3 - Terminal
     # ─────────────────────────────────────────────────────────────────────
 
     def _build_terminal_tab(self, parent: tk.Frame) -> None:
@@ -535,16 +535,16 @@ class DevPanel(tk.Tk):
                   font=UI, relief="flat", padx=10, pady=3, cursor="hand2",
                   command=self._term_clear).grid(row=0, column=3, padx=(0, 8))
 
-        self._term_write("MedConsult Terminal — type a shell command and press Run or Enter.\n"
+        self._term_write("MedConsult Terminal - type a shell command and press Run or Enter.\n"
                          "↑/↓ for command history. Commands run from project root.\n\n")
 
     # ─────────────────────────────────────────────────────────────────────
-    # Tab 4 — Accounts
+    # Tab 4 - Accounts
     # ─────────────────────────────────────────────────────────────────────
 
     def _build_accounts_tab(self, parent: tk.Frame) -> None:
         parent.columnconfigure(0, weight=1)
-        parent.rowconfigure(2, weight=1)
+        parent.rowconfigure(3, weight=1)
 
         # Info banner
         info = tk.Frame(parent, bg=BG2, pady=10)
@@ -554,22 +554,36 @@ class DevPanel(tk.Tk):
                       "doctor@test.com / testpass123  ·  patient@test.com / testpass123",
                  bg=BG2, fg=FG, font=(UI[0], 9)).pack(side="left", padx=16)
 
-        # Action buttons
-        act = tk.Frame(parent, bg=BG, pady=8)
+        # Action buttons - row 1
+        act = tk.Frame(parent, bg=BG, pady=4)
         act.grid(row=1, column=0, sticky="ew", padx=16)
-        for text, cmd in [
-            ("Refresh",        self._acct_refresh),
-            ("Reset Password", self._acct_reset_password),
-            ("Toggle Active",  self._acct_toggle_active),
-            ("Copy List",      self._acct_copy),
+        for text, cmd, color in [
+            ("↺ Refresh",        self._acct_refresh,           BG2),
+            ("Role",             self._acct_set_role,           BG3),
+            ("Username",         self._acct_set_username,       BG3),
+            ("Email",            self._acct_set_email,          BG3),
+            ("Password",         self._acct_reset_password,     BG3),
         ]:
-            tk.Button(act, text=text, bg=BG2, fg=FG, relief="flat",
+            tk.Button(act, text=text, bg=color, fg=FG, relief="flat",
                       font=UI, padx=12, pady=4, cursor="hand2", command=cmd
-                      ).pack(side="left", padx=(0, 8))
+                      ).pack(side="left", padx=(0, 6))
+
+        # Action buttons - row 2
+        act2 = tk.Frame(parent, bg=BG, pady=4)
+        act2.grid(row=2, column=0, sticky="ew", padx=16)
+        for text, cmd, color in [
+            ("Toggle Active",    self._acct_toggle_active,      BG3),
+            ("Toggle Verified",  self._acct_toggle_verified,    BG3),
+            ("Doctor Status",    self._acct_set_doctor_status,  BG3),
+            ("Copy List",        self._acct_copy,               BG2),
+        ]:
+            tk.Button(act2, text=text, bg=color, fg=FG, relief="flat",
+                      font=UI, padx=12, pady=4, cursor="hand2", command=cmd
+                      ).pack(side="left", padx=(0, 6))
 
         # Accounts table
         tree_wrap = tk.Frame(parent, bg=BG)
-        tree_wrap.grid(row=2, column=0, sticky="nsew", padx=16, pady=(0, 12))
+        tree_wrap.grid(row=3, column=0, sticky="nsew", padx=16, pady=(0, 12))
         tree_wrap.columnconfigure(0, weight=1)
         tree_wrap.rowconfigure(0, weight=1)
 
@@ -696,9 +710,9 @@ class DevPanel(tk.Tk):
                                       command=card["start"])
 
             # Update strip dot color (strip labels use StringVar + configure separately)
-            # We stored the Label widget reference differently — patch via after trick
+            # We stored the Label widget reference differently - patch via after trick
             strip_fg = GREEN if running else MUTED
-            # The strip labels are plain tk.Label — update via the parent strip
+            # The strip labels are plain tk.Label - update via the parent strip
             for child in self.winfo_children():
                 if isinstance(child, tk.Frame) and child.cget("bg") == BG2:
                     for lbl in child.winfo_children():
@@ -711,7 +725,7 @@ class DevPanel(tk.Tk):
                                 pass
 
         if self.pending_reload:
-            self._reload_lbl.configure(text="Code changed — click Apply Update")
+            self._reload_lbl.configure(text="Code changed - click Apply Update")
         else:
             self._reload_lbl.configure(text="")
 
@@ -970,7 +984,7 @@ class DevPanel(tk.Tk):
                 pass
             time.sleep(1)
         self.after(0, self._update_tunnel_bar, "", False)
-        self.log("ngrok tunnel URL not detected after 20s — check ngrok is authenticated.")
+        self.log("ngrok tunnel URL not detected after 20s - check ngrok is authenticated.")
 
     def _update_tunnel_bar(self, url: str, running: bool, starting: bool = False):
         if running and url:
@@ -993,7 +1007,7 @@ class DevPanel(tk.Tk):
             self._tunnel_dot_var.set("● Tunnel")
             self._tunnel_dot_lbl.configure(fg=YELLOW)
         else:
-            self._tunnel_url_var.set("Not tunneled — click  Start Tunnel  to share with testers")
+            self._tunnel_url_var.set("Not tunneled - click  Start Tunnel  to share with testers")
             self._tunnel_url_lbl.configure(fg="#6b7280", font=(UI[0], 10))
             self._tunnel_bar.configure(bg="#0d1f0d")
             for w in self._tunnel_bar.winfo_children():
@@ -1017,7 +1031,7 @@ class DevPanel(tk.Tk):
 
     def run_migrations(self):
         def _check_and_migrate():
-            # Quick TCP probe — fail fast if PostgreSQL unreachable
+            # Quick TCP probe - fail fast if PostgreSQL unreachable
             import socket
             host = DB_CFG["host"]
             port = DB_CFG["port"]
@@ -1026,7 +1040,7 @@ class DevPanel(tk.Tk):
                     pass
             except OSError:
                 self.log(
-                    f"migrate: ERROR — PostgreSQL not reachable at {host}:{port}.\n"
+                    f"migrate: ERROR - PostgreSQL not reachable at {host}:{port}.\n"
                     "migrate: Start Docker first (Start Stack or Start Docker), then run migrations."
                 )
                 return
@@ -1113,7 +1127,7 @@ class DevPanel(tk.Tk):
                 else:
                     n = cur.rowcount
                     self._db_conn.commit()
-                    self.after(0, self._sql_show_raw, f"OK — {n} row(s) affected.")
+                    self.after(0, self._sql_show_raw, f"OK - {n} row(s) affected.")
                     self.after(0, self._sql_status.configure,
                                {"text": f"{n} row(s) affected", "fg": GREEN})
         except Exception as e:
@@ -1341,6 +1355,168 @@ print('ok')
         else:
             messagebox.showerror("Failed", out)
 
+    def _acct_set_role(self) -> None:
+        sel = self.accounts_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection", "Select a user first.")
+            return
+        vals = self.accounts_tree.item(sel[0], "values")
+        uid, uname = int(vals[0]), vals[2]
+        roles = ["patient", "doctor", "org_user", "platform_admin", "platform_owner"]
+        win = tk.Toplevel(self)
+        win.title(f"Set Role — {uname}")
+        win.configure(bg=BG)
+        win.grab_set()
+        tk.Label(win, text=f"New role for {uname}:", bg=BG, fg=FG, font=UI).pack(padx=20, pady=(16, 4))
+        var = tk.StringVar(value=vals[1])
+        for r in roles:
+            tk.Radiobutton(win, text=r, variable=var, value=r,
+                           bg=BG, fg=FG, selectcolor=BG3, activebackground=BG,
+                           font=UI).pack(anchor="w", padx=30)
+        def _save():
+            new_role = var.get()
+            code = f"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+django.setup()
+from apps.accounts.models import User
+u = User.objects.get(id={uid})
+u.role = {new_role!r}
+u.save(update_fields=['role'])
+print('ok')
+"""
+            rc, out = self._run_snippet(code)
+            win.destroy()
+            if rc == 0:
+                self._acct_refresh()
+            else:
+                messagebox.showerror("Failed", out or "Unknown error")
+        tk.Button(win, text="Save", bg=ACCENT, fg=BG, font=(UI[0], 10, "bold"),
+                  relief="flat", padx=16, pady=4, cursor="hand2", command=_save
+                  ).pack(pady=(12, 16))
+
+    def _acct_set_username(self) -> None:
+        sel = self.accounts_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection", "Select a user first.")
+            return
+        vals = self.accounts_tree.item(sel[0], "values")
+        uid, uname = int(vals[0]), vals[2]
+        new_uname = simpledialog.askstring("Set Username",
+                                           f"New username for {uname}:", initialvalue=uname)
+        if not new_uname or new_uname.strip() == uname:
+            return
+        code = f"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+django.setup()
+from apps.accounts.models import User
+u = User.objects.get(id={uid})
+u.username = {new_uname.strip()!r}
+u.save(update_fields=['username'])
+print('ok')
+"""
+        rc, out = self._run_snippet(code)
+        if rc == 0:
+            self._acct_refresh()
+        else:
+            messagebox.showerror("Failed", out or "Unknown error")
+
+    def _acct_set_email(self) -> None:
+        sel = self.accounts_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection", "Select a user first.")
+            return
+        vals = self.accounts_tree.item(sel[0], "values")
+        uid, uname, cur_email = int(vals[0]), vals[2], vals[3]
+        new_email = simpledialog.askstring("Set Email",
+                                           f"New email for {uname}:", initialvalue=cur_email)
+        if not new_email or new_email.strip() == cur_email:
+            return
+        code = f"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+django.setup()
+from apps.accounts.models import User
+u = User.objects.get(id={uid})
+u.email = {new_email.strip()!r}
+u.save(update_fields=['email'])
+print('ok')
+"""
+        rc, out = self._run_snippet(code)
+        if rc == 0:
+            self._acct_refresh()
+        else:
+            messagebox.showerror("Failed", out or "Unknown error")
+
+    def _acct_toggle_verified(self) -> None:
+        sel = self.accounts_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection", "Select a user first.")
+            return
+        vals = self.accounts_tree.item(sel[0], "values")
+        uid, uname, cur = int(vals[0]), vals[2], vals[6]
+        new_val = "False" if cur == "yes" else "True"
+        code = f"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+django.setup()
+from apps.accounts.models import User
+u = User.objects.get(id={uid})
+u.is_email_verified = {new_val}
+u.save(update_fields=['is_email_verified'])
+print('ok')
+"""
+        rc, out = self._run_snippet(code)
+        if rc == 0:
+            self._acct_refresh()
+        else:
+            messagebox.showerror("Failed", out or "Unknown error")
+
+    def _acct_set_doctor_status(self) -> None:
+        sel = self.accounts_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection", "Select a user first.")
+            return
+        vals = self.accounts_tree.item(sel[0], "values")
+        uid, uname = int(vals[0]), vals[2]
+        statuses = ["pending", "approved", "rejected"]
+        win = tk.Toplevel(self)
+        win.title(f"Doctor Status — {uname}")
+        win.configure(bg=BG)
+        win.grab_set()
+        tk.Label(win, text=f"Verification status for {uname}:", bg=BG, fg=FG, font=UI).pack(padx=20, pady=(16, 4))
+        var = tk.StringVar(value=vals[7] or "pending")
+        for s in statuses:
+            tk.Radiobutton(win, text=s, variable=var, value=s,
+                           bg=BG, fg=FG, selectcolor=BG3, activebackground=BG,
+                           font=UI).pack(anchor="w", padx=30)
+        def _save():
+            new_status = var.get()
+            code = f"""
+import os, django
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'config.settings.dev')
+django.setup()
+from apps.accounts.models import User
+u = User.objects.get(id={uid})
+dp = getattr(u, 'doctor_profile', None)
+if dp:
+    dp.verification_status = {new_status!r}
+    dp.save(update_fields=['verification_status'])
+    print('ok')
+else:
+    print('no doctor profile')
+"""
+            rc, out = self._run_snippet(code)
+            win.destroy()
+            if rc == 0 and 'ok' in out:
+                self._acct_refresh()
+            else:
+                messagebox.showerror("Failed", out or "No doctor profile found")
+        tk.Button(win, text="Save", bg=ACCENT, fg=BG, font=(UI[0], 10, "bold"),
+                  relief="flat", padx=16, pady=4, cursor="hand2", command=_save
+                  ).pack(pady=(12, 16))
+
     def _acct_copy(self) -> None:
         lines = [
             "Seeded: admin@medconsult.com/admin123, doctor@test.com/testpass123, patient@test.com/testpass123", "",
@@ -1350,7 +1526,7 @@ print('ok')
         self._clipboard("\n".join(lines), "Accounts copied.")
 
     # ─────────────────────────────────────────────────────────────────────
-    # Tab 5 — Page Health
+    # Tab 5 - Page Health
     # ─────────────────────────────────────────────────────────────────────
 
     _HEALTH_SCRIPT = '''
@@ -1560,11 +1736,11 @@ print(json.dumps(results))
 
         total = len(results)
         if errors:
-            self._health_status.configure(text=f"Done — {errors} error(s) found!", fg=RED)
+            self._health_status.configure(text=f"Done - {errors} error(s) found!", fg=RED)
             self._health_summary.configure(
                 text=f"✓ {ok} OK  ⚠ {warn} warn  ✗ {errors} error", fg=RED)
         else:
-            self._health_status.configure(text=f"All {total} pages checked — no 500 errors.", fg=GREEN)
+            self._health_status.configure(text=f"All {total} pages checked - no 500 errors.", fg=GREEN)
             self._health_summary.configure(
                 text=f"✓ {ok} OK  ⚠ {warn} warn  ✗ 0 errors", fg=GREEN)
         self._health_run_btn.configure(state="normal")
@@ -1584,7 +1760,7 @@ print(json.dumps(results))
             self.log("dev_gui.py changed.")
             if self._has_procs():
                 self.pending_reload = True
-                self._reload_lbl.configure(text="Code changed — click Apply Update")
+                self._reload_lbl.configure(text="Code changed - click Apply Update")
             else:
                 self._do_reload()
         elif self.pending_reload and not self._has_procs():
