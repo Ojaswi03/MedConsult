@@ -85,18 +85,25 @@ MedConsult is a Django 4.2 LTS telehealth platform connecting patients with veri
 - **`.env.example`**: added `SENTRY_TRACES_RATE`, `DJANGO_LOG_LEVEL`
 - **Admin refund button**: amber "Refund" button in appointments table partial → inline modal → posts to `/internal/appointments/<id>/refund/`
 
-### Confirmed Bugs (discovered, not yet fixed)
+### All Confirmed Bugs — Fixed
 
-| Bug | Description | Files |
-|-----|-------------|-------|
-| B1 | `Appointment.slot` is `OneToOneField` — group booking capacity > 1 impossible | `apps/scheduling/models.py` |
-| B2 | No booking/payment state machine — ghost appointments on Stripe abandon | `apps/payments/models.py`, `apps/scheduling/services.py` |
-| B3 | Patient data export serializes wrong field paths | `apps/accounts/services.py` export logic |
-| B4 | "Join Call" URL in chat template hits wrong namespace | `apps/messaging/templates/messaging/chat.html` |
-| B5 | Admin decorator redirects to possibly non-existent `accounts:login` namespace | `apps/accounts/urls.py` |
-| B6 | 2FA policy: docs say doctors/admins required but session flag allows bypass | `apps/accounts/middleware.py` |
-| B7 | CI declares `pytest` but never runs it; coverage gate not enforced | `.github/workflows/django-ci.yml` |
-| B8 | No `select_for_update()` on slot booking — race condition on concurrent booking | `apps/scheduling/services.py` |
+All B1–B13 bugs confirmed fixed (see plan file for full detail):
+
+| Bug | Fix |
+|-----|-----|
+| B1 | `Appointment.slot` → ForeignKey; group capacity check inside `select_for_update()` |
+| B2 | `booking_status` state machine (held/confirmed/expired/cancelled); Celery expires held after 15 min |
+| B3 | Export field paths corrected; assertion tests added |
+| B4 | `consultations:join` namespace corrected in `chat.html` |
+| B5 | `accounts:login` → `login` (no namespace) |
+| B6 | → B13 |
+| B7 | `pytest --cov=apps --cov-fail-under=40` added to CI |
+| B8 | `select_for_update()` added to `book_appointment` |
+| B9 | Booking creates `held` status → redirects to Stripe checkout; free slots confirmed directly |
+| B10 | `payment_success()` checks `payment.status` before showing confirmed UI |
+| B11 | `checkout.html` uses `slot.get_price()` |
+| B12 | Admin templates use `has_profile_image`/`get_profile_image_url` and `phone` |
+| B13 | `EnforceTwoFactorMiddleware` uses `is_platform_staff OR has_any_elevated_membership` |
 
 ---
 
@@ -206,16 +213,31 @@ python manage.py export_knowledge_graph --settings=config.settings.dev         #
 python manage.py export_knowledge_graph --quick --settings=config.settings.dev # git/stats nodes only (used by git hook)
 ```
 
-## Multi-Tenancy Architecture
+### Multi-Tenancy (done)
 
-**Status: Plans written, implementation ready.**  
+**Status: ✅ Fully implemented.**  
 Full spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`  
 Plan 1 (data + permissions + query scoping): `docs/superpowers/plans/2026-05-07-multi-tenancy-foundation.md`  
 Plan 2 (UI layer — signup, dashboards, invites, switcher): `docs/superpowers/plans/2026-05-08-multi-tenancy-ui.md`
 
+- Three-tier permission library in `apps/accounts/permissions.py`: global checks, org membership checks, action-level checks
+- `scope_to_org(queryset, organization, user)` in `apps/accounts/query_utils.py` — fails closed (returns `queryset.none()` if org=None and user is not platform staff)
+- Domain permission files: `apps/scheduling/permissions.py`, `apps/payments/permissions.py`, `apps/messaging/permissions.py`, `apps/adminpanel/permissions.py`
+- Org propagation chain: AvailabilityWindow → Slot → Appointment (all carry `organization` FK)
+- `apps/organizations/` app: hospital self-signup, invite acceptance, role-based dashboards, staff management, editable settings
+- `/internal/organizations/` — platform owner reviews/approves/rejects/suspends orgs
+- Org switcher partial in navbar for platform staff (`templates/partials/org_switcher.html`); `switch_org` view at `/auth/switch-org/`
+- `dashboard_home` routes `org_user` → org dashboard; accepts `platform_owner`/`platform_admin` for admin panel
+- WebSocket chat consumer checks org membership before allowing connection
+- `EnforceTwoFactorMiddleware` uses `is_platform_staff OR has_any_elevated_membership`
+
+---
+
+## Multi-Tenancy Architecture
+
 MedConsult is a multi-tenant hospital SaaS. Each hospital/clinic is an `Organization`. Staff belong to orgs via `OrganizationMembership`. Patients are platform-wide.
 
-### Key models (to be added in migrations 0016–0022)
+### Key models (implemented in migrations 0016–0022)
 
 - **`Organization`** — hospital, clinic, private_practice, urgent_care, mental_health, or platform. Has status: pending → active / needs_info / rejected / suspended.
 - **`OrganizationMembership`** — links a user to an org with a role. One record per user/org. Deactivated, never deleted.

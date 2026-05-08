@@ -1,6 +1,6 @@
 # Multi-Tenancy UI Layer Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **Status: ✅ COMPLETE — all 9 tasks implemented and committed as of 2026-05-08.**
 
 **Goal:** Build the hospital signup flow, platform owner org review, role-based org dashboards, staff invite lifecycle, and org switcher for platform staff.
 
