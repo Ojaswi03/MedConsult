@@ -165,10 +165,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
     @database_sync_to_async
     def can_access_conversation(self, conversation):
-        return (
-            conversation.patient_id == self.user.id or
-            conversation.doctor_id == self.user.id
-        )
+        # Must be a direct participant
+        if (conversation.patient_id != self.user.id
+                and conversation.doctor_id != self.user.id):
+            return False
+        # Platform staff bypass org check
+        from apps.accounts.permissions import is_platform_staff
+        if is_platform_staff(self.user):
+            return True
+        # Org users must have an active membership in the conversation's org
+        org = getattr(conversation, 'organization', None)
+        if org is None:
+            return True  # legacy conversations pre-migration
+        from apps.accounts.models import OrganizationMembership
+        if self.user.role in ('patient',):
+            return True  # patients are platform-wide
+        return OrganizationMembership.objects.filter(
+            user=self.user, organization=org, is_active=True,
+        ).exists()
 
     @database_sync_to_async
     def save_message(self, conversation, content):
