@@ -47,3 +47,7 @@ INTERNAL_IPS = [
 
 # Email Configuration (console for development)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Skip 2FA enforcement for ALL users during development.
+# Set to False (or remove) when you're ready to test 2FA flows.
+SKIP_2FA = True

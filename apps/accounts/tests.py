@@ -123,6 +123,7 @@ class ProfileImageTests(TestCase):
 
 # ── B13: 2FA strict enforcement ───────────────────────────────────────────────
 
+@override_settings(SKIP_2FA=False)
 class TwoFactorEnforcementTests(TestCase):
     """
     Doctors/admins cannot bypass 2FA via session flag.
@@ -187,6 +188,7 @@ class TwoFactorEnforcementTests(TestCase):
         )
 
 
+@override_settings(SKIP_2FA=False)
 class TwoFactorMiddlewareTests(TestCase):
     """
     Middleware uses has_any_elevated_membership to require 2FA for org staff.
