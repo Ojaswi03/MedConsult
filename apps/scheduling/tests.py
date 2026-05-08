@@ -289,3 +289,83 @@ class TriageTests(TestCase):
         self.assertContains(resp, 'Emergency')
         # No appointment should have been created
         self.assertFalse(Appointment.objects.filter(patient=patient, slot=slot).exists())
+
+
+
+class OrgScopedSelectorTests(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Organization, OrganizationMembership, DoctorProfile
+
+        self.org_a = Organization.objects.create(
+            name='Selector Org A', slug='selector-org-a',
+            org_type='hospital', status='active',
+        )
+        self.org_b = Organization.objects.create(
+            name='Selector Org B', slug='selector-org-b',
+            org_type='hospital', status='active',
+        )
+        self.patient = User.objects.create_user(
+            username='scopat', email='scopat@test.com',
+            password='pass1234!', role='patient',
+        )
+        self.doc_user = User.objects.create_user(
+            username='scodoca', email='scodoca@test.com',
+            password='pass1234!', role='doctor',
+        )
+        self.doctor = DoctorProfile.objects.create(
+            user=self.doc_user, specialization='GP',
+            medical_license_number='SCO-001',
+            organization=self.org_a,
+        )
+        OrganizationMembership.objects.create(
+            user=self.doc_user, organization=self.org_a,
+            role='doctor', is_active=True,
+        )
+        start = timezone.now() + timedelta(hours=2)
+        self.slot = Slot.objects.create(
+            doctor=self.doctor,
+            start_datetime=start,
+            end_datetime=start + timedelta(minutes=30),
+            appointment_type='video',
+            organization=self.org_a,
+        )
+        self.appt = Appointment.objects.create(
+            slot=self.slot,
+            patient=self.patient,
+            doctor=self.doctor,
+            organization=self.org_a,
+        )
+
+    def test_get_doctor_appointments_scoped_to_org(self):
+        from apps.scheduling.selectors import get_doctor_appointments
+        results = get_doctor_appointments(self.doctor, organization=self.org_a)
+        self.assertEqual(results.count(), 1)
+
+    def test_get_doctor_appointments_wrong_org_returns_empty(self):
+        from apps.scheduling.selectors import get_doctor_appointments
+        results = get_doctor_appointments(self.doctor, organization=self.org_b)
+        self.assertEqual(results.count(), 0)
+
+    def test_scope_to_org_none_fails_closed_for_patient(self):
+        from apps.accounts.query_utils import scope_to_org
+        qs = Appointment.objects.all()
+        result = scope_to_org(qs, None, self.patient)
+        self.assertEqual(result.count(), 0)
+
+    def test_scope_to_org_none_returns_all_for_platform_staff(self):
+        from apps.accounts.query_utils import scope_to_org
+        platform_owner = User.objects.create_user(
+            username='scopo', email='scopo@test.com',
+            password='pass1234!', role='platform_owner',
+        )
+        qs = Appointment.objects.all()
+        result = scope_to_org(qs, None, platform_owner)
+        self.assertGreaterEqual(result.count(), 1)
+
+    def test_scope_to_org_with_org_filters_correctly(self):
+        from apps.accounts.query_utils import scope_to_org
+        qs = Appointment.objects.all()
+        result = scope_to_org(qs, self.org_a)
+        self.assertEqual(result.count(), 1)
+        result_b = scope_to_org(qs, self.org_b)
+        self.assertEqual(result_b.count(), 0)

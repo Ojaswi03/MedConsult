@@ -5,50 +5,54 @@ from datetime import timedelta
 from django.utils import timezone
 from django.db.models import Q, Count
 from .models import Slot, Appointment, AvailabilityWindow, SlotChangeLog, AppointmentTypeConfig
+from apps.accounts.query_utils import scope_to_org
 
 
-def get_available_slots_for_doctor(doctor_profile, start_date=None, end_date=None):
-    """Get all available slots for a doctor within a date range."""
+def get_available_slots_for_doctor(doctor_profile, organization=None, start_date=None, end_date=None):
+    """Get available slots for a doctor, optionally scoped to an org."""
     query = Q(doctor=doctor_profile, is_booked=False, start_datetime__gt=timezone.now())
-
     if start_date:
         query &= Q(start_datetime__date__gte=start_date)
     if end_date:
         query &= Q(start_datetime__date__lte=end_date)
+    qs = Slot.objects.filter(query).order_by('start_datetime')
+    if organization is not None:
+        qs = qs.filter(organization=organization)
+    return qs
 
-    return Slot.objects.filter(query).order_by('start_datetime')
 
-
-def get_doctor_availability_windows(doctor_profile):
-    """Get all active availability windows for a doctor."""
-    return AvailabilityWindow.objects.filter(
-        doctor=doctor_profile,
-        is_active=True
-    ).order_by('weekday', 'start_time')
+def get_doctor_availability_windows(doctor_profile, organization=None):
+    """Get active availability windows for a doctor, optionally scoped to an org."""
+    query = Q(doctor=doctor_profile, is_active=True)
+    if organization is not None:
+        query &= Q(organization=organization)
+    return AvailabilityWindow.objects.filter(query).order_by('weekday', 'start_time')
 
 
 def get_patient_appointments(patient, status=None):
-    """Get all appointments for a patient, optionally filtered by status."""
+    """Patient-owned — scoped by patient FK only, never by org."""
     query = Q(patient=patient)
-
     if status:
         query &= Q(status=status)
-
     return Appointment.objects.filter(query).select_related(
-        'slot', 'doctor__user'
+        'slot', 'doctor__user',
     ).order_by('-slot__start_datetime')
 
 
-def get_doctor_appointments(doctor_profile, status=None):
-    """Get all appointments for a doctor, optionally filtered by status."""
+def get_doctor_appointments(doctor_profile, organization=None, status=None, user=None):
+    """Get appointments for a doctor, optionally scoped to an org."""
     query = Q(doctor=doctor_profile)
-
     if status:
         query &= Q(status=status)
+    qs = Appointment.objects.filter(query).select_related('slot', 'patient')
+    qs = scope_to_org(qs, organization, user)
+    return qs.order_by('-slot__start_datetime')
 
-    return Appointment.objects.filter(query).select_related(
-        'slot', 'patient'
-    ).order_by('-slot__start_datetime')
+
+def get_appointment_by_id(appointment_id, organization=None, user=None):
+    """Fetch a single appointment; prevents cross-org IDOR when org provided."""
+    qs = Appointment.objects.filter(id=appointment_id)
+    return scope_to_org(qs, organization, user).first()
 
 
 def get_upcoming_patient_appointments(patient):
