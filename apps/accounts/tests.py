@@ -7,6 +7,20 @@ User = get_user_model()
 
 
 class UserCreationTests(TestCase):
+    def test_org_user_role_valid(self):
+        user = User.objects.create_user(
+            username='staffuser', email='staff@test.com',
+            password='pass1234!', role='org_user',
+        )
+        self.assertEqual(user.role, 'org_user')
+
+    def test_platform_owner_role_valid(self):
+        user = User.objects.create_user(
+            username='po', email='po@test.com',
+            password='pass1234!', role='platform_owner',
+        )
+        self.assertEqual(user.role, 'platform_owner')
+
     def test_create_patient_user(self):
         user = User.objects.create_user(
             username='patient1', email='p1@test.com',
@@ -226,3 +240,126 @@ class DoctorVerificationDepthTests(TestCase):
             from apps.accounts.tasks import send_license_expiry_reminders
             send_license_expiry_reminders()
             self.assertTrue(mock_mail.called)
+
+
+class OrgModelTests(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Organization, OrganizationMembership
+        self.org = Organization.objects.create(
+            name='City Hospital', slug='city-hospital',
+            org_type='hospital', status='active',
+        )
+        self.owner = User.objects.create_user(
+            username='hospowner', email='owner@city.com',
+            password='pass1234!', role='org_user',
+        )
+
+    def test_organization_created(self):
+        from apps.accounts.models import Organization
+        self.assertEqual(Organization.objects.filter(slug='city-hospital').count(), 1)
+        self.assertEqual(self.org.status, 'active')
+
+    def test_membership_created(self):
+        from apps.accounts.models import OrganizationMembership
+        m = OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org, role='hospital_owner',
+        )
+        self.assertTrue(m.is_active)
+
+    def test_duplicate_membership_blocked(self):
+        from apps.accounts.models import OrganizationMembership
+        OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org, role='hospital_owner',
+        )
+        with self.assertRaises(Exception):
+            OrganizationMembership.objects.create(
+                user=self.owner, organization=self.org, role='hospital_admin',
+            )
+
+    def test_patient_can_have_no_membership(self):
+        from apps.accounts.models import OrganizationMembership
+        patient = User.objects.create_user(
+            username='pat1', email='pat1@test.com',
+            password='pass1234!', role='patient',
+        )
+        self.assertEqual(
+            OrganizationMembership.objects.filter(user=patient).count(), 0
+        )
+
+    def test_org_slug_unique(self):
+        from apps.accounts.models import Organization
+        with self.assertRaises(Exception):
+            Organization.objects.create(
+                name='Other', slug='city-hospital', org_type='clinic', status='active',
+            )
+
+    def test_platform_role_stored_on_membership(self):
+        from apps.accounts.models import Organization, OrganizationMembership
+        platform_org = Organization.objects.create(
+            name='MedConsult Platform', slug='medconsult-platform-test',
+            org_type='platform', status='active',
+        )
+        m = OrganizationMembership.objects.create(
+            user=self.owner, organization=platform_org, role='platform_owner',
+        )
+        self.assertEqual(m.role, 'platform_owner')
+
+
+class DataMigrationTests(TestCase):
+    def test_platform_org_exists(self):
+        from apps.accounts.models import Organization
+        self.assertTrue(
+            Organization.objects.filter(slug='medconsult-platform', org_type='platform').exists()
+        )
+
+    def test_demo_clinic_exists(self):
+        from apps.accounts.models import Organization
+        self.assertTrue(
+            Organization.objects.filter(slug='medconsult-demo-clinic', org_type='clinic').exists()
+        )
+
+    def test_admin_user_is_platform_owner(self):
+        if User.objects.filter(username='admin').exists():
+            admin = User.objects.get(username='admin')
+            self.assertEqual(admin.role, 'platform_owner')
+
+    def test_patients_have_no_membership(self):
+        from apps.accounts.models import OrganizationMembership
+        patients = User.objects.filter(role='patient')
+        for patient in patients:
+            self.assertEqual(
+                OrganizationMembership.objects.filter(user=patient).count(), 0,
+                f"Patient {patient.email} should have no membership"
+            )
+
+
+class BackfillOrgTests(TestCase):
+    def setUp(self):
+        from apps.accounts.models import Organization, OrganizationMembership, DoctorProfile
+        self.demo_clinic = Organization.objects.get(slug='medconsult-demo-clinic')
+        self.doctor_user = User.objects.create_user(
+            username='bfdoc', email='bfdoc@test.com',
+            password='pass1234!', role='doctor',
+        )
+        OrganizationMembership.objects.create(
+            user=self.doctor_user, organization=self.demo_clinic,
+            role='doctor', is_active=True,
+        )
+        self.doctor_profile = DoctorProfile.objects.create(
+            user=self.doctor_user,
+            specialization='General',
+            organization=self.demo_clinic,
+        )
+
+    def test_doctor_profile_has_org(self):
+        self.doctor_profile.refresh_from_db()
+        self.assertIsNotNone(self.doctor_profile.organization)
+        self.assertEqual(self.doctor_profile.organization, self.demo_clinic)
+
+    def test_doctor_membership_linked_to_demo_clinic(self):
+        from apps.accounts.models import OrganizationMembership
+        membership = OrganizationMembership.objects.filter(
+            user=self.doctor_user, role='doctor', is_active=True,
+        ).first()
+        self.assertIsNotNone(membership)
+        self.assertEqual(membership.organization, self.demo_clinic)
