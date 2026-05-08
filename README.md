@@ -543,6 +543,16 @@ Doctor - /doctor/
   patients/<id>/history/                  Full patient history timeline
   patients/<id>/records/                  Shared health records from patient
 
+Organization - /org/
+  register/                               Hospital self-service signup (public)
+  register/pending/                       Post-submit holding page
+  <slug>/                                 Org dashboard (role-determined view)
+  <slug>/settings/                        Edit org profile (owner/admin)
+  <slug>/staff/                           Staff list + invite management
+  <slug>/staff/invite/                    Send invite (role grant matrix enforced)
+  <slug>/staff/<id>/deactivate/           Deactivate staff member
+  invite/<token>/                         Accept org invite (email lock + race-safe)
+
 Admin - /internal/
   (dashboard)                             Metrics, charts, activity feed
   verify/                                 Doctor verification queue
@@ -551,6 +561,13 @@ Admin - /internal/
   users/                                  User list (search, filter)
   users/<id>/toggle-active/              Activate / deactivate user
   users/export/                           Export users CSV
+  organizations/                          Platform org list (filter by status)
+  organizations/<id>/                     Org detail + review checklist
+  organizations/<id>/approve/             Approve org
+  organizations/<id>/reject/              Reject org with reason
+  organizations/<id>/needs-info/          Request more information
+  organizations/<id>/suspend/             Suspend active org
+  organizations/<id>/reactivate/          Reactivate suspended org
   doctors/                                Doctor list with statistics
   doctors/<id>/manage/                    Doctor slot management
   doctors/<id>/calendar/                  Doctor calendar (HTMX)
@@ -623,7 +640,11 @@ docker-compose exec redis redis-cli
 
 ### Multi-Tenancy
 
-MedConsult is a multi-tenant hospital SaaS. Full design spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`
+MedConsult is a multi-tenant hospital SaaS. **Status: plans written, implementation ready.**
+
+- Spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`
+- Plan 1 — data + permissions + query scoping: `docs/superpowers/plans/2026-05-07-multi-tenancy-foundation.md`
+- Plan 2 — UI layer (signup, dashboards, invites, switcher): `docs/superpowers/plans/2026-05-08-multi-tenancy-ui.md`
 
 **Core models:**
 - `Organization` — each hospital/clinic/platform is an org (`status`: pending → active / needs_info / rejected / suspended)
