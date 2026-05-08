@@ -5,6 +5,7 @@ app_name = 'organizations'
 
 urlpatterns = [
     path('register/', views.org_register, name='org_register'),
+    path('register/pending/', views.org_register_pending, name='org_register_pending'),
     path('invite/<str:token>/', views.accept_invite, name='accept_invite'),
     path('<slug:org_slug>/', views.org_dashboard, name='org_dashboard'),
     path('<slug:org_slug>/settings/', views.org_settings, name='org_settings'),
