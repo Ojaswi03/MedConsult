@@ -104,3 +104,69 @@ class ProfileImageTests(TestCase):
         user = User(username='nopic2')
         url = user.get_profile_image_url()
         assert url is None
+
+
+# ── B13: 2FA strict enforcement ───────────────────────────────────────────────
+
+class TwoFactorEnforcementTests(TestCase):
+    """
+    Doctors/admins cannot bypass 2FA via session flag.
+    Patients may skip (session flag honoured).
+    """
+
+    def _make_user(self, username, role):
+        u = User.objects.create_user(
+            username=username, email=f'{username}@test.com', password='pass1234!', role=role
+        )
+        u.is_email_verified = True
+        u.save()
+        return u
+
+    def _login_with_skip(self, client, user):
+        client.force_login(user)
+        session = client.session
+        session['2fa_skipped'] = True
+        session.save()
+
+    def test_patient_skip_flag_bypasses_2fa_prompt(self):
+        """Patient with 2fa_skipped=True should reach app pages without 2FA redirect."""
+        from django.test import Client as TestClient
+        c = TestClient()
+        patient = self._make_user('b13_pat', 'patient')
+        self._login_with_skip(c, patient)
+        resp = c.get(reverse('patient:patient_appointments'))
+        # Should NOT be redirected to 2FA setup/login
+        self.assertNotIn(resp.status_code, [])  # just ensure no crash
+        # Must not redirect to 2FA routes
+        if resp.status_code == 302:
+            self.assertNotIn('two_factor', resp['Location'])
+            self.assertNotIn('/account/', resp['Location'])
+
+    def test_doctor_skip_flag_does_not_bypass_2fa(self):
+        """Doctor with 2fa_skipped=True must still be redirected to 2FA setup."""
+        from django.test import Client as TestClient
+        c = TestClient()
+        doctor = self._make_user('b13_doc', 'doctor')
+        self._login_with_skip(c, doctor)
+        resp = c.get(reverse('patient:patient_appointments'))
+        # Must redirect to 2FA setup or login
+        self.assertEqual(resp.status_code, 302)
+        loc = resp['Location']
+        self.assertTrue(
+            '/account/' in loc or 'two_factor' in loc,
+            f'Expected 2FA redirect, got: {loc}'
+        )
+
+    def test_admin_skip_flag_does_not_bypass_2fa(self):
+        """Admin with 2fa_skipped=True must still be redirected to 2FA setup."""
+        from django.test import Client as TestClient
+        c = TestClient()
+        admin = self._make_user('b13_admin', 'admin')
+        self._login_with_skip(c, admin)
+        resp = c.get(reverse('patient:patient_appointments'))
+        self.assertEqual(resp.status_code, 302)
+        loc = resp['Location']
+        self.assertTrue(
+            '/account/' in loc or 'two_factor' in loc,
+            f'Expected 2FA redirect, got: {loc}'
+        )
