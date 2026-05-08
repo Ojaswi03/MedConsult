@@ -245,7 +245,8 @@ def create_manual_slot(
     appointment_type='video',
     is_urgent=False,
     max_capacity=1,
-    notes=''
+    notes='',
+    organization=None,
 ):
     """
     Create a manual slot (for urgent appointments or overrides).
@@ -260,6 +261,10 @@ def create_manual_slot(
     if existing:
         raise ValueError('A slot already exists at this time.')
 
+    # Infer org from doctor profile if not supplied
+    if organization is None:
+        organization = getattr(doctor_profile, 'organization', None)
+
     slot = Slot.objects.create(
         doctor=doctor_profile,
         start_datetime=start_datetime,
@@ -267,7 +272,8 @@ def create_manual_slot(
         appointment_type=appointment_type,
         is_urgent=is_urgent,
         max_capacity=max_capacity,
-        notes=notes
+        notes=notes,
+        organization=organization,
     )
 
     # Log change for real-time updates
@@ -460,7 +466,8 @@ def generate_slots_for_window_v2(availability_window, start_date, end_date):
                             availability_window=availability_window,
                             start_datetime=current_slot_start,
                             end_datetime=current_slot_start + slot_duration,
-                            appointment_type=apt_type
+                            appointment_type=apt_type,
+                            organization=getattr(availability_window, 'organization', None),
                         )
                         created_slots.append(slot)
                         log_slot_change(availability_window.doctor, slot, 'created')
@@ -522,11 +529,17 @@ def book_appointment(slot, patient, reason=''):
         slot.is_booked = True
         slot.save()
 
+    # Propagate org from slot — fails closed if slot has no org
+    org = getattr(slot, 'organization', None)
+    if org is None:
+        raise ValueError('Slot has no organization; cannot create appointment.')
+
     # Create appointment as held — caller confirms after payment or immediately for free slots
     appointment = Appointment.objects.create(
         slot=slot,
         patient=patient,
         doctor=slot.doctor,
+        organization=org,
         reason=reason,
         status='scheduled',
         booking_status='held',
