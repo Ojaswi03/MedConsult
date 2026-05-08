@@ -115,3 +115,59 @@ class AcceptInviteTest(TestCase):
             reverse('organizations:accept_invite', kwargs={'token': 'bogustoken'})
         )
         self.assertEqual(response.status_code, 404)
+
+
+class StaffManagementTest(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(
+            name='Good Clinic', slug='good-clinic', org_type='clinic', status='active',
+        )
+        self.owner = User.objects.create_user(
+            username='owner2', email='owner2@test.com', password='pass1234!', role='org_user',
+        )
+        OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org, role='hospital_owner', is_active=True,
+        )
+        self.client.force_login(self.owner)
+
+    def test_staff_list_accessible_to_hospital_owner(self):
+        response = self.client.get(f'/org/good-clinic/staff/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_send_invite_creates_invite_record(self):
+        from apps.accounts.models import OrganizationInvite
+        self.client.post(f'/org/good-clinic/staff/invite/', {
+            'email': 'newstaff@clinic.com',
+            'role': 'scheduler',
+        })
+        self.assertTrue(
+            OrganizationInvite.objects.filter(
+                organization=self.org, email='newstaff@clinic.com',
+            ).exists()
+        )
+
+    def test_send_invite_role_restricted_by_grant_matrix(self):
+        from apps.accounts.models import OrganizationInvite
+        admin = User.objects.create_user(
+            username='hadmin', email='hadmin@test.com', password='pass1234!', role='org_user',
+        )
+        OrganizationMembership.objects.create(
+            user=admin, organization=self.org, role='hospital_admin', is_active=True,
+        )
+        self.client.force_login(admin)
+        self.client.post(f'/org/good-clinic/staff/invite/', {
+            'email': 'newowner@clinic.com',
+            'role': 'hospital_owner',
+        })
+        self.assertFalse(OrganizationInvite.objects.filter(email='newowner@clinic.com').exists())
+
+    def test_deactivate_member_removes_them_from_staff(self):
+        staff = User.objects.create_user(
+            username='staffx', email='staffx@test.com', password='pass1234!', role='org_user',
+        )
+        membership = OrganizationMembership.objects.create(
+            user=staff, organization=self.org, role='scheduler', is_active=True,
+        )
+        self.client.post(f'/org/good-clinic/staff/{membership.id}/deactivate/')
+        membership.refresh_from_db()
+        self.assertFalse(membership.is_active)

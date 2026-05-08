@@ -1,0 +1,39 @@
+{% extends "layouts/app.html" %}
+{% block title %}Invite Staff — {{ org.name }}{% endblock %}
+{% block content %}
+<div class="max-w-lg mx-auto px-4 py-8">
+  <div class="mb-6">
+    <a href="{% url 'organizations:staff_list' org.slug %}" class="text-blue-600 hover:underline text-sm">← Back to Staff</a>
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white mt-2">Invite Staff to {{ org.name }}</h1>
+  </div>
+
+  {% if error %}
+  <div class="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4 mb-6">
+    <p class="text-red-700 dark:text-red-400 text-sm">{{ error }}</p>
+  </div>
+  {% endif %}
+
+  <form method="post" class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 space-y-4">
+    {% csrf_token %}
+    <div>
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email Address</label>
+      <input type="email" name="email" required autofocus
+        class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+    </div>
+    <div>
+      <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Role</label>
+      <select name="role" required
+        class="w-full border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+        <option value="">Select a role…</option>
+        {% for role in invitable_roles %}
+        <option value="{{ role }}">{{ role|title|cut:"_" }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <button type="submit"
+      class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-4 rounded-lg transition-colors">
+      Send Invitation
+    </button>
+  </form>
+</div>
+{% endblock %}
