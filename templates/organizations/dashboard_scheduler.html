@@ -1,0 +1,28 @@
+{% extends "layouts/app.html" %}
+{% block title %}{{ org.name }} — Scheduler Dashboard{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ org.name }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ org.get_org_type_display }} · Scheduler</p>
+  </div>
+
+  <div class="grid grid-cols-2 gap-4 mb-8">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Today's Appointments</p>
+      <p class="text-3xl font-bold text-blue-600">{{ today_appointments }}</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Active Doctors</p>
+      <p class="text-3xl font-bold text-emerald-600">{{ active_doctors }}</p>
+    </div>
+  </div>
+
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+    <h2 class="font-semibold text-gray-900 dark:text-white mb-3">Quick Links</h2>
+    <div class="space-y-2">
+      <a href="{% url 'patient:patient_appointments' %}" class="block text-blue-600 hover:underline text-sm">→ Manage appointments</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,64 @@
+{% extends "layouts/app.html" %}
+{% block title %}{{ org.name }} Dashboard{% endblock %}
+{% block content %}
+<div class="max-w-6xl mx-auto px-4 py-8">
+  <div class="mb-6">
+    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">{{ org.name }}</h1>
+    <p class="text-sm text-gray-500 mt-1">{{ org.get_org_type_display }} · Owner Dashboard</p>
+  </div>
+
+  <!-- Stats grid -->
+  <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Staff Members</p>
+      <p class="text-3xl font-bold text-gray-900 dark:text-white">{{ staff_count }}</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Active Doctors</p>
+      <p class="text-3xl font-bold text-emerald-600">{{ active_doctors }}</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Today's Appointments</p>
+      <p class="text-3xl font-bold text-blue-600">{{ today_appointments }}</p>
+    </div>
+    <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-5">
+      <p class="text-xs text-gray-500 uppercase mb-1">Pending Invites</p>
+      <p class="text-3xl font-bold text-amber-600">{{ pending_invites }}</p>
+    </div>
+  </div>
+
+  <!-- Quick actions -->
+  <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+    <a href="{% url 'organizations:staff_list' org.slug %}"
+      class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white">Manage Staff</h3>
+      </div>
+      <p class="text-sm text-gray-500">View, invite, and manage your team members</p>
+    </a>
+    <a href="{% url 'organizations:send_invite' org.slug %}"
+      class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-emerald-100 dark:bg-emerald-900/30 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white">Invite Staff</h3>
+      </div>
+      <p class="text-sm text-gray-500">Send invitations to doctors and staff</p>
+    </a>
+    <a href="{% url 'organizations:org_settings' org.slug %}"
+      class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 hover:shadow-md transition-shadow">
+      <div class="flex items-center gap-3 mb-2">
+        <div class="w-10 h-10 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+          <svg class="w-5 h-5 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        </div>
+        <h3 class="font-semibold text-gray-900 dark:text-white">Settings</h3>
+      </div>
+      <p class="text-sm text-gray-500">Organization profile and settings</p>
+    </a>
+  </div>
+</div>
+{% endblock %}

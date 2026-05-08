@@ -1,10 +1,22 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.views.decorators.http import require_POST
+from django.http import HttpResponseForbidden
 
-from apps.accounts.permissions import is_platform_staff, can_manage_staff, can_invite_staff
+from apps.accounts.permissions import (
+    is_platform_staff, can_manage_staff, can_invite_staff, get_membership,
+)
 from apps.accounts.org_context import get_selected_organization
+
+
+DASHBOARD_TEMPLATES = {
+    'hospital_owner': 'organizations/dashboard_owner.html',
+    'hospital_admin': 'organizations/dashboard_admin.html',
+    'scheduler': 'organizations/dashboard_scheduler.html',
+    'platform_owner': 'organizations/dashboard_owner.html',
+    'platform_admin': 'organizations/dashboard_owner.html',
+}
 
 
 def org_register(request):
@@ -75,30 +87,44 @@ def accept_invite(request, token):
 @login_required
 def org_dashboard(request, org_slug):
     from apps.accounts.models import Organization
+    from apps.accounts.models import OrganizationInvite, OrganizationMembership
+    from apps.scheduling.models import Appointment, Slot
+    from apps.accounts.models import DoctorProfile
     from django.core.exceptions import PermissionDenied
+    from django.utils import timezone
 
-    try:
-        org = Organization.objects.get(slug=org_slug)
-    except Organization.DoesNotExist:
-        from django.http import Http404
-        raise Http404
+    org = get_object_or_404(Organization, slug=org_slug)
+    if org.status not in ('active', 'pending') and not is_platform_staff(request.user):
+        return HttpResponseForbidden("This organization is not active.")
 
-    if not is_platform_staff(request.user):
-        from apps.accounts.models import OrganizationMembership
-        if not OrganizationMembership.objects.filter(
-            user=request.user, organization=org, is_active=True,
-        ).exists():
+    if is_platform_staff(request.user):
+        membership_role = request.user.role
+    else:
+        membership = get_membership(request.user, org)
+        if not membership or not membership.is_active:
             raise PermissionDenied
+        membership_role = membership.role
 
-    from apps.adminpanel.selectors import get_org_appointments, get_org_staff_members
-    recent_appointments = get_org_appointments(org, user=request.user)[:10]
-    staff = get_org_staff_members(org)
+    template = DASHBOARD_TEMPLATES.get(membership_role, 'organizations/dashboard_deferred.html')
+    today = timezone.now().date()
 
-    return render(request, 'organizations/dashboard.html', {
+    ctx = {
         'org': org,
-        'recent_appointments': recent_appointments,
-        'staff': staff,
-    })
+        'membership_role': membership_role,
+        'active_doctors': DoctorProfile.objects.filter(
+            organization=org, user__is_active=True,
+        ).count(),
+        'today_appointments': Appointment.objects.filter(
+            organization=org, slot__start_datetime__date=today,
+        ).count(),
+        'pending_invites': OrganizationInvite.objects.filter(
+            organization=org, status='pending',
+        ).count(),
+        'staff_count': OrganizationMembership.objects.filter(
+            organization=org, is_active=True,
+        ).count(),
+    }
+    return render(request, template, ctx)
 
 
 @login_required
