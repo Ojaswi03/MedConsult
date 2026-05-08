@@ -79,6 +79,33 @@ MedConsult is a Django 4.2 LTS telehealth platform connecting patients with veri
 | `apps/accounts/templates/accounts/forgot_password.html` | Split layout, animated lock icon, floating security cards |
 | `apps/accounts/templates/accounts/reset_password.html` | Split layout, shield icon, password strength meter, show/hide toggles, real-time match indicator |
 
+### Hospital User Identity (done)
+
+Each hospital has its own internal user roster. Every `OrganizationMembership` gets a unique `hospital_user_id` in `{PREFIX}-{ROLE}-{NNNN}` format (e.g. `CGH-DOC-0007`). Doctors also get an org-scoped `ProviderOrganizationProfile`.
+
+**Models** (`apps/accounts/models.py`):
+- `OrganizationMembership.hospital_user_id` — unique per org (conditional constraint allows blank during backfill)
+- `OrganizationMembership.display_name` — optional org-specific display name
+- `ProviderOrganizationProfile` — org-scoped doctor profile (title, department, specialization, consultation_fee, is_accepting_patients, is_verified_for_org)
+
+**Services** (`apps/organizations/services.py`):
+- `generate_hospital_user_id(org, role)` — generates `{SLUG[:3].upper()}-{ROLE_CODE}-{COUNT:04d}`
+- `create_membership(user, org, role, invited_by, accepted_at)` — centralised creation, auto-generates ID, auto-creates ProviderOrganizationProfile for doctors
+
+**Migrations**: `0021_membership_hospital_user_id.py` (schema), `0022_backfill_hospital_user_id.py` (data backfill)
+
+**Hospital-facing drill-down** (`apps/organizations/`):
+- Staff list (`/org/<slug>/staff/`) shows hospital_user_id column + name links to member detail
+- Member detail (`/org/<slug>/staff/<id>/`) shows identity, provider profile, invited_by
+- Edit provider profile POST (`/org/<slug>/staff/<id>/provider-profile/`) — hospital_owner/hospital_admin only
+
+**Platform-admin drill-down** (`apps/adminpanel/`):
+- Org detail (`/internal/organizations/<id>/`) shows hospital_user_id per member + links to member detail
+- Org member detail (`/internal/organizations/<id>/members/<membership_id>/`) — identity + provider profile + recent appointments
+- Fixed: `adminpanel/organizations/*.html` were extending non-existent `adminpanel/base.html` → corrected to `layouts/admin.html`
+
+**Test patterns**: Use `@override_settings(MIDDLEWARE=_middleware_without_2fa())` on any test class that hits org or admin views — all org staff roles trigger 2FA redirect otherwise.
+
 ### P2 Security (done this session)
 - **Argon2 password hasher**: `argon2-cffi==23.1.0` in requirements; `Argon2PasswordHasher` first in `PASSWORD_HASHERS`; PBKDF2 kept as fallback for existing hashes
 - **Session hardening**: `SESSION_COOKIE_HTTPONLY=True`, `SESSION_COOKIE_SAMESITE='Lax'`; `SESSION_COOKIE_AGE` reduced 86400 → 1800 (30 min); `SESSION_SAVE_EVERY_REQUEST=True`

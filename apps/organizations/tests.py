@@ -1,6 +1,11 @@
-from django.test import TestCase
+from django.test import TestCase, Client, override_settings
 from django.urls import reverse
-from apps.accounts.models import User, Organization, OrganizationMembership
+from apps.accounts.models import User, Organization, OrganizationMembership, ProviderOrganizationProfile
+
+
+def _middleware_without_2fa_top():
+    from django.conf import settings
+    return [m for m in settings.MIDDLEWARE if 'EnforceTwoFactor' not in m]
 
 
 class OrgRegisterTest(TestCase):
@@ -117,6 +122,7 @@ class AcceptInviteTest(TestCase):
         self.assertEqual(response.status_code, 404)
 
 
+@override_settings(MIDDLEWARE=_middleware_without_2fa_top())
 class StaffManagementTest(TestCase):
     def setUp(self):
         self.org = Organization.objects.create(
