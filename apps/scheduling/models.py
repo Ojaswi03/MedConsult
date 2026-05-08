@@ -47,6 +47,10 @@ class AvailabilityWindow(models.Model):
         help_text='Default appointment type for slots generated from this window'
     )
 
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='availability_windows',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -111,7 +115,10 @@ class Slot(models.Model):
     is_urgent = models.BooleanField(default=False, help_text='Manually created urgent slot')
     is_blocked = models.BooleanField(default=False, help_text='Blocked for time off')
     notes = models.CharField(max_length=255, blank=True, help_text='Doctor notes for this slot')
-
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='slots',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -193,6 +200,10 @@ class Appointment(models.Model):
     is_second_opinion = models.BooleanField(default=False, help_text='Whether this appointment is a second opinion request')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='scheduled')
     booking_status = models.CharField(max_length=20, choices=BOOKING_STATUS_CHOICES, default='confirmed')
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='appointments',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -399,6 +410,10 @@ class Review(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
     response_text = models.TextField(blank=True, help_text='Doctor response to this review')
     responded_at = models.DateTimeField(null=True, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='reviews',
+    )
 
     class Meta:
         db_table = 'reviews'
@@ -433,6 +448,10 @@ class WaitlistEntry(models.Model):
     notes = models.TextField(blank=True)
     is_notified = models.BooleanField(default=False)
     notified_at = models.DateTimeField(null=True, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='waitlist_entries',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -489,6 +508,10 @@ class Referral(models.Model):
         'Appointment', on_delete=models.SET_NULL, null=True, blank=True, related_name='referral'
     )
     expires_at = models.DateTimeField()
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='referrals',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -521,6 +544,10 @@ class Prescription(models.Model):
     medications = encrypt(models.TextField(blank=True, null=True, help_text='Medications, dosage, and frequency'))
     instructions = encrypt(models.TextField(blank=True, null=True))
     notes = encrypt(models.TextField(blank=True, null=True))
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='prescriptions',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

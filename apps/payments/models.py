@@ -37,6 +37,10 @@ class Payment(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     paid_at = models.DateTimeField(null=True, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='payments',
+    )
 
     class Meta:
         db_table = 'payments'

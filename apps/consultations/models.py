@@ -25,6 +25,10 @@ class VideoRoom(models.Model):
     started_at = models.DateTimeField(null=True, blank=True)
     ended_at = models.DateTimeField(null=True, blank=True)
     duration_minutes = models.IntegerField(null=True, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='video_rooms',
+    )
 
     class Meta:
         db_table = 'video_rooms'

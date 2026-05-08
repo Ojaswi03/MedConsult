@@ -41,6 +41,10 @@ class AdminActivityLog(models.Model):
     description = models.TextField(blank=True)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
     metadata = models.JSONField(default=dict, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='admin_logs',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -79,6 +83,10 @@ class HealthRecordAccessLog(models.Model):
     )
     access_type = models.CharField(max_length=20, choices=ACCESS_TYPES)
     ip_address = models.GenericIPAddressField(null=True, blank=True)
+    organization = models.ForeignKey(
+        'accounts.Organization', null=True, blank=True,
+        on_delete=models.SET_NULL, related_name='health_record_access_logs',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

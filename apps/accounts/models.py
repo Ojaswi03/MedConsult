@@ -233,6 +233,11 @@ class DoctorProfile(models.Model):
     terms_accepted = models.BooleanField(default=False)
     terms_accepted_at = models.DateTimeField(null=True, blank=True)
 
+    organization = models.ForeignKey(
+        'Organization', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='doctor_profiles',
+        help_text='Primary org for this doctor. Will support multi-org via memberships.',
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
