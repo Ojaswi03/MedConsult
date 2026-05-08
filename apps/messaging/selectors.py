@@ -3,9 +3,10 @@ Messaging selectors for read operations.
 """
 from django.db.models import Q, Count, Max
 from .models import Conversation, Message
+from apps.accounts.query_utils import scope_to_org
 
 
-def get_user_conversations(user):
+def get_user_conversations(user, organization=None):
     """
     Get all conversations for a user.
     Only shows conversations that have at least one real (non-system) message,
@@ -24,6 +25,10 @@ def get_user_conversations(user):
     ).filter(
         has_real_message=True
     )
+
+    # Scope to org if provided
+    if organization is not None:
+        qs = qs.filter(organization=organization)
 
     # Hide conversations the user has deleted
     if user.role == 'patient':

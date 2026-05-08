@@ -8,6 +8,7 @@ from django.db.models.functions import TruncDate
 
 from apps.accounts.models import User, DoctorProfile, PatientProfile
 from apps.scheduling.models import Appointment, Slot, SlotChangeLog, AppointmentTypeConfig
+from apps.accounts.query_utils import scope_to_org
 from .models import AdminActivityLog
 
 
@@ -499,6 +500,43 @@ def get_health_record_access_logs(limit=100, offset=0):
     ).order_by('-created_at')
     total = qs.count()
 
+    return {
+        'logs': qs[offset:offset + limit],
+        'total': total,
+        'has_more': (offset + limit) < total,
+    }
+
+
+# ============ ORG-SCOPED SELECTORS ============
+
+def get_org_appointments(organization, user=None, status=None):
+    """Appointments scoped to an org. Fails closed if org is None and non-platform user."""
+    qs = Appointment.objects.select_related('slot', 'patient', 'doctor__user')
+    if status:
+        qs = qs.filter(status=status)
+    return scope_to_org(qs, organization, user).order_by('-created_at')
+
+
+def get_org_staff_members(organization):
+    """Active org memberships for an org, ordered by role then name."""
+    from apps.accounts.models import OrganizationMembership
+    return OrganizationMembership.objects.filter(
+        organization=organization, is_active=True,
+    ).select_related('user').order_by('role', 'user__first_name')
+
+
+def get_pending_organizations():
+    """Organizations awaiting platform review."""
+    from apps.accounts.models import Organization
+    return Organization.objects.filter(status='pending').order_by('created_at')
+
+
+def get_org_audit_logs(organization, user=None, limit=100, offset=0):
+    """Audit logs scoped to an org."""
+    qs = AdminActivityLog.objects.select_related('admin_user').filter(
+        organization=organization,
+    ).order_by('-created_at')
+    total = qs.count()
     return {
         'logs': qs[offset:offset + limit],
         'total': total,
