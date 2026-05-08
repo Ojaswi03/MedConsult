@@ -8,43 +8,33 @@
     <p class="text-sm text-gray-500">{{ org.name }}</p>
   </div>
 
-  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6 space-y-4">
-    <dl class="divide-y divide-gray-200 dark:divide-gray-700">
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Organization Name</dt>
-        <dd class="text-sm text-gray-900 dark:text-white">{{ org.name }}</dd>
+  <div class="bg-white dark:bg-gray-800 rounded-xl shadow p-6">
+    {% if messages %}
+    {% for msg in messages %}
+    <div class="mb-4 px-4 py-3 rounded-lg bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 text-sm">
+      {{ msg }}
+    </div>
+    {% endfor %}
+    {% endif %}
+
+    <form method="post" enctype="multipart/form-data" class="space-y-4">
+      {% csrf_token %}
+      {% for field in form %}
+      <div>
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{{ field.label }}</label>
+        {{ field }}
+        {% if field.errors %}
+        <p class="text-red-500 text-xs mt-1">{{ field.errors.0 }}</p>
+        {% endif %}
       </div>
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Type</dt>
-        <dd class="text-sm text-gray-900 dark:text-white">{{ org.get_org_type_display }}</dd>
+      {% endfor %}
+      <div class="pt-2">
+        <button type="submit"
+          class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-4 rounded-lg transition-colors">
+          Save Changes
+        </button>
       </div>
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Status</dt>
-        <dd class="text-sm">
-          <span class="inline-flex px-2 py-0.5 rounded-full text-xs font-medium
-            {% if org.status == 'active' %}bg-emerald-100 text-emerald-800{% else %}bg-amber-100 text-amber-800{% endif %}">
-            {{ org.get_status_display }}
-          </span>
-        </dd>
-      </div>
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Slug / URL</dt>
-        <dd class="text-sm text-gray-900 dark:text-white font-mono">{{ org.slug }}</dd>
-      </div>
-      {% if org.phone %}
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Phone</dt>
-        <dd class="text-sm text-gray-900 dark:text-white">{{ org.phone }}</dd>
-      </div>
-      {% endif %}
-      {% if org.website %}
-      <div class="py-3 flex justify-between">
-        <dt class="text-sm font-medium text-gray-500">Website</dt>
-        <dd class="text-sm text-gray-900 dark:text-white">{{ org.website }}</dd>
-      </div>
-      {% endif %}
-    </dl>
-    <p class="text-xs text-gray-400 pt-2">To update organization details, contact platform support.</p>
+    </form>
   </div>
 </div>
 {% endblock %}

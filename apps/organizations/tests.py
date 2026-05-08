@@ -171,3 +171,42 @@ class StaffManagementTest(TestCase):
         self.client.post(f'/org/good-clinic/staff/{membership.id}/deactivate/')
         membership.refresh_from_db()
         self.assertFalse(membership.is_active)
+
+
+class OrgSettingsTest(TestCase):
+    def setUp(self):
+        self.org = Organization.objects.create(
+            name='Settings Clinic', slug='settings-clinic', org_type='clinic', status='active',
+        )
+        self.owner = User.objects.create_user(
+            username='owner_s', email='owner_s@test.com', password='pass1234!', role='org_user',
+        )
+        self.owner.is_email_verified = True
+        self.owner.save()
+        OrganizationMembership.objects.create(
+            user=self.owner, organization=self.org, role='hospital_owner', is_active=True,
+        )
+        self.client.force_login(self.owner)
+
+    def test_settings_page_loads(self):
+        response = self.client.get('/org/settings-clinic/settings/')
+        self.assertEqual(response.status_code, 200)
+
+    def test_can_update_org_name(self):
+        self.client.post('/org/settings-clinic/settings/', {
+            'name': 'Settings Clinic Updated',
+            'org_type': 'clinic',
+            'address': '',
+            'phone': '',
+            'website': '',
+        })
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.name, 'Settings Clinic Updated')
+
+    def test_non_member_cannot_access_settings(self):
+        outsider = User.objects.create_user(
+            username='outsider_s', email='outsider_s@test.com', password='pass1234!', role='org_user',
+        )
+        self.client.force_login(outsider)
+        response = self.client.get('/org/settings-clinic/settings/')
+        self.assertEqual(response.status_code, 403)

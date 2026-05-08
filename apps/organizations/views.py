@@ -128,20 +128,38 @@ def org_dashboard(request, org_slug):
 
 
 @login_required
+@login_required
 def org_settings(request, org_slug):
     from apps.accounts.models import Organization
     from django.core.exceptions import PermissionDenied
-    from django.http import Http404
+    from django.contrib import messages as django_messages
 
-    try:
-        org = Organization.objects.get(slug=org_slug)
-    except Organization.DoesNotExist:
-        raise Http404
+    org = get_object_or_404(Organization, slug=org_slug)
 
-    if not can_manage_staff(request.user, org):
+    if not (is_platform_staff(request.user) or
+            get_membership(request.user, org) and
+            get_membership(request.user, org).role in ('hospital_owner', 'hospital_admin')):
         raise PermissionDenied
 
-    return render(request, 'organizations/settings.html', {'org': org})
+    from .forms import OrgEditForm
+    initial = {
+        'name': org.name, 'org_type': org.org_type,
+        'address': org.address, 'phone': org.phone, 'website': org.website,
+    }
+    form = OrgEditForm(request.POST or None, request.FILES or None, initial=initial)
+    if request.method == 'POST' and form.is_valid():
+        org.name = form.cleaned_data['name']
+        org.org_type = form.cleaned_data['org_type']
+        org.address = form.cleaned_data.get('address', '')
+        org.phone = form.cleaned_data.get('phone', '')
+        org.website = form.cleaned_data.get('website', '')
+        if form.cleaned_data.get('logo'):
+            org.logo = form.cleaned_data['logo']
+        org.save()
+        django_messages.success(request, "Organization profile updated.")
+        return redirect(reverse('organizations:org_settings', kwargs={'org_slug': org.slug}))
+
+    return render(request, 'organizations/settings.html', {'org': org, 'form': form})
 
 
 @login_required
