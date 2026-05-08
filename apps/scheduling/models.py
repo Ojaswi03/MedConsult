@@ -87,6 +87,22 @@ class AvailabilityWindowTypeConfig(models.Model):
         return f"{self.window} - {self.get_appointment_type_display()} (${self.price})"
 
 
+class SlotQuerySet(models.QuerySet):
+    def for_org(self, organization):
+        return self.filter(organization=organization)
+
+    def available(self):
+        return self.filter(
+            is_booked=False, is_blocked=False,
+            start_datetime__gt=timezone.now(),
+        )
+
+
+class SlotManager(models.Manager):
+    def get_queryset(self):
+        return SlotQuerySet(self.model, using=self._db)
+
+
 class Slot(models.Model):
     """
     Generated time slots from availability windows.
@@ -120,6 +136,8 @@ class Slot(models.Model):
         related_name='slots',
     )
     created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = SlotManager()
 
     class Meta:
         db_table = 'slots'
@@ -173,6 +191,22 @@ class Slot(models.Model):
         return self.doctor.consultation_fee if hasattr(self.doctor, 'consultation_fee') else Decimal('0')
 
 
+class AppointmentQuerySet(models.QuerySet):
+    def for_org(self, organization):
+        return self.filter(organization=organization)
+
+    def for_patient(self, patient):
+        return self.filter(patient=patient)
+
+    def for_doctor(self, doctor):
+        return self.filter(doctor=doctor)
+
+
+class AppointmentManager(models.Manager):
+    def get_queryset(self):
+        return AppointmentQuerySet(self.model, using=self._db)
+
+
 class Appointment(models.Model):
     """
     Appointment between patient and doctor.
@@ -206,6 +240,8 @@ class Appointment(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    objects = AppointmentManager()
 
     class Meta:
         db_table = 'appointments'
