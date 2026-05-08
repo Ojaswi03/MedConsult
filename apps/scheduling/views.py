@@ -1269,11 +1269,72 @@ def patient_referrals_list(request):
     })
 
 
-# ============ BILLING DOWNLOAD ============
+# ============ BILLING ============
+
+def _build_billing_context(appointment):
+    """Build itemized billing context dict for a completed appointment."""
+    from decimal import Decimal
+
+    slot_price = appointment.slot.get_price()
+    patient_profile = getattr(appointment.patient, 'patient_profile', None)
+
+    has_insurance = bool(
+        patient_profile
+        and patient_profile.insurance_provider
+        and patient_profile.insurance_policy_number
+    )
+
+    # Platform service fee (10 % of slot price, minimum $0)
+    service_fee = (slot_price * Decimal('0.10')).quantize(Decimal('0.01'))
+    subtotal = slot_price + service_fee
+
+    # Insurance coverage: 80 % of subtotal when patient has insurance
+    insurance_coverage = Decimal('0.00')
+    if has_insurance:
+        insurance_coverage = (subtotal * Decimal('0.80')).quantize(Decimal('0.01'))
+
+    amount_due = max(subtotal - insurance_coverage, Decimal('0.00'))
+
+    payment = getattr(appointment, 'payment', None)
+    amount_paid = payment.amount if payment and payment.is_paid else Decimal('0.00')
+
+    refund_total = Decimal('0.00')
+    if payment:
+        refund_total = sum(
+            r.amount for r in payment.refunds.filter(status='succeeded')
+        )
+
+    return {
+        'appointment': appointment,
+        'patient_profile': patient_profile,
+        'has_insurance': has_insurance,
+        'line_items': [
+            {
+                'label': f'{appointment.slot.get_appointment_type_display()} Consultation',
+                'description': f'Dr. {appointment.doctor.user.get_display_name()} — {appointment.start_datetime.strftime("%B %d, %Y")}',
+                'amount': slot_price,
+            },
+            {
+                'label': 'Platform Service Fee',
+                'description': '10% of consultation fee',
+                'amount': service_fee,
+            },
+        ],
+        'subtotal': subtotal,
+        'insurance_provider': patient_profile.insurance_provider if patient_profile else '',
+        'insurance_policy_number': patient_profile.insurance_policy_number if patient_profile else '',
+        'insurance_coverage': insurance_coverage,
+        'amount_due': amount_due,
+        'amount_paid': amount_paid,
+        'refund_total': refund_total,
+        'balance': max(amount_due - amount_paid, Decimal('0.00')),
+        'payment': payment,
+    }
+
 
 @login_required
-def patient_billing_download(request, appointment_id):
-    """Download billing summary PDF for an appointment."""
+def patient_billing_summary(request, appointment_id):
+    """Billing summary page for a completed appointment."""
     if request.user.role != 'patient':
         return HttpResponseForbidden("Access denied. Patients only.")
 
@@ -1283,7 +1344,24 @@ def patient_billing_download(request, appointment_id):
         messages.error(request, 'Billing summary is only available for completed appointments.')
         return redirect('patient:patient_appointments')
 
-    pdf_buffer = generate_billing_pdf(appointment)
+    ctx = _build_billing_context(appointment)
+    return render(request, 'scheduling/patient/billing_summary.html', ctx)
+
+
+@login_required
+def patient_billing_download(request, appointment_id):
+    """Download billing summary PDF for a completed appointment."""
+    if request.user.role != 'patient':
+        return HttpResponseForbidden("Access denied. Patients only.")
+
+    appointment = get_object_or_404(Appointment, id=appointment_id, patient=request.user)
+
+    if appointment.status != 'completed':
+        messages.error(request, 'Billing summary is only available for completed appointments.')
+        return redirect('patient:patient_appointments')
+
+    ctx = _build_billing_context(appointment)
+    pdf_buffer = generate_billing_pdf(appointment, ctx)
 
     response = HttpResponse(pdf_buffer, content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="billing_{appointment_id}.pdf"'

@@ -18,7 +18,8 @@ urlpatterns = [
     path('appointments/<int:appointment_id>/cancel/', views.patient_cancel_appointment, name='cancel_appointment'),
     path('appointments/<int:appointment_id>/reschedule/', views.patient_reschedule_appointment, name='reschedule_appointment'),
     path('appointments/<int:appointment_id>/prescription/download/', views.patient_download_prescription, name='download_prescription'),
-    path('appointments/<int:appointment_id>/billing/', views.patient_billing_download, name='billing_download'),
+    path('appointments/<int:appointment_id>/billing/', views.patient_billing_summary, name='billing_summary'),
+    path('appointments/<int:appointment_id>/billing/download/', views.patient_billing_download, name='billing_download'),
 
     # Symptom selector (HTMX partials)
     path('symptoms/body-parts/', views.get_body_parts, name='get_body_parts'),

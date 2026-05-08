@@ -14,7 +14,8 @@ A Django 4.2 LTS telehealth platform connecting patients with verified doctors t
 - Profile image uploads (PNG, JPG, JPEG, max 5 MB)
 - Email verification and password reset via secure tokens
 - Light / Dark / System theme preference per user
-- **Two-factor authentication (2FA)** for doctors and admins via TOTP (django-two-factor-auth); manage from Settings - enable, disable, view backup code count, regenerate backup codes
+- **Two-factor authentication (2FA)** for doctors and all org staff via TOTP (django-two-factor-auth); patients may skip; all hospital staff roles require TOTP
+- **Multi-tenant organization system** — hospitals/clinics register as Organizations; staff join via invite; platform owner approves each org before it goes live
 
 ### Scheduling
 - Doctor self-service availability management with a visual weekly calendar
@@ -422,13 +423,15 @@ celery -A config beat -l info
 
 ## Default Credentials
 
-| Role | Email | Password |
-|------|-------|----------|
-| Admin | admin@medconsult.com | admin123 |
-| Doctor | doctor@test.com | testpass123 |
-| Patient | patient@test.com | testpass123 |
+| Role | Email | Password | Org after migration |
+|------|-------|----------|---------------------|
+| Platform Owner (you) | admin@medconsult.com | admin123 | MedConsult Platform |
+| Test Doctor | doctor@test.com | testpass123 | MedConsult Demo Clinic |
+| Test Patient | patient@test.com | testpass123 | — (platform-wide) |
 
-> **Note:** Doctors and admins are redirected to TOTP 2FA setup on first login after the `EnforceTwoFactorMiddleware` triggers. Use an authenticator app (Google Authenticator, Authy, etc.) to scan the QR code at `/account/two_factor/setup/`.
+> **Note:** All org staff and doctors are redirected to TOTP 2FA setup on first login. Patients may skip. Use an authenticator app (Google Authenticator, Authy, etc.) to scan the QR code at `/account/two_factor/setup/`.
+
+> **Multi-tenancy:** After the multi-tenancy migration runs, the `admin` account becomes `platform_owner`. Hospitals register at `/org/register/` and are approved by you at `/internal/organizations/`.
 
 ---
 
@@ -618,11 +621,30 @@ docker-compose exec redis redis-cli
 
 ## Architecture
 
+### Multi-Tenancy
+
+MedConsult is a multi-tenant hospital SaaS. Full design spec: `docs/superpowers/specs/2026-05-07-multi-tenancy-design.md`
+
+**Core models:**
+- `Organization` — each hospital/clinic/platform is an org (`status`: pending → active / needs_info / rejected / suspended)
+- `OrganizationMembership` — links a user to an org with a role; deactivated not deleted
+- `OrganizationInvite` — token-based invite with 7-day expiry; hash stored, raw token emailed
+
+**Scoping rules:**
+- Hospital staff → all queries scoped to `organization`
+- Patients → scoped by `patient=request.user` only, never by org
+- Platform staff → unscoped (explicit flag required)
+- `organization=None` fails closed (returns `queryset.none()`) unless platform scope proven
+
+**Role system:**
+- `User.role` = global account type: `platform_owner`, `platform_admin`, `doctor`, `patient`, `org_user`
+- `OrganizationMembership.role` = org-specific: `hospital_owner`, `hospital_admin`, `doctor`, `scheduler`, `billing_staff`, `compliance_officer`, `clinical_staff`
+
 ### Services / Selectors Pattern
 
 - **`services.py`** - all write operations (create, update, delete), wrapped in `@transaction.atomic`
-- **`selectors.py`** - all read operations (queries, filters)
-- **`views.py`** - thin HTTP handlers; call services/selectors, return responses
+- **`selectors.py`** - all read operations (queries, filters); all org-facing selectors accept explicit `organization` param
+- **`views.py`** - thin HTTP handlers; resolve `OrgContext`, call services/selectors, return responses
 
 ### Real-Time Updates
 

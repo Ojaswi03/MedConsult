@@ -994,88 +994,137 @@ def delete_availability_exception(exception_id, doctor_profile):
 
 # ============ BILLING SERVICES ============
 
-def generate_billing_pdf(appointment):
-    """Generate a billing summary PDF for an appointment. Returns BytesIO buffer."""
+def generate_billing_pdf(appointment, billing_ctx):
+    """Generate an itemized billing summary PDF. Returns BytesIO buffer."""
     from io import BytesIO
     from reportlab.lib.pagesizes import letter
-    from reportlab.lib.styles import getSampleStyleSheet
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
     from reportlab.lib import colors
     from reportlab.lib.units import inch
+    from reportlab.lib.enums import TA_RIGHT
 
     buffer = BytesIO()
-    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=18)
+    doc = SimpleDocTemplate(buffer, pagesize=letter, rightMargin=72, leftMargin=72, topMargin=72, bottomMargin=36)
     styles = getSampleStyleSheet()
+    right_style = ParagraphStyle('Right', parent=styles['Normal'], alignment=TA_RIGHT)
     story = []
 
-    # Header
+    # ── Header ────────────────────────────────────────────────────────────────
     story.append(Paragraph("BILLING SUMMARY", styles['Title']))
     story.append(Paragraph("MedConsult Telehealth Platform", styles['Normal']))
+    story.append(Paragraph(f"Invoice #{appointment.id:06d}", styles['Normal']))
     story.append(Spacer(1, 0.25 * inch))
 
-    # Patient Info
-    patient_profile = getattr(appointment.patient, 'patient_profile', None)
+    # ── Patient Info ──────────────────────────────────────────────────────────
     story.append(Paragraph("<b>Patient Information</b>", styles['Heading2']))
-    data = [
+    patient_profile = billing_ctx.get('patient_profile')
+    patient_data = [
         ["Patient Name:", appointment.patient.get_display_name()],
         ["Email:", appointment.patient.email],
     ]
     if patient_profile:
         if patient_profile.date_of_birth:
-            data.append(["Date of Birth:", str(patient_profile.date_of_birth)])
-        if patient_profile.insurance_provider:
-            data.append(["Insurance Provider:", patient_profile.insurance_provider])
-        if patient_profile.insurance_policy_number:
-            data.append(["Policy Number:", patient_profile.insurance_policy_number])
+            patient_data.append(["Date of Birth:", str(patient_profile.date_of_birth)])
+        if billing_ctx.get('has_insurance'):
+            patient_data.append(["Insurance Provider:", billing_ctx['insurance_provider']])
+            patient_data.append(["Policy Number:", billing_ctx['insurance_policy_number']])
 
-    table = Table(data, colWidths=[2 * inch, 4 * inch])
-    table.setStyle(TableStyle([
+    pt_table = Table(patient_data, colWidths=[2 * inch, 4 * inch])
+    pt_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
-    story.append(table)
+    story.append(pt_table)
     story.append(Spacer(1, 0.2 * inch))
 
-    # Doctor Info
+    # ── Provider Info ─────────────────────────────────────────────────────────
     story.append(Paragraph("<b>Provider Information</b>", styles['Heading2']))
-    doctor_data = [
+    doc_data = [
         ["Provider Name:", f"Dr. {appointment.doctor.user.get_display_name()}"],
         ["Specialization:", appointment.doctor.specialization],
     ]
     if appointment.doctor.npi_number:
-        doctor_data.append(["NPI Number:", appointment.doctor.npi_number])
-    doctor_table = Table(doctor_data, colWidths=[2 * inch, 4 * inch])
-    doctor_table.setStyle(TableStyle([
+        doc_data.append(["NPI Number:", appointment.doctor.npi_number])
+    doc_table = Table(doc_data, colWidths=[2 * inch, 4 * inch])
+    doc_table.setStyle(TableStyle([
         ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 10),
         ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
     ]))
-    story.append(doctor_table)
+    story.append(doc_table)
     story.append(Spacer(1, 0.2 * inch))
 
-    # Appointment / Billing Info
-    story.append(Paragraph("<b>Appointment & Billing Details</b>", styles['Heading2']))
-    price = appointment.slot.get_price()
-    billing_data = [
-        ["Date of Service:", appointment.start_datetime.strftime('%B %d, %Y')],
-        ["Appointment Type:", appointment.slot.get_appointment_type_display()],
-        ["Amount Due:", f"${price}"],
-    ]
+    # ── Itemized Charges ──────────────────────────────────────────────────────
+    story.append(Paragraph("<b>Itemized Charges</b>", styles['Heading2']))
     if appointment.cpt_code:
-        billing_data.insert(2, ["CPT Code:", appointment.cpt_code])
-    billing_table = Table(billing_data, colWidths=[2 * inch, 4 * inch])
-    billing_table.setStyle(TableStyle([
-        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        story.append(Paragraph(f"CPT Code: {appointment.cpt_code}", styles['Normal']))
+    story.append(Spacer(1, 0.1 * inch))
+
+    item_rows = [["Description", "Amount"]]
+    for item in billing_ctx['line_items']:
+        item_rows.append([
+            Paragraph(f"<b>{item['label']}</b><br/><font size=8 color=grey>{item['description']}</font>", styles['Normal']),
+            Paragraph(f"${item['amount']}", right_style),
+        ])
+
+    item_rows.append(["", ""])  # spacer row
+    item_rows.append([
+        Paragraph("<b>Subtotal</b>", styles['Normal']),
+        Paragraph(f"<b>${billing_ctx['subtotal']}</b>", right_style),
+    ])
+
+    if billing_ctx.get('has_insurance') and billing_ctx['insurance_coverage'] > 0:
+        item_rows.append([
+            Paragraph(f"Insurance Coverage ({billing_ctx['insurance_provider']})", styles['Normal']),
+            Paragraph(f"<font color=green>-${billing_ctx['insurance_coverage']}</font>", right_style),
+        ])
+
+    item_rows.append([
+        Paragraph("<b>Amount Due</b>", styles['Normal']),
+        Paragraph(f"<b>${billing_ctx['amount_due']}</b>", right_style),
+    ])
+
+    if billing_ctx['amount_paid'] > 0:
+        item_rows.append([
+            Paragraph("Amount Paid", styles['Normal']),
+            Paragraph(f"<font color=green>-${billing_ctx['amount_paid']}</font>", right_style),
+        ])
+
+    if billing_ctx['refund_total'] > 0:
+        item_rows.append([
+            Paragraph("Refunded", styles['Normal']),
+            Paragraph(f"<font color=blue>-${billing_ctx['refund_total']}</font>", right_style),
+        ])
+
+    item_rows.append([
+        Paragraph("<b>Balance</b>", styles['Normal']),
+        Paragraph(f"<b>${billing_ctx['balance']}</b>", right_style),
+    ])
+
+    charges_table = Table(item_rows, colWidths=[4.5 * inch, 1.5 * inch])
+    charges_table.setStyle(TableStyle([
         ('FONTSIZE', (0, 0), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-        ('BACKGROUND', (0, -1), (-1, -1), colors.lightgrey),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
+        ('TOPPADDING', (0, 0), (-1, -1), 4),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a8a')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f8fafc')]),
+        ('LINEBELOW', (0, -1), (-1, -1), 1.5, colors.HexColor('#1e3a8a')),
+        ('LINEABOVE', (0, -1), (-1, -1), 0.5, colors.lightgrey),
+        ('ALIGN', (1, 0), (1, -1), 'RIGHT'),
     ]))
-    story.append(billing_table)
+    story.append(charges_table)
     story.append(Spacer(1, 0.3 * inch))
 
+    story.append(HRFlowable(width="100%", thickness=0.5, color=colors.lightgrey))
+    story.append(Spacer(1, 0.15 * inch))
     story.append(Paragraph(
-        "This document is for insurance and personal records. Please contact your insurance provider for claim submission.",
+        "This document is for insurance and personal records. "
+        "Please contact your insurance provider for claim submission. "
+        "MedConsult does not process insurance claims directly.",
         styles['Italic']
     ))
 
