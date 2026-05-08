@@ -470,6 +470,8 @@ class OrganizationMembership(models.Model):
         'User', null=True, blank=True, on_delete=models.SET_NULL,
         related_name='deactivated_memberships',
     )
+    hospital_user_id = models.CharField(max_length=50, blank=True, default='')
+    display_name = models.CharField(max_length=150, blank=True, default='')
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -479,7 +481,12 @@ class OrganizationMembership(models.Model):
             models.UniqueConstraint(
                 fields=['user', 'organization'],
                 name='unique_user_organization_membership',
-            )
+            ),
+            models.UniqueConstraint(
+                fields=['organization', 'hospital_user_id'],
+                condition=models.Q(hospital_user_id__gt=''),
+                name='unique_hospital_user_id_per_org',
+            ),
         ]
         indexes = [
             models.Index(fields=['organization', 'role', 'is_active']),
@@ -549,6 +556,51 @@ class OrganizationInvite(models.Model):
     @property
     def is_valid(self):
         return self.status == 'pending' and not self.is_expired
+
+
+class ProviderOrganizationProfile(models.Model):
+    """Org-scoped doctor profile. One per doctor per organization."""
+    doctor = models.ForeignKey(
+        'User', on_delete=models.CASCADE, related_name='provider_org_profiles',
+    )
+    organization = models.ForeignKey(
+        Organization, on_delete=models.CASCADE, related_name='provider_profiles',
+    )
+    membership = models.OneToOneField(
+        OrganizationMembership, on_delete=models.CASCADE,
+        related_name='provider_profile',
+    )
+    provider_id = models.CharField(max_length=50, blank=True, default='')
+    title = models.CharField(max_length=100, blank=True, default='')
+    department = models.CharField(max_length=100, blank=True, default='')
+    specialization = models.CharField(max_length=100, blank=True, default='')
+    consultation_fee = models.DecimalField(max_digits=8, decimal_places=2, default=0)
+    is_accepting_patients = models.BooleanField(default=True)
+    is_verified_for_org = models.BooleanField(default=False)
+    verified_by = models.ForeignKey(
+        'User', null=True, blank=True, on_delete=models.SET_NULL,
+        related_name='org_verified_providers',
+    )
+    verified_at = models.DateTimeField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        db_table = 'provider_organization_profiles'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['doctor', 'organization'],
+                name='unique_provider_per_org',
+            ),
+            models.UniqueConstraint(
+                fields=['organization', 'provider_id'],
+                condition=models.Q(provider_id__gt=''),
+                name='unique_provider_id_per_org',
+            ),
+        ]
+
+    def __str__(self):
+        return f"Dr. {self.doctor.get_display_name()} @ {self.organization.name}"
 
     def __str__(self):
         return f"Invite {self.email} → {self.role} @ {self.organization.name}"
