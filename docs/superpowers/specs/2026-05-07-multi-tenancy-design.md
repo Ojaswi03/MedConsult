@@ -1,7 +1,7 @@
 # MedConsult Multi-Tenancy Design Spec
 
 **Date:** 2026-05-07  
-**Status:** Approved  
+**Status:** Ready for Implementation  
 **Author:** Ojaswi Sinha  
 
 ---
@@ -153,14 +153,14 @@ Raw token is never stored. Hash is stored. Email contains raw token. Acceptance 
 Added as `null=True` initially, then `null=False` after backfill (see migration plan):
 
 **Must be `null=False` after backfill:**
-`Appointment`, `Slot`, `Payment`, `AvailabilityWindow`, `Prescription`, `Referral`, `Conversation`
+`Appointment`, `Slot`, `Payment`, `AvailabilityWindow`, `Prescription`, `Referral`, `Conversation`, `WaitlistEntry`, `VideoRoom`
 
-**Stays `null=True` (nullable forever — reason noted):**
+`WaitlistEntry` and `VideoRoom` are org-facing operational objects — scoping them via relationship chains is fragile. Backfill from `slot.organization` / `appointment.organization` respectively, then make non-null.
+
+**Stays `null=True` (nullable — reason noted):**
 - `DoctorProfile` — null until doctor accepts an org invite
 - `HealthRecordShare` — scoped from appointment relationship
 - `Review` — scoped from appointment
-- `WaitlistEntry` — scoped from doctor/slot
-- `VideoRoom` — scoped from appointment
 - `Notification` — null for platform-wide / patient notifications
 - `HealthRecordAccessLog` — null for patient self-access
 - `AdminActivityLog` — null for platform-level actions
@@ -232,7 +232,7 @@ apps/adminpanel/permissions.py     audit log, org management checks
 
 Domain-split avoids circular imports and monster files.
 
-### `OrgContext` dataclass
+### `OrgContext` dataclass — lives in `apps/accounts/org_context.py`
 
 ```python
 @dataclass
@@ -244,6 +244,8 @@ class OrgContext:
 ```
 
 `None` is not ambiguous. It means something specific depending on `source` and `is_platform_scope`.
+
+`get_selected_organization(request)` lives in `apps/accounts/org_context.py`, **not** in `permissions.py`. Permission checks stay in `permissions.py`; request/org resolution stays in `org_context.py`. This avoids circular imports.
 
 ### `apps/accounts/permissions.py`
 
@@ -305,9 +307,18 @@ def can_manage_org_appointments(user, org)  → platform_staff, hospital_owner/a
 def can_manage_own_appointment(user, appointment) → appointment.doctor.user == user
 
 # Payments (split by sensitivity)
-def can_view_payment_status(user, org)      → all org roles except clinical_staff
+def can_view_org_payment_status(user, org)
+    → hospital_owner, hospital_admin, scheduler, billing_staff
+      (org-wide view — doctors excluded)
+
+def can_view_own_appointment_payment(user, payment)
+    → is_doctor(user) AND payment.appointment.doctor.user == user
+      (doctors see paid/unpaid for their own appointments only)
+
 def can_manage_payments(user, org)          → platform_staff, hospital_owner, billing_staff
 def can_refund_payment(user, payment)       → platform_staff, hospital_owner, billing_staff
+# compliance_officer → payments visible only through audit/compliance view
+# clinical_staff     → no payment access
 
 # PHI — object-level, never org-role alone
 def can_access_patient_phi(user, patient, org)
@@ -317,8 +328,17 @@ def can_access_patient_phi(user, patient, org)
 
 def can_view_health_record(user, record)
     → record.patient == user
-      OR HealthRecordShare(record, shared_with_doctor=user, revoked_at=None) exists
-      OR active/completed appointment between user and record.patient in same org
+      OR (
+           is_doctor(user)
+           AND has_org_role(user, org, ['doctor'])
+           AND HealthRecordShare(record, shared_with_doctor=user, revoked_at=None) exists
+         )
+      OR (
+           is_doctor(user)
+           AND has_org_role(user, org, ['doctor'])
+           AND active/completed Appointment(doctor__user=user, patient=record.patient) exists
+         )
+# Explicitly doctor-only — no other role reaches PHI via relationship chain
 
 # Audit
 def can_view_audit_logs(user, org)          → platform_staff OR hospital_owner/compliance_officer
@@ -352,14 +372,25 @@ billing_staff, compliance_officer, clinical_staff
 
 Patients: optional 2FA (current skip-flag behaviour preserved).
 
-Updated in `EnforceTwoFactorMiddleware`:
+Updated in `EnforceTwoFactorMiddleware` — checks **any** active elevated membership, not the currently-selected org. 2FA enforcement must not depend on dashboard context:
+
 ```python
+ELEVATED_MEMBERSHIP_ROLES = [
+    'hospital_owner', 'hospital_admin', 'scheduler',
+    'billing_staff', 'compliance_officer', 'clinical_staff', 'doctor',
+]
+
 role_requires_2fa = (
-    user.role in ('doctor', 'platform_owner', 'platform_admin')
-    or has_org_role(user, org, ['hospital_owner','hospital_admin','scheduler',
-                                'billing_staff','compliance_officer','clinical_staff'])
+    user.role in ('platform_owner', 'platform_admin', 'doctor')
+    or OrganizationMembership.objects.filter(
+           user=user,
+           is_active=True,
+           role__in=ELEVATED_MEMBERSHIP_ROLES,
+       ).exists()
 )
 ```
+
+This ensures a hospital_owner who hasn't selected an org yet is still blocked until they complete 2FA.
 
 ### `require_org_role` decorator
 
@@ -665,7 +696,8 @@ Badges: pending (amber), accepted (green), expired (gray), revoked (red)
 1. Hash submitted token, look up by hash. Verify `status='pending'` and `expires_at > now`.
 2. If email has no account → inline mini-registration (name + password, email pre-filled)
 3. If email has account → login prompt → redirect back here
-4. On accept → `OrganizationMembership` created, invite `status='accepted'`
+4. **Email lock:** verify `request.user.email == invite.email` (case-insensitive). If mismatch → block with clear message: "This invite was sent to a different email address."
+5. On accept → wrapped in `select_for_update()` transaction: re-verify invite still `pending`, create `OrganizationMembership`, set invite `status='accepted'`. Prevents double-acceptance race.
 
 **Post-acceptance routing by role:**
 
