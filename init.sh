@@ -18,7 +18,7 @@ echo ""
 
 # Start Docker services
 echo "2. Starting PostgreSQL and Redis..."
-docker-compose up -d
+docker compose up -d
 sleep 3
 echo "✓ Database services started"
 echo ""
